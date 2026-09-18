@@ -77,13 +77,14 @@ flowchart LR
 
 ## 4. Esquema de Base de Datos
 
-### Tablas principales:
+### Tablas principales (Todas con timestamps para auditoría de fechas):
 
 ```sql
 -- Usuarios y roles
 CREATE TABLE usuarios (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email VARCHAR(255) UNIQUE NOT NULL,
+  last_login TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -96,7 +97,7 @@ CREATE TABLE usuarios_roles (
   UNIQUE(usuario_id, rol)
 );
 
--- Productos
+-- Productos (con auditoría de cambios por fecha)
 CREATE TABLE productos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   sku VARCHAR(100) UNIQUE NOT NULL,
@@ -108,13 +109,16 @@ CREATE TABLE productos (
   espesor_mm DECIMAL(4,2),
   m2_por_caja DECIMAL(6,2),
   precio_unitario DECIMAL(10,2) NOT NULL,
+  precio_unitario_updated_at TIMESTAMPTZ, -- Cuándo fue el último cambio de precio
   costo DECIMAL(10,2),
+  costo_updated_at TIMESTAMPTZ, -- Cuándo fue el último cambio de costo
   stock_actual DECIMAL(12,2) NOT NULL DEFAULT 0,
   stock_minimo DECIMAL(12,2) DEFAULT 0,
   proveedor VARCHAR(255),
   descripcion TEXT,
   imagen_url VARCHAR(500),
   activo BOOLEAN DEFAULT true,
+  activo_desde TIMESTAMPTZ DEFAULT now(), -- Fecha de activación
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
   created_by UUID REFERENCES usuarios(id)
@@ -123,7 +127,7 @@ CREATE TABLE productos (
 CREATE INDEX idx_productos_sku ON productos(sku);
 CREATE INDEX idx_productos_stock ON productos(stock_actual);
 
--- Clientes
+-- Clientes (con fecha de último acceso/compra)
 CREATE TABLE clientes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nombre VARCHAR(255) NOT NULL,
@@ -133,7 +137,9 @@ CREATE TABLE clientes (
   direccion TEXT,
   termino_pago VARCHAR(50), -- 'contado', 'mixto'
   limite_credito DECIMAL(12,2) DEFAULT 0,
+  ultima_compra_fecha TIMESTAMPTZ, -- Cuándo fue su última compra
   activo BOOLEAN DEFAULT true,
+  activo_desde TIMESTAMPTZ DEFAULT now(), -- Fecha cuando se registró
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
   created_by UUID REFERENCES usuarios(id)
@@ -141,7 +147,8 @@ CREATE TABLE clientes (
 
 CREATE INDEX idx_clientes_cedula ON clientes(cedula_cc);
 
--- Inventario - Movimientos (auditoría)
+-- Inventario - Movimientos (AUDITORÍA DETALLADA POR FECHA)
+-- Esta tabla es crítica para el seguimiento temporal
 CREATE TABLE inventario_movimientos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   producto_id UUID REFERENCES productos(id) ON DELETE RESTRICT,
@@ -154,20 +161,26 @@ CREATE TABLE inventario_movimientos (
   motivo TEXT,
   usuario_id UUID REFERENCES usuarios(id),
   ip_address INET,
-  created_at TIMESTAMPTZ DEFAULT now()
+  fecha_movimiento TIMESTAMPTZ NOT NULL DEFAULT now(), -- Fecha exacta del movimiento
+  created_at TIMESTAMPTZ DEFAULT now(), -- Fecha de registro en BD
+  
+  -- Nota: fecha_movimiento puede ser diferente a created_at si se registra movimiento posterior
 );
 
 CREATE INDEX idx_inventario_producto ON inventario_movimientos(producto_id);
 CREATE INDEX idx_inventario_tipo ON inventario_movimientos(tipo);
 CREATE INDEX idx_inventario_fecha ON inventario_movimientos(created_at);
 
--- Facturas
+-- Facturas (con múltiples timestamps para seguimiento completo)
 CREATE TABLE facturas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   numero_factura VARCHAR(50) UNIQUE NOT NULL, -- YYYYMMDD-SECUENCIAL
   cliente_id UUID REFERENCES clientes(id),
   usuario_id UUID REFERENCES usuarios(id),
-  fecha TIMESTAMPTZ DEFAULT now(),
+  fecha TIMESTAMPTZ DEFAULT now(), -- Fecha de emisión de factura
+  fecha_pago TIMESTAMPTZ, -- Cuándo se pagó (si está pagada)
+  fecha_vencimiento TIMESTAMPTZ, -- Cuándo vence (si está a plazo)
+  fecha_anulacion TIMESTAMPTZ, -- Cuándo se anuló (si está anulada)
   termino_pago VARCHAR(50), -- 'contado', 'mixto'
   metodo_pago VARCHAR(50), -- 'tarjeta', 'efectivo', 'transferencia'
   anticipo DECIMAL(12,2) DEFAULT 0,
@@ -179,8 +192,8 @@ CREATE TABLE facturas (
   total DECIMAL(12,2) NOT NULL,
   estado VARCHAR(50) DEFAULT 'pendiente', -- 'pendiente', 'pagada', 'anulada'
   observaciones TEXT,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now(), -- Cuándo se registró en el sistema
+  updated_at TIMESTAMPTZ DEFAULT now() -- Cuándo se modificó por última vez
 );
 
 CREATE INDEX idx_facturas_numero ON facturas(numero_factura);
@@ -201,7 +214,8 @@ CREATE TABLE facturas_items (
 
 CREATE INDEX idx_facturas_items_factura ON facturas_items(factura_id);
 
--- Auditoría General
+-- Auditoría General (TODO REGISTRO TIENE TIMESTAMP EXACTO)
+-- Esta tabla es crítica para el seguimiento temporal completo
 CREATE TABLE auditoria (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   usuario_id UUID REFERENCES usuarios(id),
@@ -212,7 +226,8 @@ CREATE TABLE auditoria (
   datos_despues JSONB,
   ip_address INET,
   user_agent TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+  fecha_accion TIMESTAMPTZ NOT NULL DEFAULT now(), -- Fecha exacta de la acción
+  created_at TIMESTAMPTZ DEFAULT now() -- Cuándo se registró
 );
 
 CREATE INDEX idx_auditoria_tabla ON auditoria(tabla_afectada);
