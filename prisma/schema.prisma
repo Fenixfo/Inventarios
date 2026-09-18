@@ -1,0 +1,274 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  schemas   = ["beraca", "public"]
+}
+
+// Schema: beraca
+
+model Usuario {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email     String   @unique
+  lastLogin DateTime? @db.Timestamptz
+
+  // Relations
+  roles     UsuarioRol[]
+  productosCreados Producto[]
+  clientesCreados Cliente[]
+  facturasCreadas Factura[]
+  movimientosInventario InventarioMovimiento[]
+  auditoria Auditoria[]
+  configuracionesActualizadas Configuracion[]
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  @@schema("beraca")
+  @@map("usuarios")
+}
+
+model UsuarioRol {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId String   @db.Uuid
+  rol       String   @db.VarChar(50)
+
+  // Relations
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  @@unique([usuarioId, rol])
+  @@schema("beraca")
+  @@map("usuarios_roles")
+}
+
+model Producto {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sku       String   @unique @db.VarChar(100)
+  nombre    String   @db.VarChar(255)
+  categoria String   @db.VarChar(100)
+
+  // Características
+  dimensiones String?   @db.VarChar(50)
+  color       String?   @db.VarChar(100)
+  acabado     String?   @db.VarChar(100)
+  espesorMm   Decimal?  @map("espesor_mm") @db.Decimal(4, 2)
+  m2PorCaja   Decimal?  @map("m2_por_caja") @db.Decimal(6, 2)
+
+  // Precios
+  precioUnitario        Decimal   @map("precio_unitario") @db.Decimal(10, 2)
+  precioUnitarioUpdatedAt DateTime? @map("precio_unitario_updated_at") @db.Timestamptz
+  costo                 Decimal?  @db.Decimal(10, 2)
+  costoUpdatedAt        DateTime? @map("costo_updated_at") @db.Timestamptz
+
+  // Inventario
+  stockActual   Decimal @default(0) @map("stock_actual") @db.Decimal(12, 2)
+  stockMinimo   Decimal @default(0) @map("stock_minimo") @db.Decimal(12, 2)
+
+  // Metadata
+  proveedor     String?   @db.VarChar(255)
+  descripcion   String?   @db.Text
+  imagenUrl     String?   @map("imagen_url") @db.VarChar(500)
+
+  // Estado
+  activo        Boolean   @default(true)
+  activoDesde   DateTime  @default(now()) @map("activo_desde") @db.Timestamptz
+
+  createdBy     String?   @db.Uuid
+  createdByUser Usuario?  @relation(fields: [createdBy], references: [id])
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  // Relations
+  facturasItems FacturaItem[]
+  movimientosInventario InventarioMovimiento[]
+
+  @@index([sku])
+  @@index([stockActual])
+  @@index([activo])
+  @@schema("beraca")
+  @@map("productos")
+}
+
+model Cliente {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre    String   @db.VarChar(255)
+  email     String?  @db.VarChar(255)
+  telefono  String?  @db.VarChar(20)
+  cedulaCc  String?  @unique @map("cedula_cc") @db.VarChar(50)
+  direccion String?  @db.Text
+
+  // Términos de pago
+  terminoPago String?   @map("termino_pago") @db.VarChar(50)
+  limiteCredito Decimal @default(0) @map("limite_credito") @db.Decimal(12, 2)
+  ultimaCompraFecha DateTime? @map("ultima_compra_fecha") @db.Timestamptz
+
+  // Estado
+  activo      Boolean   @default(true)
+  activoDesde DateTime  @default(now()) @map("activo_desde") @db.Timestamptz
+
+  createdBy   String?   @db.Uuid
+  createdByUser Usuario?  @relation(fields: [createdBy], references: [id])
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  // Relations
+  facturas  Factura[]
+
+  @@index([cedulaCc])
+  @@index([email])
+  @@schema("beraca")
+  @@map("clientes")
+}
+
+model Factura {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  numeroFactura   String   @unique @map("numero_factura") @db.VarChar(50)
+
+  clienteId       String?  @db.Uuid
+  cliente         Cliente? @relation(fields: [clienteId], references: [id])
+
+  usuarioId       String   @db.Uuid
+  usuario         Usuario  @relation(fields: [usuarioId], references: [id])
+
+  // Fechas
+  fecha           DateTime @default(now()) @db.Timestamptz
+  fechaPago       DateTime? @map("fecha_pago") @db.Timestamptz
+  fechaVencimiento DateTime? @map("fecha_vencimiento") @db.Timestamptz
+  fechaAnulacion  DateTime? @map("fecha_anulacion") @db.Timestamptz
+
+  // Términos
+  terminoPago String?   @map("termino_pago") @db.VarChar(50)
+  metodoPago  String?   @map("metodo_pago") @db.VarChar(50)
+
+  // Montos
+  anticipo    Decimal @default(0) @db.Decimal(12, 2)
+  contraEntrega Decimal @default(0) @map("contra_entrega") @db.Decimal(12, 2)
+  subtotal    Decimal @db.Decimal(12, 2)
+  descuentoPorcentaje Decimal @default(0) @map("descuento_porcentaje") @db.Decimal(5, 2)
+  descuentoMonto Decimal @default(0) @map("descuento_monto") @db.Decimal(12, 2)
+  impuesto    Decimal @default(0) @db.Decimal(12, 2)
+  total       Decimal @db.Decimal(12, 2)
+
+  // Estado
+  estado      String   @default("pendiente") @db.VarChar(50)
+  observaciones String? @db.Text
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  // Relations
+  items       FacturaItem[]
+
+  @@index([numeroFactura])
+  @@index([clienteId])
+  @@index([estado])
+  @@index([fecha])
+  @@index([usuarioId])
+  @@schema("beraca")
+  @@map("facturas")
+}
+
+model FacturaItem {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  facturaId   String   @db.Uuid
+  factura     Factura  @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+
+  productoId  String   @db.Uuid
+  producto    Producto @relation(fields: [productoId], references: [id], onDelete: Restrict)
+
+  cantidadM2  Decimal  @map("cantidad_m2") @db.Decimal(12, 2)
+  precioUnitario Decimal @map("precio_unitario") @db.Decimal(10, 2)
+  subtotal    Decimal  @db.Decimal(12, 2)
+
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  @@index([facturaId])
+  @@index([productoId])
+  @@schema("beraca")
+  @@map("facturas_items")
+}
+
+model InventarioMovimiento {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  productoId  String   @db.Uuid
+  producto    Producto @relation(fields: [productoId], references: [id], onDelete: Restrict)
+
+  tipo        String   @db.VarChar(50)
+  cantidad    Decimal  @db.Decimal(12, 2)
+  stockAntes  Decimal  @map("stock_antes") @db.Decimal(12, 2)
+  stockDespues Decimal @map("stock_despues") @db.Decimal(12, 2)
+
+  referenciaTipo String? @map("referencia_tipo") @db.VarChar(50)
+  referenciaId   String? @map("referencia_id") @db.Uuid
+  motivo       String?  @db.Text
+
+  usuarioId    String?  @db.Uuid
+  usuario      Usuario? @relation(fields: [usuarioId], references: [id])
+
+  ipAddress   String?  @map("ip_address") @db.Inet
+  fechaMovimiento DateTime @default(now()) @map("fecha_movimiento") @db.Timestamptz
+
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  @@index([productoId])
+  @@index([tipo])
+  @@index([fechaMovimiento])
+  @@index([usuarioId])
+  @@schema("beraca")
+  @@map("inventario_movimientos")
+}
+
+model Auditoria {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  usuarioId   String?  @db.Uuid
+  usuario     Usuario? @relation(fields: [usuarioId], references: [id])
+
+  tablaAfectada String @map("tabla_afectada") @db.VarChar(100)
+  registroId    String @map("registro_id") @db.Uuid
+  accion        String @db.VarChar(50)
+
+  datosAntes    Json?  @map("datos_antes") @db.JsonB
+  datosDespues  Json?  @map("datos_despues") @db.JsonB
+
+  ipAddress     String? @map("ip_address") @db.Inet
+  userAgent     String? @map("user_agent") @db.Text
+
+  fechaAccion   DateTime @default(now()) @map("fecha_accion") @db.Timestamptz
+  createdAt     DateTime @default(now()) @db.Timestamptz
+
+  @@index([tablaAfectada])
+  @@index([usuarioId])
+  @@index([fechaAccion])
+  @@index([accion])
+  @@schema("beraca")
+  @@map("auditoria")
+}
+
+model Configuracion {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clave     String   @unique @db.VarChar(100)
+  valor     String?  @db.VarChar(500)
+  tipo      String?  @db.VarChar(50)
+
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  updatedBy String?  @map("updated_by") @db.Uuid
+  updatedByUser Usuario? @relation(fields: [updatedBy], references: [id])
+
+  @@schema("beraca")
+  @@map("configuracion")
+}
