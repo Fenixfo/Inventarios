@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
@@ -45,7 +47,7 @@ export default function FacturasPage() {
           ? `/api/facturas?email=${encodeURIComponent(email)}`
           : '/api/facturas'
 
-        const res = await fetch(url)
+        const res = await apiFetch(url)
         if (!res.ok) throw new Error('Error fetching facturas')
         const data = await res.json()
         setFacturas(data)
@@ -226,3 +228,4 @@ export default function FacturasPage() {
     </PermissionProtector>
   )
 }
+

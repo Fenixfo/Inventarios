@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useEffect, useState } from 'react'
 import { PermissionProtector } from '@/components/PermissionProtector'
 
@@ -49,7 +51,7 @@ export default function UsuariosPage() {
 
   const cargarUsuarios = async () => {
     try {
-      const res = await fetch('/api/usuarios')
+      const res = await apiFetch('/api/usuarios')
       if (!res.ok) throw new Error('Error al cargar usuarios')
       const data = await res.json()
       setUsuarios(data)
@@ -63,7 +65,7 @@ export default function UsuariosPage() {
 
   const cargarRolesDisponibles = async (usuarioId: string) => {
     try {
-      const res = await fetch(`/api/usuarios/${usuarioId}/roles-disponibles`)
+      const res = await apiFetch(`/api/usuarios/${usuarioId}/roles-disponibles`)
       if (!res.ok) throw new Error('Error al cargar roles disponibles')
       const data = await res.json()
       setRolesDisponibles(prev => ({ ...prev, [usuarioId]: data }))
@@ -75,7 +77,7 @@ export default function UsuariosPage() {
   const asignarRolPersonalizado = async (usuarioId: string, rolId: string) => {
     setProcesando(usuarioId)
     try {
-      const res = await fetch(`/api/usuarios/${usuarioId}/roles`, {
+      const res = await apiFetch(`/api/usuarios/${usuarioId}/roles`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rolId }),
@@ -100,7 +102,7 @@ export default function UsuariosPage() {
   const removerRolPersonalizado = async (usuarioId: string, rolId: string) => {
     setProcesando(usuarioId)
     try {
-      const res = await fetch(`/api/usuarios/${usuarioId}/roles`, {
+      const res = await apiFetch(`/api/usuarios/${usuarioId}/roles`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rolId }),
@@ -311,3 +313,4 @@ export default function UsuariosPage() {
     </PermissionProtector>
   )
 }
+

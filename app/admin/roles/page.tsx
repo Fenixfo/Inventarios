@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useEffect, useState } from 'react'
 import { PermissionProtector } from '@/components/PermissionProtector'
 
@@ -46,8 +48,8 @@ export default function RolesPage() {
   const cargarDatos = async () => {
     try {
       const [rolesRes, modulosRes] = await Promise.all([
-        fetch('/api/roles-personalizados'),
-        fetch('/api/permisos-modulos')
+        apiFetch('/api/roles-personalizados'),
+        apiFetch('/api/permisos-modulos')
       ])
 
       if (!rolesRes.ok || !modulosRes.ok) {
@@ -77,7 +79,7 @@ export default function RolesPage() {
         return
       }
 
-      const res = await fetch('/api/roles-personalizados', {
+      const res = await apiFetch('/api/roles-personalizados', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -111,7 +113,7 @@ export default function RolesPage() {
         return
       }
 
-      const res = await fetch(`/api/roles-personalizados/${rolEditando.id}`, {
+      const res = await apiFetch(`/api/roles-personalizados/${rolEditando.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -140,7 +142,7 @@ export default function RolesPage() {
 
     setProcesando(true)
     try {
-      const res = await fetch(`/api/roles-personalizados/${id}`, {
+      const res = await apiFetch(`/api/roles-personalizados/${id}`, {
         method: 'DELETE',
       })
 
@@ -362,3 +364,4 @@ export default function RolesPage() {
     </PermissionProtector>
   )
 }
+

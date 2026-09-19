@@ -1,4 +1,6 @@
-﻿'use client'
+'use client'
+
+import { apiFetch } from '@/lib/api-client'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -33,7 +35,7 @@ export default function SignupPage() {
     setLoading(true)
 
     try {
-      const res = await fetch('/api/auth/register', {
+      const res = await apiFetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -112,7 +114,7 @@ export default function SignupPage() {
               fontSize: '14px',
             }}
           >
-            ✓ Registro exitoso. Redirigiendo al login...
+            ✅ Registro exitoso. Redirigiendo al login...
           </div>
         )}
 

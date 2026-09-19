@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
 
     facturasRecientes.forEach((factura) => {
       factura.items.forEach((item) => {
-        const productoNombre = item.producto?.nombre || '(Personalizado)'
+        const productoNombre = item.productoNombre || item.producto?.nombre || '(Personalizado)'
         const actual = rotacionPorProducto.get(productoNombre) || {
           nombre: productoNombre,
           cantidad: 0,

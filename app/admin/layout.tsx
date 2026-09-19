@@ -4,6 +4,7 @@ import { AdminProtector } from '@/components/AdminProtector'
 import { Header } from '@/components/Layout/Header'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
+import { apiFetch } from '@/lib/api-client'
 import { useState, useEffect } from 'react'
 
 interface MenuItem {
@@ -45,7 +46,7 @@ export default function AdminLayout({
 
         // Obtener permisos del usuario
         try {
-          const res = await fetch(`/api/debug/usuario-actual?email=${encodeURIComponent(session.user.email || '')}`)
+          const res = await apiFetch(`/api/debug/usuario-actual?email=${encodeURIComponent(session.user.email || '')}`)
           if (res.ok) {
             const usuario = await res.json()
 

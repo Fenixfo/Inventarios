@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { PermissionProtector } from '@/components/PermissionProtector'
@@ -38,7 +40,7 @@ export default function NuevoProductoPage() {
   useEffect(() => {
     const fetchProductos = async () => {
       try {
-        const res = await fetch('/api/productos')
+        const res = await apiFetch('/api/productos')
         const data = await res.json()
         setProductosExistentes(data)
       } catch (err) {
@@ -87,7 +89,7 @@ export default function NuevoProductoPage() {
     }
 
     try {
-      const res = await fetch(`/api/productos?sku=${encodeURIComponent(formData.sku)}`)
+      const res = await apiFetch(`/api/productos?sku=${encodeURIComponent(formData.sku)}`)
       const productos = await res.json()
       if (Array.isArray(productos) && productos.length > 0) {
         setSkuError('Este SKU ya existe')
@@ -109,7 +111,7 @@ export default function NuevoProductoPage() {
     setError(null)
 
     try {
-      const res = await fetch('/api/productos', {
+      const res = await apiFetch('/api/productos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -406,3 +408,4 @@ export default function NuevoProductoPage() {
     </PermissionProtector>
   )
 }
+

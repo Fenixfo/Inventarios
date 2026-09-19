@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { PermissionProtector } from '@/components/PermissionProtector'
@@ -25,7 +27,7 @@ export default function ProductosPage() {
   useEffect(() => {
     const fetchProductos = async () => {
       try {
-        const res = await fetch('/api/productos')
+        const res = await apiFetch('/api/productos')
         if (!res.ok) throw new Error('Error fetching productos')
         const data = await res.json()
         setProductos(data)
@@ -156,3 +158,4 @@ export default function ProductosPage() {
     </PermissionProtector>
   )
 }
+

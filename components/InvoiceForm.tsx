@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
+import { apiFetch } from '@/lib/api-client'
 
 interface Producto {
   id: string
@@ -80,8 +81,8 @@ export default function InvoiceForm() {
         }
 
         const [productosRes, clientesRes] = await Promise.all([
-          fetch('/api/productos'),
-          fetch('/api/clientes'),
+          apiFetch('/api/productos'),
+          apiFetch('/api/clientes'),
         ])
 
         if (!productosRes.ok || !clientesRes.ok) throw new Error('Error fetching data')
@@ -342,7 +343,7 @@ export default function InvoiceForm() {
       let finalClienteId = clienteId
 
       if (!finalClienteId && clienteNombre) {
-        const resCliente = await fetch('/api/clientes', {
+        const resCliente = await apiFetch('/api/clientes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -361,7 +362,7 @@ export default function InvoiceForm() {
         finalClienteId = clienteData.id
       }
 
-      const res = await fetch('/api/facturas', {
+      const res = await apiFetch('/api/facturas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

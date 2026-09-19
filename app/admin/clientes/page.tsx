@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { PermissionProtector } from '@/components/PermissionProtector'
@@ -25,7 +27,7 @@ export default function ClientesPage() {
   useEffect(() => {
     const fetchClientes = async () => {
       try {
-        const res = await fetch('/api/clientes')
+        const res = await apiFetch('/api/clientes')
         if (!res.ok) throw new Error('Error fetching clientes')
         const data = await res.json()
         setClientes(data)
@@ -139,3 +141,4 @@ export default function ClientesPage() {
     </PermissionProtector>
   )
 }
+

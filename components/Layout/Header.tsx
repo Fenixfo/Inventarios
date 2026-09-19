@@ -74,6 +74,14 @@ export function Header({ showNav = true, compact = false, showLogo = true }: Hea
                 </div>
               </>
             )}
+            {!loading && !user && (
+              <Link
+                href="/login"
+                className="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 font-medium transition-colors"
+              >
+                Ingresar
+              </Link>
+            )}
             {loading && (
               <span className="text-white">Cargando...</span>
             )}

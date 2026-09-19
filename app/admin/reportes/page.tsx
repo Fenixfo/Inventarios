@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
@@ -67,7 +69,7 @@ export default function ReportesPage() {
         url = `/api/reportes/facturacion?periodo=personalizado&fechaInicio=${desde.toISOString()}&fechaFin=${hasta.toISOString()}&email=${encodeURIComponent(email || '')}`
       }
 
-      const res = await fetch(url)
+      const res = await apiFetch(url)
       if (!res.ok) throw new Error('Error al cargar reporte')
 
       const data = await res.json()
@@ -286,3 +288,4 @@ export default function ReportesPage() {
     </PermissionProtector>
   )
 }
+

@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -35,7 +37,7 @@ export default function NuevoClientePage() {
     }
 
     try {
-      const res = await fetch('/api/clientes')
+      const res = await apiFetch('/api/clientes')
       const clientes = await res.json()
       const exists = clientes.some((c: any) => c.cedulaCc === formData.cedulaCc)
       if (exists) {
@@ -54,7 +56,7 @@ export default function NuevoClientePage() {
     setError(null)
 
     try {
-      const res = await fetch('/api/clientes', {
+      const res = await apiFetch('/api/clientes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -221,3 +223,4 @@ export default function NuevoClientePage() {
     </PermissionProtector>
   )
 }
+

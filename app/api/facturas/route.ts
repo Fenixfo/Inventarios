@@ -107,6 +107,7 @@ export async function POST(request: NextRequest) {
         items: {
           create: data.items?.map((item: any) => ({
             productoId: item.productoId || null,
+            productoNombre: item.productoNombre || null,
             cantidadM2: parseFloat(item.cantidadM2),
             precioUnitario: parseFloat(item.precioUnitario),
             subtotal: parseFloat(item.subtotal),

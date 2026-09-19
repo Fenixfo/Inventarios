@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase-client'
+import { apiFetch } from '@/lib/api-client'
 
 interface Stats {
   totalProductos: number
@@ -27,7 +28,7 @@ export default function AdminDashboard() {
 
         // Obtener permisos del usuario
         if (session?.user) {
-          const res = await fetch(`/api/debug/usuario-actual?email=${encodeURIComponent(session.user.email || '')}`)
+          const res = await apiFetch(`/api/debug/usuario-actual?email=${encodeURIComponent(session.user.email || '')}`)
           if (res.ok) {
             const usuario = await res.json()
             const permisosUnicos = new Set<string>()
@@ -41,15 +42,15 @@ export default function AdminDashboard() {
         }
 
         // Total de productos
-        const productosRes = await fetch('/api/productos')
+        const productosRes = await apiFetch('/api/productos')
         const productos = productosRes.ok ? await productosRes.json() : []
 
         // Total de clientes
-        const clientesRes = await fetch('/api/clientes')
+        const clientesRes = await apiFetch('/api/clientes')
         const clientes = clientesRes.ok ? await clientesRes.json() : []
 
         // Facturas
-        const facturasRes = await fetch('/api/facturas')
+        const facturasRes = await apiFetch('/api/facturas')
         const facturas = facturasRes.ok ? await facturasRes.json() : []
 
         // Facturas de hoy

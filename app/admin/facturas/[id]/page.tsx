@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
+import { apiFetch } from '@/lib/api-client'
 
 interface FacturaItem {
   id: string
@@ -65,7 +66,7 @@ export default function FacturaPage() {
           ? `/api/facturas/${id}?email=${encodeURIComponent(email)}`
           : `/api/facturas/${id}`
 
-        const res = await fetch(url)
+        const res = await apiFetch(url)
         if (!res.ok) {
           if (res.status === 403) {
             setError('No tienes permiso para ver esta factura')
@@ -79,7 +80,7 @@ export default function FacturaPage() {
         setEstado(data.estado)
 
         // Cargar abonos
-        const abonosRes = await fetch(`/api/abonos/${id}`)
+        const abonosRes = await apiFetch(`/api/abonos/${id}`)
         if (abonosRes.ok) {
           const abonosData = await abonosRes.json()
           const abonosConNumeros = (abonosData || []).map((abono: any) => ({
@@ -119,7 +120,7 @@ export default function FacturaPage() {
     setError(null)
 
     try {
-      const res = await fetch('/api/facturas', {
+      const res = await apiFetch('/api/facturas', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -171,7 +172,14 @@ export default function FacturaPage() {
     setError(null)
 
     try {
-      const res = await fetch('/api/abonos', {
+      const { data: { session } } = await supabase.auth.getSession()
+      const email = session?.user?.email
+
+      const url = email
+        ? `/api/abonos?email=${encodeURIComponent(email)}`
+        : '/api/abonos'
+
+      const res = await apiFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -199,7 +207,7 @@ export default function FacturaPage() {
 
   const handleDescargarPDF = async () => {
     try {
-      const res = await fetch(`/api/facturas/${id}/pdf`)
+      const res = await apiFetch(`/api/facturas/${id}/pdf`)
       if (!res.ok) throw new Error('Error al descargar PDF')
 
       const html = await res.text()
@@ -325,7 +333,7 @@ export default function FacturaPage() {
         <tbody>
           {factura.items.map((item) => (
             <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
-              <td style={{ padding: '10px' }}>{item.producto?.nombre || '(Personalizado)'}</td>
+              <td style={{ padding: '10px' }}>{item.productoNombre || item.producto?.nombre || '(Personalizado)'}</td>
               <td style={{ padding: '10px', textAlign: 'right' }}>{Number(item.cantidadM2).toFixed(2)}</td>
               <td style={{ padding: '10px', textAlign: 'right' }}>${Number(item.precioUnitario).toFixed(2)}</td>
               <td style={{ padding: '10px', textAlign: 'right' }}>${Number(item.subtotal).toFixed(2)}</td>

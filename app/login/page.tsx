@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
+import { apiFetch } from '@/lib/api-client'
 import Link from 'next/link'
 import { Header } from '@/components/Layout/Header'
 
@@ -27,7 +28,7 @@ export default function LoginPage() {
       if (signInError) throw signInError
 
       // Sincronizar usuario y obtener roles de BD
-      const syncRes = await fetch('/api/auth/sync-user', {
+      const syncRes = await apiFetch('/api/auth/sync-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -41,9 +42,11 @@ export default function LoginPage() {
       }
 
       const syncData = await syncRes.json()
-      const hasAdminRole = syncData.usuario.roles.includes('admin')
+      const isOwner = syncData.usuario.rolesPersonalizados.includes('Owner')
+      const hasRoles = syncData.usuario.rolesPersonalizados.length > 0 || syncData.usuario.roles.includes('admin')
+      const hasTiendas = syncData.usuario.tiendas.length > 0
 
-      if (hasAdminRole) {
+      if (isOwner || (hasRoles && hasTiendas)) {
         router.push('/admin')
       } else {
         router.push('/request-access')

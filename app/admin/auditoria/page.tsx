@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useEffect, useState } from 'react'
 import { PermissionProtector } from '@/components/PermissionProtector'
 import Link from 'next/link'
@@ -43,7 +45,7 @@ export default function AuditoriaPage() {
       if (filtroTabla) url += `&tabla=${filtroTabla}`
       if (filtroAccion) url += `&accion=${filtroAccion}`
 
-      const res = await fetch(url)
+      const res = await apiFetch(url)
       if (!res.ok) throw new Error('Error al cargar auditoría')
 
       const data = await res.json()
@@ -352,3 +354,4 @@ export default function AuditoriaPage() {
     </PermissionProtector>
   )
 }
+

@@ -5,6 +5,8 @@ const prisma = new PrismaClient()
 
 export async function POST(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const email = searchParams.get('email')
     const { facturaId, monto } = await request.json()
 
     if (!facturaId || !monto || monto <= 0) {
@@ -12,6 +14,15 @@ export async function POST(request: NextRequest) {
         { error: 'Datos inválidos' },
         { status: 400 }
       )
+    }
+
+    // Obtener usuarioId del email
+    let usuarioId = null
+    if (email) {
+      const usuario = await prisma.usuario.findUnique({
+        where: { email },
+      })
+      usuarioId = usuario?.id || null
     }
 
     const factura = await prisma.factura.findUnique({
@@ -28,8 +39,9 @@ export async function POST(request: NextRequest) {
     const abono = await prisma.abono.create({
       data: {
         facturaId,
-        monto,
+        monto: Number(monto),
         fecha: new Date(),
+        usuarioId,
       },
     })
 
@@ -37,6 +49,7 @@ export async function POST(request: NextRequest) {
     try {
       await prisma.auditoria.create({
         data: {
+          usuarioId,
           tablaAfectada: 'abonos',
           registroId: abono.id,
           accion: 'CREATE',
@@ -44,6 +57,7 @@ export async function POST(request: NextRequest) {
             facturaId,
             monto: Number(abono.monto),
             fecha: abono.fecha.toISOString(),
+            usuarioId,
           },
         },
       })
@@ -56,7 +70,7 @@ export async function POST(request: NextRequest) {
       fecha: abono.fecha.toISOString(),
     }, { status: 201 })
   } catch (error: any) {
-    console.error('Error al crear abono:', error)
+    console.error('Error al crear abono:', error.message, error.stack)
     return NextResponse.json(
       { error: error.message || 'Error al crear abono' },
       { status: 500 }

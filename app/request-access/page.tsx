@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
+import { apiFetch } from '@/lib/api-client'
 import { Header } from '@/components/Layout/Header'
 
 interface Tienda {
@@ -38,7 +39,7 @@ export default function RequestAccessPage() {
 
       // Obtener tiendas
       try {
-        const res = await fetch('/api/tiendas')
+        const res = await apiFetch('/api/tiendas')
         if (res.ok) {
           const data = await res.json()
           setTiendas(data)
@@ -49,7 +50,7 @@ export default function RequestAccessPage() {
 
       // Obtener tiendas a las que ya tiene acceso
       try {
-        const usuarioRes = await fetch(`/api/debug/usuario-actual?email=${encodeURIComponent(session.user.email || '')}`)
+        const usuarioRes = await apiFetch(`/api/debug/usuario-actual?email=${encodeURIComponent(session.user.email || '')}`)
         if (usuarioRes.ok) {
           const usuario = await usuarioRes.json()
           if (usuario.tiendas && usuario.tiendas.length > 0) {
@@ -78,7 +79,7 @@ export default function RequestAccessPage() {
     setMessage(null)
 
     try {
-      const res = await fetch('/api/solicitudes-acceso', {
+      const res = await apiFetch('/api/solicitudes-acceso', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

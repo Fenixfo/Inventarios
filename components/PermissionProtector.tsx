@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
+import { apiFetch } from '@/lib/api-client'
 
 interface PermissionProtectorProps {
   requiredPermission: string
@@ -25,7 +26,7 @@ export function PermissionProtector({ requiredPermission, children }: Permission
         }
 
         // Sincronizar usuario y obtener permisos
-        const res = await fetch('/api/auth/sync-user', {
+        const res = await apiFetch('/api/auth/sync-user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -40,7 +41,7 @@ export function PermissionProtector({ requiredPermission, children }: Permission
         }
 
         // Obtener permisos del usuario
-        const usuarioRes = await fetch('/api/debug/usuario-actual?email=' + encodeURIComponent(session.user.email!))
+        const usuarioRes = await apiFetch('/api/debug/usuario-actual?email=' + encodeURIComponent(session.user.email!))
         if (!usuarioRes.ok) {
           router.replace('/admin')
           return

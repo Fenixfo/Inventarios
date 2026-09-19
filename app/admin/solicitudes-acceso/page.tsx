@@ -1,4 +1,6 @@
-﻿'use client'
+'use client'
+
+import { apiFetch } from '@/lib/api-client'
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase-client'
@@ -34,7 +36,7 @@ export default function SolicitudesAccesoPage() {
 
   const cargarSolicitudes = async () => {
     try {
-      const res = await fetch('/api/solicitudes-acceso?estado=pendiente')
+      const res = await apiFetch('/api/solicitudes-acceso?estado=pendiente')
       if (!res.ok) throw new Error('Error al cargar solicitudes')
       const data = await res.json()
       setSolicitudes(data)
@@ -48,7 +50,7 @@ export default function SolicitudesAccesoPage() {
   const aprobar = async (id: string) => {
     setProcesando(id)
     try {
-      const res = await fetch(`/api/solicitudes-acceso/${id}`, {
+      const res = await apiFetch(`/api/solicitudes-acceso/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estado: 'aprobado', adminId: adminUserId }),
@@ -65,7 +67,7 @@ export default function SolicitudesAccesoPage() {
   const rechazar = async (id: string) => {
     setProcesando(id)
     try {
-      const res = await fetch(`/api/solicitudes-acceso/${id}`, {
+      const res = await apiFetch(`/api/solicitudes-acceso/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estado: 'rechazado', adminId: adminUserId }),
@@ -94,7 +96,7 @@ export default function SolicitudesAccesoPage() {
         <div className="text-center py-12">Cargando solicitudes...</div>
       ) : solicitudes.length === 0 ? (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center text-gray-600">
-          ✓ No hay solicitudes pendientes. ¡Excelente!
+          ✅ No hay solicitudes pendientes. ¡Excelente!
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -126,14 +128,14 @@ export default function SolicitudesAccesoPage() {
                         disabled={procesando === solicitud.id}
                         className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
                       >
-                        ✓ Aprobar
+                        ✅ Aprobar
                       </button>
                       <button
                         onClick={() => rechazar(solicitud.id)}
                         disabled={procesando === solicitud.id}
                         className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
                       >
-                        ✗ Rechazar
+                        ❌ Rechazar
                       </button>
                     </div>
                   </td>

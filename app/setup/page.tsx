@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, FormEvent } from 'react'
 
 interface Message {
@@ -20,7 +22,7 @@ export default function SetupPage() {
     setMessage(null)
 
     try {
-      const res = await fetch('/api/setup/create-admin', {
+      const res = await apiFetch('/api/setup/create-admin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,3 +79,4 @@ export default function SetupPage() {
     </div>
   )
 }
+

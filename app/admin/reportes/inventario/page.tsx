@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
@@ -59,7 +61,7 @@ export default function ReportesInventarioPage() {
           ? `/api/reportes/inventario?email=${encodeURIComponent(email)}`
           : '/api/reportes/inventario'
 
-        const res = await fetch(url)
+        const res = await apiFetch(url)
         if (!res.ok) {
           if (res.status === 403) {
             setError('No tienes permiso para ver reportes')
@@ -322,3 +324,4 @@ export default function ReportesInventarioPage() {
     </PermissionProtector>
   )
 }
+

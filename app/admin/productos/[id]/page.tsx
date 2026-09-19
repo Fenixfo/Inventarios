@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
+import { apiFetch } from '@/lib/api-client'
 
 interface Producto {
   id: string
@@ -46,7 +47,7 @@ export default function EditProductoPage() {
           ? `/api/productos/${id}?email=${encodeURIComponent(email)}`
           : `/api/productos/${id}`
 
-        const res = await fetch(url)
+        const res = await apiFetch(url)
         if (!res.ok) {
           if (res.status === 403) {
             setError('No tienes permiso para ver productos')
@@ -84,7 +85,7 @@ export default function EditProductoPage() {
     }
 
     try {
-      const res = await fetch(`/api/productos?sku=${encodeURIComponent(formData.sku)}`)
+      const res = await apiFetch(`/api/productos?sku=${encodeURIComponent(formData.sku)}`)
       const productos = await res.json()
       if (Array.isArray(productos) && productos.length > 0) {
         setSkuError('Este SKU ya existe')
@@ -108,7 +109,7 @@ export default function EditProductoPage() {
     setError(null)
 
     try {
-      const res = await fetch('/api/productos', {
+      const res = await apiFetch('/api/productos', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -130,7 +131,7 @@ export default function EditProductoPage() {
     setError(null)
 
     try {
-      const res = await fetch(`/api/productos/${id}`, {
+      const res = await apiFetch(`/api/productos/${id}`, {
         method: 'DELETE',
       })
 

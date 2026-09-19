@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
+import { apiFetch } from '@/lib/api-client'
 
 interface Cliente {
   id: string
@@ -39,7 +40,7 @@ export default function EditClientePage() {
           ? `/api/clientes/${id}?email=${encodeURIComponent(email)}`
           : `/api/clientes/${id}`
 
-        const res = await fetch(url)
+        const res = await apiFetch(url)
         if (!res.ok) {
           if (res.status === 403) {
             setError('No tienes permiso para ver clientes')
@@ -77,7 +78,7 @@ export default function EditClientePage() {
     }
 
     try {
-      const res = await fetch('/api/clientes')
+      const res = await apiFetch('/api/clientes')
       const clientes = await res.json()
       const exists = clientes.some((c: Cliente) => c.cedulaCc === formData.cedulaCc && c.id !== id)
       if (exists) {
@@ -98,7 +99,7 @@ export default function EditClientePage() {
     setError(null)
 
     try {
-      const res = await fetch('/api/clientes', {
+      const res = await apiFetch('/api/clientes', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -120,7 +121,7 @@ export default function EditClientePage() {
     setError(null)
 
     try {
-      const res = await fetch(`/api/clientes/${id}`, {
+      const res = await apiFetch(`/api/clientes/${id}`, {
         method: 'DELETE',
       })
 
