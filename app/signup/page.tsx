@@ -1,37 +1,59 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
 import Link from 'next/link'
 
-export default function LoginPage() {
+export default function SignupPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     setError(null)
+    setSuccess(false)
+
+    if (password !== confirmPassword) {
+      setError('Las contraseñas no coinciden')
+      return
+    }
+
+    if (password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres')
+      return
+    }
+
+    setLoading(true)
 
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       })
 
-      if (signInError) throw signInError
+      const data = await res.json()
 
-      if (data.user?.user_metadata?.role === 'admin') {
-        router.push('/admin')
-      } else {
-        setError('No tienes permisos de administrador')
+      if (!res.ok) {
+        throw new Error(data.error)
       }
+
+      setSuccess(true)
+      setEmail('')
+      setPassword('')
+      setConfirmPassword('')
+
+      setTimeout(() => {
+        router.push('/login?registered=true')
+      }, 2000)
     } catch (err: any) {
-      setError(err.message || 'Error al iniciar sesión')
+      setError(err.message || 'Error al registrarse')
     } finally {
       setLoading(false)
     }
@@ -58,7 +80,7 @@ export default function LoginPage() {
         }}
       >
         <h1 style={{ marginTop: 0, marginBottom: '30px', textAlign: 'center', fontSize: '24px' }}>
-          Inventarios Beraca
+          Registrarse
         </h1>
 
         {error && (
@@ -76,7 +98,22 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form onSubmit={handleLogin}>
+        {success && (
+          <div
+            style={{
+              backgroundColor: '#efe',
+              color: '#0a0',
+              padding: '12px',
+              borderRadius: '4px',
+              marginBottom: '20px',
+              fontSize: '14px',
+            }}
+          >
+            ✓ Registro exitoso. Redirigiendo al login...
+          </div>
+        )}
+
+        <form onSubmit={handleSignup}>
           <div style={{ marginBottom: '20px' }}>
             <label
               htmlFor="email"
@@ -108,7 +145,7 @@ export default function LoginPage() {
             />
           </div>
 
-          <div style={{ marginBottom: '30px' }}>
+          <div style={{ marginBottom: '20px' }}>
             <label
               htmlFor="password"
               style={{
@@ -139,6 +176,37 @@ export default function LoginPage() {
             />
           </div>
 
+          <div style={{ marginBottom: '30px' }}>
+            <label
+              htmlFor="confirmPassword"
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                fontSize: '14px',
+              }}
+            >
+              Confirmar Contraseña
+            </label>
+            <input
+              id="confirmPassword"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              disabled={loading}
+              style={{
+                width: '100%',
+                padding: '10px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
           <button
             type="submit"
             disabled={loading}
@@ -154,15 +222,15 @@ export default function LoginPage() {
               cursor: loading ? 'default' : 'pointer',
             }}
           >
-            {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+            {loading ? 'Registrando...' : 'Registrarse'}
           </button>
         </form>
 
         <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '12px', color: '#666' }}>
           <p style={{ margin: '10px 0' }}>
-            ¿No tienes cuenta?{' '}
-            <Link href="/signup" style={{ color: '#2563eb', textDecoration: 'none' }}>
-              Regístrate aquí
+            ¿Ya tienes cuenta?{' '}
+            <Link href="/login" style={{ color: '#2563eb', textDecoration: 'none' }}>
+              Inicia sesión aquí
             </Link>
           </p>
         </div>
