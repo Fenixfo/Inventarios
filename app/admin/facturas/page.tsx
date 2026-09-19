@@ -18,6 +18,7 @@ interface Factura {
   numeroFactura: string
   cliente?: {
     nombre: string
+    cedulaCc?: string
   }
   fecha: string
   total: number
@@ -29,6 +30,8 @@ export default function FacturasPage() {
   const [facturas, setFacturas] = useState<Factura[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [busqueda, setBusqueda] = useState('')
+  const [estadoFiltro, setEstadoFiltro] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchFacturas = async () => {
@@ -68,6 +71,21 @@ export default function FacturasPage() {
     return estado.charAt(0).toUpperCase() + estado.slice(1)
   }
 
+  // Filtrar facturas por búsqueda y estado
+  const facturasFiltradas = facturas.filter((factura) => {
+    // Filtro de búsqueda
+    const termino = busqueda.toLowerCase()
+    const numeroMatch = factura.numeroFactura.toLowerCase().includes(termino)
+    const cedulaMatch = factura.cliente?.cedulaCc?.toLowerCase().includes(termino)
+    const clienteMatch = factura.cliente?.nombre?.toLowerCase().includes(termino)
+    const busquedaValida = !busqueda || numeroMatch || cedulaMatch || clienteMatch
+
+    // Filtro de estado
+    const estadoValido = !estadoFiltro || factura.estado === estadoFiltro
+
+    return busquedaValida && estadoValido
+  })
+
   return (
     <div style={{ padding: '20px' }}>
       <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -83,7 +101,71 @@ export default function FacturasPage() {
         </Link>
       </div>
 
-      {facturas.length === 0 ? (
+      {/* Filtros por estado */}
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+          <button
+            onClick={() => setEstadoFiltro(null)}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: estadoFiltro === null ? '#2563eb' : '#e5e7eb',
+              color: estadoFiltro === null ? 'white' : '#374151',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: estadoFiltro === null ? 'bold' : 'normal',
+              fontSize: '14px'
+            }}
+          >
+            Todos
+          </button>
+          {['pendiente', 'entregado', 'pagado'].map((estado) => (
+            <button
+              key={estado}
+              onClick={() => setEstadoFiltro(estado)}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: estadoFiltro === estado ? getStatusColor(estado) : '#e5e7eb',
+                color: estadoFiltro === estado ? 'white' : '#374151',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: estadoFiltro === estado ? 'bold' : 'normal',
+                fontSize: '14px'
+              }}
+            >
+              {formatearEstado(estado)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Buscador */}
+      <div style={{ marginBottom: '20px' }}>
+        <input
+          type="text"
+          placeholder="Buscar por número de factura o cédula del cliente..."
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          style={{
+            width: '100%',
+            maxWidth: '500px',
+            padding: '10px 12px',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            fontSize: '14px',
+            boxSizing: 'border-box',
+          }}
+        />
+        {(busqueda || estadoFiltro) && (
+          <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#666' }}>
+            Se encontraron {facturasFiltradas.length} resultado(s)
+            {estadoFiltro && ` (${formatearEstado(estadoFiltro)})`}
+          </p>
+        )}
+      </div>
+
+      {facturasFiltradas.length === 0 ? (
         <p style={{ color: '#666' }}>No hay facturas registradas</p>
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -98,7 +180,7 @@ export default function FacturasPage() {
             </tr>
           </thead>
           <tbody>
-            {facturas.map((factura) => (
+            {facturasFiltradas.map((factura) => (
               <tr key={factura.id} style={{ borderBottom: '1px solid #eee' }}>
                 <td style={{ padding: '10px' }}><strong>{factura.numeroFactura}</strong></td>
                 <td style={{ padding: '10px' }}>{factura.cliente?.nombre || 'Cliente General'}</td>

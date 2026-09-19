@@ -44,8 +44,10 @@ export default function ClientesPage() {
     if (value.trim() === '') {
       setFilteredClientes(clientes)
     } else {
+      const termino = value.toLowerCase()
       const filtered = clientes.filter(c =>
-        c.cedulaCc?.toLowerCase().includes(value.toLowerCase())
+        c.cedulaCc?.toLowerCase().includes(termino) ||
+        c.nombre?.toLowerCase().includes(termino)
       )
       setFilteredClientes(filtered)
     }
@@ -72,24 +74,29 @@ export default function ClientesPage() {
       <div style={{ marginBottom: '20px' }}>
         <input
           type="text"
-          placeholder="Buscar por cédula..."
+          placeholder="Buscar por cédula o nombre..."
           value={searchCedula}
           onChange={(e) => handleSearch(e.target.value)}
           style={{
             width: '100%',
-            maxWidth: '300px',
-            padding: '10px',
+            maxWidth: '500px',
+            padding: '10px 12px',
             borderRadius: '4px',
             border: '1px solid #ddd',
             fontSize: '14px'
           }}
         />
+        {searchCedula && (
+          <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#666' }}>
+            Se encontraron {filteredClientes.length} resultado(s)
+          </p>
+        )}
       </div>
 
       {clientes.length === 0 ? (
         <p style={{ color: '#666' }}>No hay clientes registrados</p>
       ) : filteredClientes.length === 0 ? (
-        <p style={{ color: '#666' }}>No se encontraron clientes con esa cédula</p>
+        <p style={{ color: '#666' }}>No se encontraron clientes con ese criterio de búsqueda</p>
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
