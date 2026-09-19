@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
+import { Header } from '@/components/Layout/Header'
 
 interface Tienda {
   id: string
@@ -12,6 +13,7 @@ interface Tienda {
 
 export default function RequestAccessPage() {
   const [tiendas, setTiendas] = useState<Tienda[]>([])
+  const [tiendaAcceso, setTiendaAcceso] = useState<Tienda | null>(null)
   const [selectedTienda, setSelectedTienda] = useState('')
   const [razon, setRazon] = useState('')
   const [loading, setLoading] = useState(true)
@@ -43,6 +45,19 @@ export default function RequestAccessPage() {
         }
       } catch (error) {
         console.error('Error fetching tiendas:', error)
+      }
+
+      // Obtener tiendas a las que ya tiene acceso
+      try {
+        const usuarioRes = await fetch(`/api/debug/usuario-actual?email=${encodeURIComponent(session.user.email || '')}`)
+        if (usuarioRes.ok) {
+          const usuario = await usuarioRes.json()
+          if (usuario.tiendas && usuario.tiendas.length > 0) {
+            setTiendaAcceso(usuario.tiendas[0].tienda)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user tiendas:', error)
       } finally {
         setLoading(false)
       }
@@ -91,20 +106,22 @@ export default function RequestAccessPage() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#f3f4f6',
-        padding: '20px',
-      }}
-    >
+    <>
+      <Header showNav={false} />
       <div
         style={{
-          backgroundColor: 'white',
-          padding: '40px',
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#f3f4f6',
+          padding: '20px',
+        }}
+      >
+        <div
+          style={{
+            backgroundColor: 'white',
+            padding: '40px',
           borderRadius: '8px',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
           width: '100%',
@@ -115,10 +132,36 @@ export default function RequestAccessPage() {
           Solicitar Acceso
         </h1>
 
-        <p style={{ color: '#666', marginBottom: '30px', fontSize: '14px' }}>
-          No tienes acceso a ninguna tienda aún. Selecciona una tienda y explica por qué necesitas acceso.
-          El administrador revisará tu solicitud.
-        </p>
+        {tiendaAcceso ? (
+          <div style={{ backgroundColor: '#efe', border: '1px solid #0a0', padding: '15px', borderRadius: '4px', marginBottom: '20px' }}>
+            <p style={{ color: '#0a0', marginBottom: '10px', fontWeight: '500' }}>
+              ✅ ¡Ya tienes acceso a una tienda!
+            </p>
+            <p style={{ color: '#0a0', marginBottom: '15px', fontSize: '14px' }}>
+              Tienda: <strong>{tiendaAcceso.nombre}</strong>
+            </p>
+            <Link
+              href="/admin"
+              style={{
+                display: 'inline-block',
+                padding: '10px 20px',
+                backgroundColor: '#0a0',
+                color: 'white',
+                textDecoration: 'none',
+                borderRadius: '4px',
+                fontSize: '14px',
+                fontWeight: '500',
+              }}
+            >
+              Ir al Panel de Administración
+            </Link>
+          </div>
+        ) : (
+          <p style={{ color: '#666', marginBottom: '30px', fontSize: '14px' }}>
+            No tienes acceso a ninguna tienda aún. Selecciona una tienda y explica por qué necesitas acceso.
+            El administrador revisará tu solicitud.
+          </p>
+        )}
 
         {message && (
           <div
@@ -213,7 +256,8 @@ export default function RequestAccessPage() {
             ← Volver a login
           </Link>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   )
 }

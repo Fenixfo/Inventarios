@@ -15,20 +15,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verificar si ya existe una solicitud activa
+    // Verificar si ya existe una solicitud
     const solicitudExistente = await prisma.solicitudAcceso.findFirst({
       where: {
         usuarioId,
         tiendaId,
-        estado: 'pendiente',
       },
     })
 
     if (solicitudExistente) {
-      return NextResponse.json(
-        { error: 'Ya existe una solicitud pendiente para esta tienda' },
-        { status: 400 }
-      )
+      if (solicitudExistente.estado === 'pendiente') {
+        return NextResponse.json(
+          { error: 'Ya existe una solicitud pendiente para esta tienda' },
+          { status: 400 }
+        )
+      } else if (solicitudExistente.estado === 'aprobado') {
+        return NextResponse.json(
+          { error: 'Ya tienes acceso a esta tienda' },
+          { status: 400 }
+        )
+      } else {
+        return NextResponse.json(
+          { error: 'Ya existe una solicitud anterior para esta tienda' },
+          { status: 400 }
+        )
+      }
     }
 
     // Crear solicitud

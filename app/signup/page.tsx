@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
 import Link from 'next/link'
+import { Header } from '@/components/Layout/Header'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -60,13 +61,15 @@ export default function SignupPage() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#f3f4f6',
+    <>
+      <Header showNav={false} />
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#f3f4f6',
       }}
     >
       <div
@@ -235,6 +238,7 @@ export default function SignupPage() {
           </p>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }

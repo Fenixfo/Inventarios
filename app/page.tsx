@@ -1,9 +1,16 @@
+'use client'
+
 import { Header } from '@/components/Layout/Header'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase-client'
 
 export default function Home() {
+  const router = useRouter()
+
   return (
     <>
-      <Header />
+      <Header compact={true} showLogo={false} />
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
@@ -26,17 +33,6 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="mt-12 bg-blue-50 p-8 rounded-lg text-center">
-          <p className="text-gray-600 mb-4">
-            ¿Eres distribuidor? Accede a tu panel de administración
-          </p>
-          <a
-            href="/login"
-            className="inline-block px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Panel de Administración
-          </a>
-        </div>
       </main>
     </>
   )
