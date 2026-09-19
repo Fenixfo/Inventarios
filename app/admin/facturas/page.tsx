@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { PermissionProtector } from '@/components/PermissionProtector'
 
 interface FacturaItem {
   id: string
@@ -87,7 +88,8 @@ export default function FacturasPage() {
   })
 
   return (
-    <div style={{ padding: '20px' }}>
+    <PermissionProtector requiredPermission="facturas">
+      <div style={{ padding: '20px' }}>
       <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 style={{ margin: 0 }}>Facturas</h1>
         <Link href="/admin/facturas/nueva" style={{
@@ -212,6 +214,7 @@ export default function FacturasPage() {
           </tbody>
         </table>
       )}
-    </div>
+      </div>
+    </PermissionProtector>
   )
 }

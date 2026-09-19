@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { PermissionProtector } from '@/components/PermissionProtector'
 
 interface Cliente {
   id: string
@@ -57,7 +58,8 @@ export default function ClientesPage() {
   if (error) return <div style={{ padding: '20px', color: 'red' }}>Error: {error}</div>
 
   return (
-    <div style={{ padding: '20px' }}>
+    <PermissionProtector requiredPermission="clientes">
+      <div style={{ padding: '20px' }}>
       <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 style={{ margin: 0 }}>Clientes</h1>
         <Link href="/admin/clientes/nuevo" style={{
@@ -133,6 +135,7 @@ export default function ClientesPage() {
           </tbody>
         </table>
       )}
-    </div>
+      </div>
+    </PermissionProtector>
   )
 }

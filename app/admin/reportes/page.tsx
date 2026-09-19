@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { PermissionProtector } from '@/components/PermissionProtector'
 
 interface ReporteFacturacion {
   periodo: {
@@ -86,7 +87,8 @@ export default function ReportesPage() {
   }
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1200px' }}>
+    <PermissionProtector requiredPermission="reportes">
+      <div style={{ padding: '20px', maxWidth: '1200px' }}>
       <div style={{ marginBottom: '20px' }}>
         <Link href="/admin" style={{ color: '#2563eb', textDecoration: 'none' }}>
           ← Volver al Dashboard
@@ -272,6 +274,7 @@ export default function ReportesPage() {
           </div>
         </>
       ) : null}
-    </div>
+      </div>
+    </PermissionProtector>
   )
 }

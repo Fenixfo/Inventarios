@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase-client'
-import { AdminOnlyProtector } from '@/components/AdminOnlyProtector'
+import { PermissionProtector } from '@/components/PermissionProtector'
 
 interface SolicitudAcceso {
   id: string
@@ -80,7 +80,7 @@ export default function SolicitudesAccesoPage() {
   }
 
   return (
-    <AdminOnlyProtector>
+    <PermissionProtector requiredPermission="administrador">
       <div>
         <h1 className="text-3xl font-bold mb-8">Solicitudes de Acceso</h1>
 
@@ -144,6 +144,6 @@ export default function SolicitudesAccesoPage() {
         </div>
       )}
       </div>
-    </AdminOnlyProtector>
+    </PermissionProtector>
   )
 }

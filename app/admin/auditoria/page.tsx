@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { PermissionProtector } from '@/components/PermissionProtector'
 import Link from 'next/link'
 
 interface RegistroAuditoria {
@@ -77,7 +78,8 @@ export default function AuditoriaPage() {
   }
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1400px' }}>
+    <PermissionProtector requiredPermission="auditoria">
+      <div style={{ padding: '20px', maxWidth: '1400px' }}>
       <div style={{ marginBottom: '20px' }}>
         <Link href="/admin" style={{ color: '#2563eb', textDecoration: 'none' }}>
           ← Volver al Dashboard
@@ -346,6 +348,7 @@ export default function AuditoriaPage() {
           </div>
         </>
       )}
-    </div>
+      </div>
+    </PermissionProtector>
   )
 }

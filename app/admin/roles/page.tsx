@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { AdminOnlyProtector } from '@/components/AdminOnlyProtector'
+import { PermissionProtector } from '@/components/PermissionProtector'
 
 interface PermisoModulo {
   id: string
@@ -22,14 +22,16 @@ interface RolPersonalizado {
   permisos: PermisoRol[]
 }
 
+type Vista = 'listar' | 'crear' | 'editar'
+
 export default function RolesPage() {
   const [roles, setRoles] = useState<RolPersonalizado[]>([])
   const [modulos, setModulos] = useState<PermisoModulo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [expandido, setExpandido] = useState<string | null>(null)
-  const [mostrando, setMostrando] = useState<'listar' | 'crear'>('listar')
+  const [mostrando, setMostrando] = useState<Vista>('listar')
   const [procesando, setProcesando] = useState(false)
+  const [rolEditando, setRolEditando] = useState<RolPersonalizado | null>(null)
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -48,8 +50,9 @@ export default function RolesPage() {
         fetch('/api/permisos-modulos')
       ])
 
-      if (!rolesRes.ok) throw new Error('Error al cargar roles')
-      if (!modulosRes.ok) throw new Error('Error al cargar módulos')
+      if (!rolesRes.ok || !modulosRes.ok) {
+        throw new Error('Error al cargar datos')
+      }
 
       const rolesData = await rolesRes.json()
       const modulosData = await modulosRes.json()
@@ -97,6 +100,74 @@ export default function RolesPage() {
     }
   }
 
+  const actualizarRol = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!rolEditando) return
+    setProcesando(true)
+
+    try {
+      if (!formData.nombre.trim()) {
+        setError('El nombre es requerido')
+        return
+      }
+
+      const res = await fetch(`/api/roles-personalizados/${rolEditando.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Error al actualizar rol')
+      }
+
+      const rolActualizado = await res.json()
+      setRoles(roles.map(r => r.id === rolEditando.id ? rolActualizado : r))
+      setFormData({ nombre: '', descripcion: '', permisoIds: [] })
+      setRolEditando(null)
+      setMostrando('listar')
+      setError(null)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setProcesando(false)
+    }
+  }
+
+  const eliminarRol = async (id: string) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar este rol?')) return
+
+    setProcesando(true)
+    try {
+      const res = await fetch(`/api/roles-personalizados/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Error al eliminar rol')
+      }
+
+      setRoles(roles.filter(r => r.id !== id))
+      setError(null)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setProcesando(false)
+    }
+  }
+
+  const iniciarEdicion = (rol: RolPersonalizado) => {
+    setRolEditando(rol)
+    setFormData({
+      nombre: rol.nombre,
+      descripcion: rol.descripcion || '',
+      permisoIds: rol.permisos.map(p => p.modulo.id)
+    })
+    setMostrando('editar')
+  }
+
   const togglePermiso = (moduloId: string) => {
     setFormData(prev => ({
       ...prev,
@@ -108,28 +179,34 @@ export default function RolesPage() {
 
   if (loading) {
     return (
-      <AdminOnlyProtector>
+      <PermissionProtector requiredPermission="roles">
         <div className="text-center py-12">Cargando roles...</div>
-      </AdminOnlyProtector>
+      </PermissionProtector>
     )
   }
 
   return (
-    <AdminOnlyProtector>
+    <PermissionProtector requiredPermission="roles">
       <div>
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold">Gestión de Roles</h1>
           {mostrando === 'listar' && (
             <button
-              onClick={() => setMostrando('crear')}
+              onClick={() => {
+                setMostrando('crear')
+                setFormData({ nombre: '', descripcion: '', permisoIds: [] })
+              }}
               className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
             >
               + Crear Rol
             </button>
           )}
-          {mostrando === 'crear' && (
+          {mostrando !== 'listar' && (
             <button
-              onClick={() => setMostrando('listar')}
+              onClick={() => {
+                setMostrando('listar')
+                setRolEditando(null)
+              }}
               className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
             >
               ← Volver
@@ -143,60 +220,13 @@ export default function RolesPage() {
           </div>
         )}
 
-        {mostrando === 'crear' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Roles Existentes */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-bold mb-4">Roles Existentes</h2>
-              <div className="space-y-3">
-                {roles.length === 0 ? (
-                  <p className="text-gray-600">No hay roles existentes</p>
-                ) : (
-                  roles.map(rol => (
-                    <div
-                      key={rol.id}
-                      className="border border-gray-200 rounded-lg p-4 bg-gray-50"
-                    >
-                      <div className="font-semibold text-gray-900 flex items-center gap-2 mb-2">
-                        {rol.nombre}
-                        {rol.esAdmin && (
-                          <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
-                            Admin
-                          </span>
-                        )}
-                      </div>
-                      {rol.descripcion && (
-                        <p className="text-sm text-gray-600 mb-3">{rol.descripcion}</p>
-                      )}
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-gray-700">Permisos ({rol.permisos.length}):</p>
-                        <div className="flex flex-wrap gap-2">
-                          {rol.permisos.length > 0 ? (
-                            rol.permisos.map(p => (
-                              <span
-                                key={p.modulo.id}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-gray-300 rounded text-xs"
-                              >
-                                <span>{p.modulo.icono || '📦'}</span>
-                                {p.modulo.nombre}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-xs text-gray-500">Sin permisos</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+        {mostrando === 'crear' || mostrando === 'editar' ? (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-bold mb-6">
+              {mostrando === 'crear' ? 'Crear Nuevo Rol' : 'Editar Rol'}
+            </h2>
 
-            {/* Formulario Crear Rol */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-bold mb-6">Crear Nuevo Rol</h2>
-
-              <form onSubmit={crearRol} className="space-y-6">
+            <form onSubmit={mostrando === 'crear' ? crearRol : actualizarRol} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Nombre del Rol
@@ -227,7 +257,7 @@ export default function RolesPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-4">
-                  Permisos (selecciona los módulos a los que tendrá acceso)
+                  Permisos
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   {modulos.map(modulo => (
@@ -257,13 +287,14 @@ export default function RolesPage() {
                   disabled={procesando}
                   className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 font-medium"
                 >
-                  {procesando ? 'Creando...' : 'Crear Rol'}
+                  {procesando ? 'Procesando...' : mostrando === 'crear' ? 'Crear Rol' : 'Guardar Cambios'}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     setFormData({ nombre: '', descripcion: '', permisoIds: [] })
                     setMostrando('listar')
+                    setRolEditando(null)
                   }}
                   className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50 font-medium"
                   disabled={procesando}
@@ -272,7 +303,6 @@ export default function RolesPage() {
                 </button>
               </div>
             </form>
-            </div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -284,60 +314,51 @@ export default function RolesPage() {
               roles.map(rol => (
                 <div
                   key={rol.id}
-                  className="bg-white rounded-lg shadow border border-gray-200"
+                  className="bg-white rounded-lg shadow border border-gray-200 p-4"
                 >
-                  <div
-                    className="p-4 cursor-pointer hover:bg-gray-50 flex items-center justify-between"
-                    onClick={() => setExpandido(expandido === rol.id ? null : rol.id)}
-                  >
+                  <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="font-semibold text-gray-900 flex items-center gap-2">
+                      <div className="font-semibold text-gray-900 text-lg">
                         {rol.nombre}
-                        {rol.esAdmin && (
-                          <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
-                            Admin
-                          </span>
-                        )}
                       </div>
                       {rol.descripcion && (
-                        <div className="text-sm text-gray-600">{rol.descripcion}</div>
+                        <div className="text-sm text-gray-600 mt-1">{rol.descripcion}</div>
                       )}
-                    </div>
-                    <div className="text-gray-400">
-                      {expandido === rol.id ? '▼' : '▶'}
-                    </div>
-                  </div>
-
-                  {expandido === rol.id && (
-                    <div className="border-t border-gray-200 p-4 bg-gray-50">
-                      <h3 className="font-semibold text-gray-900 mb-3">Permisos Asignados</h3>
-                      <div className="grid grid-cols-2 gap-2">
-                        {rol.permisos.length > 0 ? (
-                          rol.permisos.map(p => (
-                            <div
-                              key={p.modulo.id}
-                              className="bg-white p-2 rounded border border-gray-200 flex items-center gap-2"
-                            >
-                              <span className="text-lg">{p.modulo.icono || '📦'}</span>
-                              <span className="text-sm font-medium text-gray-700">
-                                {p.modulo.nombre}
-                              </span>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-sm text-gray-600 col-span-2">
-                            Sin permisos asignados
-                          </p>
-                        )}
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {rol.permisos.map(p => (
+                          <span
+                            key={p.modulo.id}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs"
+                          >
+                            <span>{p.modulo.icono}</span>
+                            {p.modulo.nombre}
+                          </span>
+                        ))}
                       </div>
                     </div>
-                  )}
+                    <div className="flex gap-2 ml-4">
+                      <button
+                        onClick={() => iniciarEdicion(rol)}
+                        disabled={procesando}
+                        className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+                      >
+                        ✏️ Editar
+                      </button>
+                      <button
+                        onClick={() => eliminarRol(rol.id)}
+                        disabled={procesando}
+                        className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
+                      >
+                        🗑️ Eliminar
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))
             )}
           </div>
         )}
       </div>
-    </AdminOnlyProtector>
+    </PermissionProtector>
   )
 }

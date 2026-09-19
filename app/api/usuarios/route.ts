@@ -5,9 +5,21 @@ const prisma = new PrismaClient()
 
 export async function GET(request: NextRequest) {
   try {
-    const usuarios = await prisma.usuario.findMany({
+    // Obtener todos los usuarios
+    const todosUsuarios = await prisma.usuario.findMany({
       include: {
         roles: true,
+        rolesPersonalizados: {
+          include: {
+            rol: {
+              include: {
+                permisos: {
+                  include: { modulo: true }
+                }
+              }
+            }
+          }
+        },
         tiendas: {
           include: { tienda: true }
         }
@@ -15,6 +27,14 @@ export async function GET(request: NextRequest) {
       orderBy: {
         createdAt: 'desc'
       }
+    })
+
+    // Filtrar para excluir usuarios con rol Owner
+    const usuarios = todosUsuarios.filter(usuario => {
+      const tieneRolOwner = usuario.rolesPersonalizados.some(
+        ur => ur.rol.nombre === 'Owner'
+      )
+      return !tieneRolOwner
     })
 
     return NextResponse.json(usuarios)

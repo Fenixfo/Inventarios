@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { PermissionProtector } from '@/components/PermissionProtector'
 
 interface Producto {
   id: string
@@ -52,7 +53,8 @@ export default function ProductosPage() {
   if (error) return <div style={{ padding: '20px', color: 'red' }}>Error: {error}</div>
 
   return (
-    <div style={{ padding: '20px' }}>
+    <PermissionProtector requiredPermission="productos">
+      <div style={{ padding: '20px' }}>
       <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 style={{ margin: 0 }}>Productos</h1>
         <Link href="/admin/productos/nuevo" style={{
@@ -150,6 +152,7 @@ export default function ProductosPage() {
           </tbody>
         </table>
       )}
-    </div>
+      </div>
+    </PermissionProtector>
   )
 }

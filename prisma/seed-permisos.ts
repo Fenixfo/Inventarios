@@ -14,6 +14,8 @@ async function main() {
       { modulo: 'reportes', nombre: 'Reportes', icono: '📈' },
       { modulo: 'auditoria', nombre: 'Auditorías', icono: '🔍' },
       { modulo: 'administrador', nombre: 'Administrador', icono: '⚙️' },
+      { modulo: 'roles', nombre: 'Gestión de Roles', icono: '🎭' },
+      { modulo: 'usuarios', nombre: 'Gestión de Usuarios', icono: '👨‍💼' },
     ]
 
     for (const mod of modulos) {
@@ -95,7 +97,7 @@ async function main() {
 
     console.log(`✅ Owner tiene acceso a todos los ${todosModulos.length} módulos`)
 
-    // Asignar módulos a Admin (todos excepto algunos sensibles)
+    // Asignar módulos a Admin (todos excepto administrador)
     console.log('\n🔐 Asignando permisos al rol Admin...\n')
 
     const modulosAdmin = todosModulos.filter(m => m.modulo !== 'administrador')
