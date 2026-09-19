@@ -27,7 +27,7 @@ export default function AdminDashboard() {
 
         // Obtener permisos del usuario
         if (session?.user) {
-          const res = await fetch(`/api/debug/usuario-actual?email=${encodeURIComponent(session.user.email)}`)
+          const res = await fetch(`/api/debug/usuario-actual?email=${encodeURIComponent(session.user.email || '')}`)
           if (res.ok) {
             const usuario = await res.json()
             const permisosUnicos = new Set<string>()

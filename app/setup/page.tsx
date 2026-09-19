@@ -1,15 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, FormEvent } from 'react'
+
+interface Message {
+  type: 'success' | 'error'
+  text: string
+}
 
 export default function SetupPage() {
   const [email, setEmail] = useState('admin@beraca.com')
   const [password, setPassword] = useState('')
   const [setupToken, setSetupToken] = useState('')
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState(null)
+  const [message, setMessage] = useState<Message | null>(null)
 
-  const handleCreateAdmin = async (e) => {
+  const handleCreateAdmin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoading(true)
     setMessage(null)
@@ -30,8 +35,8 @@ export default function SetupPage() {
       } else {
         setMessage({ type: 'success', text: 'Usuario admin creado. Ve a /login' })
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: error.message })
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error?.message || 'Error desconocido' })
     } finally {
       setLoading(false)
     }

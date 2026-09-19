@@ -41,11 +41,11 @@ export default function AdminLayout({
         data: { session },
       } = await supabase.auth.getSession()
       if (session?.user) {
-        setUserEmail(session.user.email)
+        setUserEmail(session.user.email || null)
 
         // Obtener permisos del usuario
         try {
-          const res = await fetch(`/api/debug/usuario-actual?email=${encodeURIComponent(session.user.email)}`)
+          const res = await fetch(`/api/debug/usuario-actual?email=${encodeURIComponent(session.user.email || '')}`)
           if (res.ok) {
             const usuario = await res.json()
 

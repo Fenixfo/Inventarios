@@ -28,7 +28,7 @@ async function check() {
   console.log('\n📋 Verificando tabla UsuarioTienda...\n')
 
   const usuarioTiendas = await prisma.usuarioTienda.findMany({
-    where: { usuarioId },
+    where: { usuarioId: userId },
     include: { tienda: true }
   })
 

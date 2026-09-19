@@ -26,6 +26,7 @@ interface Usuario {
     rol: {
       id: string
       nombre: string
+      descripcion?: string
       permisos: Array<{ modulo: PermisoModulo }>
     }
   }>

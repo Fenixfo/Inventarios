@@ -48,7 +48,10 @@ async function main() {
       await prisma.permiso.upsert({
         where: { recurso_accion: { recurso: permiso.recurso, accion: permiso.accion } },
         update: { descripcion: permiso.descripcion },
-        create: permiso,
+        create: {
+          nombre: `${permiso.recurso}:${permiso.accion}`,
+          ...permiso
+        },
       })
     }
 

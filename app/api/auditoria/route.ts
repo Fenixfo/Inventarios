@@ -89,7 +89,6 @@ export async function POST(request: NextRequest) {
     const ipAddress =
       request.headers.get('x-forwarded-for')?.split(',')[0] ||
       request.headers.get('x-real-ip') ||
-      request.ip ||
       null
 
     // Obtener User-Agent
