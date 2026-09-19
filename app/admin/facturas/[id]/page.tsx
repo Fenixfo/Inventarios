@@ -108,7 +108,6 @@ export default function FacturaPage() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: factura.id,
           ...factura,
           estado: newStatus,
         }),
