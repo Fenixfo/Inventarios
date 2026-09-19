@@ -95,6 +95,41 @@ export default function ReportesPage() {
 
       <h1 style={{ marginBottom: '30px' }}>Reportes</h1>
 
+      {/* Selector de tipo de reporte */}
+      <div style={{ marginBottom: '30px' }}>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#2563eb',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '14px'
+            }}
+            disabled
+          >
+            📊 Facturación
+          </button>
+          <Link href="/admin/reportes/inventario" style={{
+            padding: '10px 20px',
+            backgroundColor: '#e5e7eb',
+            color: '#374151',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontWeight: 'normal',
+            fontSize: '14px',
+            textDecoration: 'none',
+            display: 'inline-block'
+          }}>
+            📦 Inventario
+          </Link>
+        </div>
+      </div>
+
       {/* Selector de período */}
       <div style={{ marginBottom: '20px' }}>
         <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
