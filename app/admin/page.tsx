@@ -127,6 +127,18 @@ export default function AdminDashboard() {
               📊 Reportes
             </a>
             <a
+              href="/admin/usuarios"
+              className="block px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+            >
+              👥 Gestión de Usuarios
+            </a>
+            <a
+              href="/admin/solicitudes-acceso"
+              className="block px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700"
+            >
+              ✋ Solicitudes de Acceso
+            </a>
+            <a
               href="/admin/auditoria"
               className="block px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700"
             >

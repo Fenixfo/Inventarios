@@ -21,6 +21,9 @@ model Usuario {
 
   // Relations
   roles     UsuarioRol[]
+  rolesDetallados UsuarioRolDetallado[] @relation("UsuarioRolDetallado")
+  tiendas   UsuarioTienda[]
+  solicitudesAcceso SolicitudAcceso[]
   productosCreados Producto[]
   clientesCreados Cliente[]
   facturasCreadas Factura[]
@@ -46,6 +49,137 @@ model UsuarioRol {
 
   @@unique([usuarioId, rol])
   @@map("usuarios_roles")
+}
+
+model Tienda {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre      String   @unique @db.VarChar(255)
+  descripcion String?  @db.Text
+  ciudad      String?  @db.VarChar(100)
+  pais        String?  @default("Colombia") @db.VarChar(100)
+  activo      Boolean  @default(true)
+
+  // Relations
+  usuarios    UsuarioTienda[]
+  solicitudesAcceso SolicitudAcceso[]
+  productos   Producto[]
+  clientes    Cliente[]
+  facturas    Factura[]
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("tiendas")
+}
+
+model UsuarioTienda {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId String   @map("usuario_id") @db.Uuid
+  tiendaId  String   @map("tienda_id") @db.Uuid
+
+  // Relations
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  tienda    Tienda   @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([usuarioId, tiendaId])
+  @@map("usuarios_tiendas")
+}
+
+model SolicitudAcceso {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  usuarioId String   @map("usuario_id") @db.Uuid
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  tiendaId  String   @map("tienda_id") @db.Uuid
+  tienda    Tienda   @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+
+  email     String   @db.VarChar(255)
+  razon     String?  @db.Text
+
+  // Estado: pendiente, aprobado, rechazado
+  estado    String   @default("pendiente") @db.VarChar(50)
+
+  // Quien aprobó/rechazó
+  respondidoPor String? @map("respondido_por") @db.Uuid
+  respondidoEn DateTime? @map("respondido_en") @db.Timestamptz
+  comentarioAdmin String? @map("comentario_admin") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@unique([usuarioId, tiendaId])
+  @@index([estado])
+  @@index([tiendaId])
+  @@map("solicitudes_acceso")
+}
+
+// FUTURE: Sistema de Roles y Permisos (pendiente de implementación)
+// Estos modelos están listos para cuando se quiera implementar un sistema granular de permisos
+
+model Rol {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre      String   @unique @db.VarChar(100)
+  descripcion String?  @db.Text
+  activo      Boolean  @default(true)
+
+  // Relaciones
+  permisos    RolPermiso[]
+  usuariosRol UsuarioRolDetallado[]
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("roles")
+}
+
+model Permiso {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre      String   @unique @db.VarChar(100)
+  descripcion String?  @db.Text
+  recurso     String   @db.VarChar(50)  // facturas, clientes, productos, usuarios, etc.
+  accion      String   @db.VarChar(50)  // ver, crear, editar, eliminar, etc.
+
+  // Relaciones
+  roles       RolPermiso[]
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([recurso, accion])
+  @@map("permisos")
+}
+
+model RolPermiso {
+  rolId      String @map("rol_id") @db.Uuid
+  permisoId  String @map("permiso_id") @db.Uuid
+
+  // Relaciones
+  rol        Rol    @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  permiso    Permiso @relation(fields: [permisoId], references: [id], onDelete: Cascade)
+
+  @@id([rolId, permisoId])
+  @@map("roles_permisos")
+}
+
+model UsuarioRolDetallado {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId String   @map("usuario_id") @db.Uuid
+  rolId     String   @map("rol_id") @db.Uuid
+
+  // Relaciones
+  usuario   Usuario  @relation("UsuarioRolDetallado", fields: [usuarioId], references: [id], onDelete: Cascade)
+  rol       Rol      @relation(fields: [rolId], references: [id], onDelete: Cascade)
+
+  asignadoPor String? @map("asignado_por") @db.Uuid
+  razon       String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@unique([usuarioId, rolId])
+  @@map("usuarios_roles_detallado")
 }
 
 model Producto {
@@ -80,6 +214,9 @@ model Producto {
   activo        Boolean   @default(true)
   activoDesde   DateTime  @default(now()) @map("activo_desde") @db.Timestamptz
 
+  tiendaId  String?   @map("tienda_id") @db.Uuid
+  tienda    Tienda?   @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+
   createdBy     String?   @map("created_by") @db.Uuid
   createdByUser Usuario?  @relation(fields: [createdBy], references: [id])
 
@@ -113,6 +250,9 @@ model Cliente {
   activo      Boolean   @default(true)
   activoDesde DateTime  @default(now()) @map("activo_desde") @db.Timestamptz
 
+  tiendaId  String?   @map("tienda_id") @db.Uuid
+  tienda    Tienda?   @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+
   createdBy   String?   @map("created_by") @db.Uuid
   createdByUser Usuario?  @relation(fields: [createdBy], references: [id])
 
@@ -133,6 +273,9 @@ model Factura {
 
   clienteId       String?  @map("cliente_id") @db.Uuid
   cliente         Cliente? @relation(fields: [clienteId], references: [id])
+
+  tiendaId        String?  @map("tienda_id") @db.Uuid
+  tienda          Tienda?  @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
 
   usuarioId       String?  @map("usuario_id") @db.Uuid
   usuario         Usuario? @relation(fields: [usuarioId], references: [id])

@@ -25,10 +25,27 @@ export default function LoginPage() {
 
       if (signInError) throw signInError
 
-      if (data.user?.user_metadata?.role === 'admin') {
+      // Sincronizar usuario y obtener roles de BD
+      const syncRes = await fetch('/api/auth/sync-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: data.user!.id,
+          email: data.user!.email,
+        }),
+      })
+
+      if (!syncRes.ok) {
+        throw new Error('Error al sincronizar usuario')
+      }
+
+      const syncData = await syncRes.json()
+      const hasAdminRole = syncData.usuario.roles.includes('admin')
+
+      if (hasAdminRole) {
         router.push('/admin')
       } else {
-        setError('No tienes permisos de administrador')
+        router.push('/request-access')
       }
     } catch (err: any) {
       setError(err.message || 'Error al iniciar sesión')
