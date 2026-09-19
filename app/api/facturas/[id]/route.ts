@@ -45,10 +45,34 @@ export async function DELETE(
   try {
     const { id } = await context.params
 
-    await prisma.factura.update({
+    // Obtener factura antes de actualizar
+    const facturaBefore = await prisma.factura.findUnique({
+      where: { id },
+    })
+
+    const facturaAfter = await prisma.factura.update({
       where: { id },
       data: { estado: 'anulado' },
     })
+
+    // Registrar en auditoría
+    try {
+      await prisma.auditoria.create({
+        data: {
+          tablaAfectada: 'facturas',
+          registroId: id,
+          accion: 'UPDATE',
+          datosAntes: {
+            estado: facturaBefore?.estado,
+          },
+          datosDespues: {
+            estado: facturaAfter.estado,
+          },
+        },
+      })
+    } catch (auditError) {
+      console.error('Error registrando auditoría:', auditError)
+    }
 
     return NextResponse.json({ success: true })
   } catch (error: any) {

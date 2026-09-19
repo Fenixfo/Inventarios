@@ -33,6 +33,24 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Registrar en auditoría
+    try {
+      await prisma.auditoria.create({
+        data: {
+          tablaAfectada: 'abonos',
+          registroId: abono.id,
+          accion: 'CREATE',
+          datosDespues: {
+            facturaId,
+            monto: Number(abono.monto),
+            fecha: abono.fecha.toISOString(),
+          },
+        },
+      })
+    } catch (auditError) {
+      console.error('Error registrando auditoría:', auditError)
+    }
+
     return NextResponse.json({
       monto: Number(abono.monto),
       fecha: abono.fecha.toISOString(),

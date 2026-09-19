@@ -92,7 +92,7 @@ export default function AdminDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-xl font-bold mb-4">Acciones Rápidas</h2>
           <div className="space-y-2">
@@ -113,6 +113,24 @@ export default function AdminDashboard() {
               className="block px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
             >
               Nueva Factura
+            </a>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-xl font-bold mb-4">Módulos</h2>
+          <div className="space-y-2">
+            <a
+              href="/admin/reportes"
+              className="block px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+            >
+              📊 Reportes
+            </a>
+            <a
+              href="/admin/auditoria"
+              className="block px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700"
+            >
+              🔍 Auditoría
             </a>
           </div>
         </div>

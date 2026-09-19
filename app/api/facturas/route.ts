@@ -92,6 +92,26 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Registrar en auditoría
+    try {
+      await prisma.auditoria.create({
+        data: {
+          usuarioId: data.usuarioId || null,
+          tablaAfectada: 'facturas',
+          registroId: factura.id,
+          accion: 'CREATE',
+          datosDespues: {
+            numeroFactura: factura.numeroFactura,
+            total: Number(factura.total),
+            estado: factura.estado,
+            clienteId: factura.clienteId,
+          },
+        },
+      })
+    } catch (auditError) {
+      console.error('Error registrando auditoría:', auditError)
+    }
+
     return NextResponse.json(factura, { status: 201 })
   } catch (error: any) {
     console.error('POST error:', error)
@@ -113,6 +133,11 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Obtener factura anterior
+    const facturaBefore = await prisma.factura.findUnique({
+      where: { id },
+    })
 
     const updateData: any = {
       terminoPago: data.terminoPago || null,
@@ -145,6 +170,30 @@ export async function PUT(request: NextRequest) {
         },
       },
     })
+
+    // Registrar en auditoría
+    try {
+      await prisma.auditoria.create({
+        data: {
+          usuarioId: data.usuarioId || null,
+          tablaAfectada: 'facturas',
+          registroId: id,
+          accion: 'UPDATE',
+          datosAntes: {
+            estado: facturaBefore?.estado,
+            total: facturaBefore?.total ? Number(facturaBefore.total) : 0,
+            anticipo: facturaBefore?.anticipo ? Number(facturaBefore.anticipo) : 0,
+          },
+          datosDespues: {
+            estado: factura.estado,
+            total: Number(factura.total),
+            anticipo: Number(factura.anticipo),
+          },
+        },
+      })
+    } catch (auditError) {
+      console.error('Error registrando auditoría:', auditError)
+    }
 
     return NextResponse.json(factura)
   } catch (error: any) {
