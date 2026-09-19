@@ -7,6 +7,11 @@ const prisma = new PrismaClient()
 export async function GET() {
   try {
     const modulos = await prisma.permisoModulo.findMany({
+      where: {
+        modulo: {
+          notIn: ['dashboard']
+        }
+      },
       orderBy: { modulo: 'asc' }
     })
 

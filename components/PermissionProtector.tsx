@@ -39,19 +39,7 @@ export function PermissionProtector({ requiredPermission, children }: Permission
           return
         }
 
-        const data = await res.json()
-        const usuarioData = data.usuario
-
-        // Verificar si el usuario es Owner (por el rol "admin" legacy)
-        const esOwner = usuarioData.roles?.includes('admin')
-
-        if (esOwner) {
-          setHasPermission(true)
-          setLoading(false)
-          return
-        }
-
-        // Para usuarios no-owner, obtener permisos personalizados
+        // Obtener permisos del usuario
         const usuarioRes = await fetch('/api/debug/usuario-actual?email=' + encodeURIComponent(session.user.email!))
         if (!usuarioRes.ok) {
           router.replace('/admin')
@@ -60,14 +48,25 @@ export function PermissionProtector({ requiredPermission, children }: Permission
 
         const usuario = await usuarioRes.json()
 
-        // Verificar si tiene el permiso requerido
+        console.log('=== PermissionProtector Debug ===')
+        console.log('Usuario:', usuario.email)
+        console.log('Permiso requerido:', requiredPermission)
+        console.log('Roles personalizados:', usuario.rolesPersonalizados)
+        console.log('Permisos del usuario:', usuario.rolesPersonalizados?.flatMap((ur: any) =>
+          ur.rol.permisos.map((p: any) => p.modulo.modulo)
+        ))
+
+        // Verificar si tiene el permiso requerido (whitelist estricto)
         const tienePermiso = usuario.rolesPersonalizados?.some((ur: any) =>
           ur.rol.permisos.some((p: any) => p.modulo.modulo === requiredPermission)
         )
 
+        console.log('¿Tiene permiso?', tienePermiso)
+
         if (tienePermiso) {
           setHasPermission(true)
         } else {
+          console.log('Acceso denegado. Redirigiendo a /admin')
           router.replace('/admin')
         }
       } catch (error) {

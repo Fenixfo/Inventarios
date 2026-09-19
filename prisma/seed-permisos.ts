@@ -7,7 +7,6 @@ async function main() {
     console.log('\n📋 Creando módulos de permisos...\n')
 
     const modulos = [
-      { modulo: 'dashboard', nombre: 'Dashboard', icono: '📊' },
       { modulo: 'productos', nombre: 'Productos', icono: '📦' },
       { modulo: 'clientes', nombre: 'Clientes', icono: '👥' },
       { modulo: 'facturas', nombre: 'Facturas', icono: '📄' },
@@ -16,6 +15,7 @@ async function main() {
       { modulo: 'administrador', nombre: 'Administrador', icono: '⚙️' },
       { modulo: 'roles', nombre: 'Gestión de Roles', icono: '🎭' },
       { modulo: 'usuarios', nombre: 'Gestión de Usuarios', icono: '👨‍💼' },
+      { modulo: 'solicitudes-acceso', nombre: 'Solicitudes de Acceso', icono: '✋' },
     ]
 
     for (const mod of modulos) {

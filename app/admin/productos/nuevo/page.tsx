@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { PermissionProtector } from '@/components/PermissionProtector'
 
 interface Producto {
   id: string
@@ -128,7 +129,8 @@ export default function NuevoProductoPage() {
   }
 
   return (
-    <div style={{ padding: '20px', maxWidth: '800px' }}>
+    <PermissionProtector requiredPermission="productos">
+      <div style={{ padding: '20px', maxWidth: '800px' }}>
       <h1 style={{ marginBottom: '20px' }}>Nuevo Producto</h1>
 
       {error && (
@@ -400,6 +402,7 @@ export default function NuevoProductoPage() {
           </button>
         </div>
       </form>
-    </div>
+      </div>
+    </PermissionProtector>
   )
 }

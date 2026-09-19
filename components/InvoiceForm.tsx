@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase-client'
 
 interface Producto {
   id: string
@@ -38,6 +39,7 @@ export default function InvoiceForm() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [usuarioId, setUsuarioId] = useState<string | null>(null)
 
   // Cliente
   const [clienteId, setClienteId] = useState('')
@@ -71,6 +73,12 @@ export default function InvoiceForm() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Obtener usuario actual
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user?.id) {
+          setUsuarioId(session.user.id)
+        }
+
         const [productosRes, clientesRes] = await Promise.all([
           fetch('/api/productos'),
           fetch('/api/clientes'),
@@ -357,6 +365,7 @@ export default function InvoiceForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          usuarioId,
           clienteId: finalClienteId || null,
           terminoPago,
           metodoPago,

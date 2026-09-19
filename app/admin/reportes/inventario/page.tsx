@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase-client'
+import { PermissionProtector } from '@/components/PermissionProtector'
 
 interface ReporteInventario {
   metricas: {
@@ -50,8 +52,22 @@ export default function ReportesInventarioPage() {
       setError(null)
 
       try {
-        const res = await fetch('/api/reportes/inventario')
-        if (!res.ok) throw new Error('Error al cargar reporte')
+        const { data: { session } } = await supabase.auth.getSession()
+        const email = session?.user?.email
+
+        const url = email
+          ? `/api/reportes/inventario?email=${encodeURIComponent(email)}`
+          : '/api/reportes/inventario'
+
+        const res = await fetch(url)
+        if (!res.ok) {
+          if (res.status === 403) {
+            setError('No tienes permiso para ver reportes')
+          } else {
+            throw new Error('Error al cargar reporte')
+          }
+          return
+        }
 
         const data = await res.json()
         setReporte(data)
@@ -75,7 +91,8 @@ export default function ReportesInventarioPage() {
   }
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1200px' }}>
+    <PermissionProtector requiredPermission="reportes">
+      <div style={{ padding: '20px', maxWidth: '1200px' }}>
       <div style={{ marginBottom: '20px' }}>
         <Link href="/admin" style={{ color: '#2563eb', textDecoration: 'none' }}>
           ← Volver al Dashboard
@@ -301,6 +318,7 @@ export default function ReportesInventarioPage() {
           )}
         </>
       ) : null}
-    </div>
+      </div>
+    </PermissionProtector>
   )
 }

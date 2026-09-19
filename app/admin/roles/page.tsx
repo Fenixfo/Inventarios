@@ -260,7 +260,7 @@ export default function RolesPage() {
                   Permisos
                 </label>
                 <div className="grid grid-cols-2 gap-3">
-                  {modulos.map(modulo => (
+                  {modulos.filter(m => m.modulo !== 'dashboard').map(modulo => (
                     <label
                       key={modulo.id}
                       className="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer"

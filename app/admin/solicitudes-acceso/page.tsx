@@ -80,7 +80,7 @@ export default function SolicitudesAccesoPage() {
   }
 
   return (
-    <PermissionProtector requiredPermission="administrador">
+    <PermissionProtector requiredPermission="solicitudes-acceso">
       <div>
         <h1 className="text-3xl font-bold mb-8">Solicitudes de Acceso</h1>
 

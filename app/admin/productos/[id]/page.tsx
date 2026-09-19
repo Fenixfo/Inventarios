@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase-client'
 
 interface Producto {
   id: string
@@ -38,8 +39,22 @@ export default function EditProductoPage() {
   useEffect(() => {
     const fetchProducto = async () => {
       try {
-        const res = await fetch(`/api/productos/${id}`)
-        if (!res.ok) throw new Error('Producto not found')
+        const { data: { session } } = await supabase.auth.getSession()
+        const email = session?.user?.email
+
+        const url = email
+          ? `/api/productos/${id}?email=${encodeURIComponent(email)}`
+          : `/api/productos/${id}`
+
+        const res = await fetch(url)
+        if (!res.ok) {
+          if (res.status === 403) {
+            setError('No tienes permiso para ver productos')
+          } else {
+            throw new Error('Producto not found')
+          }
+          return
+        }
         const data = await res.json()
         setFormData(data)
         setSkuOriginal(data.sku)

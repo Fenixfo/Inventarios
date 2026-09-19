@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase-client'
 
 interface FacturaItem {
   id: string
@@ -57,8 +58,22 @@ export default function FacturaPage() {
   useEffect(() => {
     const fetchFactura = async () => {
       try {
-        const res = await fetch(`/api/facturas/${id}`)
-        if (!res.ok) throw new Error('Factura not found')
+        const { data: { session } } = await supabase.auth.getSession()
+        const email = session?.user?.email
+
+        const url = email
+          ? `/api/facturas/${id}?email=${encodeURIComponent(email)}`
+          : `/api/facturas/${id}`
+
+        const res = await fetch(url)
+        if (!res.ok) {
+          if (res.status === 403) {
+            setError('No tienes permiso para ver esta factura')
+          } else {
+            throw new Error('Factura not found')
+          }
+          return
+        }
         const data = await res.json()
         setFactura(data)
         setEstado(data.estado)

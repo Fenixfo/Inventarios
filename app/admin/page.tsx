@@ -17,27 +17,26 @@ export default function AdminDashboard() {
     facturasHoy: 0,
     stockBajo: 0,
   })
+  const [permisos, setPermisos] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
-  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
-    const loadStats = async () => {
+    const loadData = async () => {
       try {
-        // Verificar si el usuario es admin
         const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user?.id) {
-          const syncRes = await fetch('/api/auth/sync-user', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: session.user.id,
-              email: session.user.email,
-            }),
-          })
 
-          if (syncRes.ok) {
-            const syncData = await syncRes.json()
-            setIsAdmin(syncData.usuario.roles.includes('admin'))
+        // Obtener permisos del usuario
+        if (session?.user) {
+          const res = await fetch(`/api/debug/usuario-actual?email=${encodeURIComponent(session.user.email)}`)
+          if (res.ok) {
+            const usuario = await res.json()
+            const permisosUnicos = new Set<string>()
+            usuario.rolesPersonalizados?.forEach((ur: any) => {
+              ur.rol.permisos.forEach((p: any) => {
+                permisosUnicos.add(p.modulo.modulo)
+              })
+            })
+            setPermisos(Array.from(permisosUnicos))
           }
         }
 
@@ -71,13 +70,13 @@ export default function AdminDashboard() {
           stockBajo,
         })
       } catch (error) {
-        console.error('Error loading stats:', error)
+        console.error('Error loading data:', error)
       } finally {
         setLoading(false)
       }
     }
 
-    loadStats()
+    loadData()
   }, [])
 
   if (loading) {
@@ -111,87 +110,38 @@ export default function AdminDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-xl font-bold mb-4">Acciones Rápidas</h2>
           <div className="space-y-2">
-            <a
-              href="/admin/productos/nuevo"
-              className="block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Nuevo Producto
-            </a>
-            <a
-              href="/admin/clientes/nuevo"
-              className="block px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-            >
-              Nuevo Cliente
-            </a>
-            <a
-              href="/admin/facturas/nueva"
-              className="block px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-            >
-              Nueva Factura
-            </a>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-bold mb-4">Módulos</h2>
-          <div className="space-y-2">
-            <a
-              href="/admin/reportes"
-              className="block px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-            >
-              📊 Reportes
-            </a>
-            {isAdmin && (
-              <>
-                <a
-                  href="/admin/roles"
-                  className="block px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
-                >
-                  🎭 Gestión de Roles
-                </a>
-                <a
-                  href="/admin/usuarios"
-                  className="block px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-                >
-                  👥 Gestión de Usuarios
-                </a>
-                <a
-                  href="/admin/solicitudes-acceso"
-                  className="block px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700"
-                >
-                  ✋ Solicitudes de Acceso
-                </a>
-              </>
+            {permisos.includes('productos') && (
+              <a
+                href="/admin/productos/nuevo"
+                className="block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Nuevo Producto
+              </a>
             )}
-            <a
-              href="/admin/auditoria"
-              className="block px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700"
-            >
-              🔍 Auditoría
-            </a>
+            {permisos.includes('clientes') && (
+              <a
+                href="/admin/clientes/nuevo"
+                className="block px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                Nuevo Cliente
+              </a>
+            )}
+            {permisos.includes('facturas') && (
+              <a
+                href="/admin/facturas/nueva"
+                className="block px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+              >
+                Nueva Factura
+              </a>
+            )}
+            {permisos.length === 0 && (
+              <p className="text-gray-600 text-sm">No tienes permisos para crear elementos</p>
+            )}
           </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-bold mb-4">Información del Sistema</h2>
-          <dl className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-gray-600">Base de datos:</dt>
-              <dd className="font-semibold">Supabase PostgreSQL</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-gray-600">Schema:</dt>
-              <dd className="font-semibold">public</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-gray-600">ORM:</dt>
-              <dd className="font-semibold">Prisma v5.22.0</dd>
-            </div>
-          </dl>
         </div>
       </div>
     </div>

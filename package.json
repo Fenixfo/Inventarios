@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "eslint"
   },
+  "prisma": {
+    "seed": "ts-node prisma/seed-permisos.ts"
+  },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
     "@supabase/supabase-js": "^2.38.4",
@@ -29,6 +32,7 @@
     "eslint-config-next": "16.3.5",
     "pg": "^8.23.0",
     "prisma": "^5.22.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }

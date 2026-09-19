@@ -9,6 +9,9 @@ export async function GET(
 ) {
   try {
     const { id } = await context.params
+    const { searchParams } = new URL(request.url)
+    const email = searchParams.get('email')
+
     const factura = await prisma.factura.findUnique({
       where: { id },
       include: {
@@ -27,6 +30,29 @@ export async function GET(
         { error: 'Factura not found' },
         { status: 404 }
       )
+    }
+
+    // Verificar permisos si se proporciona email
+    if (email) {
+      const usuario = await prisma.usuario.findUnique({
+        where: { email },
+        include: { rolesPersonalizados: { include: { rol: { include: { permisos: { include: { modulo: true } } } } } } }
+      })
+
+      if (usuario) {
+        // Verificar si tiene permiso "administrador"
+        const tienePermisoAdmin = usuario.rolesPersonalizados?.some((ur: any) =>
+          ur.rol.permisos.some((p: any) => p.modulo.modulo === 'administrador')
+        )
+
+        // Si no tiene permiso admin, verificar que sea su factura
+        if (!tienePermisoAdmin && factura.usuarioId !== usuario.id) {
+          return NextResponse.json(
+            { error: 'No tienes permiso para ver esta factura' },
+            { status: 403 }
+          )
+        }
+      }
     }
 
     return NextResponse.json(factura)

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase-client'
 
 interface Cliente {
   id: string
@@ -31,8 +32,22 @@ export default function EditClientePage() {
   useEffect(() => {
     const fetchCliente = async () => {
       try {
-        const res = await fetch(`/api/clientes/${id}`)
-        if (!res.ok) throw new Error('Cliente not found')
+        const { data: { session } } = await supabase.auth.getSession()
+        const email = session?.user?.email
+
+        const url = email
+          ? `/api/clientes/${id}?email=${encodeURIComponent(email)}`
+          : `/api/clientes/${id}`
+
+        const res = await fetch(url)
+        if (!res.ok) {
+          if (res.status === 403) {
+            setError('No tienes permiso para ver clientes')
+          } else {
+            throw new Error('Cliente not found')
+          }
+          return
+        }
         const data = await res.json()
         setFormData(data)
         setCedulaOriginal(data.cedulaCc || '')

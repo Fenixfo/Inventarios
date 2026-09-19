@@ -25,9 +25,41 @@ async function getNextSequence(datePrefix: string): Promise<number> {
   return facturas.length + 1
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const usuarioId = searchParams.get('usuarioId')
+    const email = searchParams.get('email')
+
+    let filtro: any = {}
+
+    // Si se proporciona usuarioId o email, verificar permisos
+    if (usuarioId || email) {
+      const usuario = email
+        ? await prisma.usuario.findUnique({
+            where: { email },
+            include: { rolesPersonalizados: { include: { rol: { include: { permisos: { include: { modulo: true } } } } } } }
+          })
+        : await prisma.usuario.findUnique({
+            where: { id: usuarioId! },
+            include: { rolesPersonalizados: { include: { rol: { include: { permisos: { include: { modulo: true } } } } } } }
+          })
+
+      if (usuario) {
+        // Verificar si es Owner o tiene permiso "administrador"
+        const tienePermisoAdmin = usuario.rolesPersonalizados?.some((ur: any) =>
+          ur.rol.permisos.some((p: any) => p.modulo.modulo === 'administrador')
+        )
+
+        // Si NO tiene permiso admin, filtrar solo sus facturas
+        if (!tienePermisoAdmin) {
+          filtro.usuarioId = usuario.id
+        }
+      }
+    }
+
     const facturas = await prisma.factura.findMany({
+      where: filtro,
       include: {
         cliente: true,
         usuario: true,

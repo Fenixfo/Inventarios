@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase-client'
 import { PermissionProtector } from '@/components/PermissionProtector'
 
 interface ReporteFacturacion {
@@ -49,14 +50,21 @@ export default function ReportesPage() {
     setError(null)
 
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const email = session?.user?.email
+
       let url = `/api/reportes/facturacion?periodo=${p}`
+
+      if (email) {
+        url += `&email=${encodeURIComponent(email)}`
+      }
 
       if (p === 'personalizado' && mes) {
         const [year, month] = mes.split('-')
         const desde = new Date(parseInt(year), parseInt(month) - 1, 1)
         const hasta = new Date(parseInt(year), parseInt(month), 0)
 
-        url = `/api/reportes/facturacion?periodo=personalizado&fechaInicio=${desde.toISOString()}&fechaFin=${hasta.toISOString()}`
+        url = `/api/reportes/facturacion?periodo=personalizado&fechaInicio=${desde.toISOString()}&fechaFin=${hasta.toISOString()}&email=${encodeURIComponent(email || '')}`
       }
 
       const res = await fetch(url)

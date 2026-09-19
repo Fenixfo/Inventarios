@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { PermissionProtector } from '@/components/PermissionProtector'
 
 export default function NuevoClientePage() {
   const router = useRouter()
@@ -69,7 +70,8 @@ export default function NuevoClientePage() {
   }
 
   return (
-    <div style={{ padding: '20px', maxWidth: '600px' }}>
+    <PermissionProtector requiredPermission="clientes">
+      <div style={{ padding: '20px', maxWidth: '600px' }}>
       <div style={{ marginBottom: '20px' }}>
         <Link href="/admin/clientes" style={{ color: '#2563eb', textDecoration: 'none' }}>
           ← Volver a Clientes
@@ -215,6 +217,7 @@ export default function NuevoClientePage() {
           </Link>
         </div>
       </form>
-    </div>
+      </div>
+    </PermissionProtector>
   )
 }

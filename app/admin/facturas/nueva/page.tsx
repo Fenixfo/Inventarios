@@ -2,10 +2,12 @@
 
 import Link from 'next/link'
 import InvoiceForm from '@/components/InvoiceForm'
+import { PermissionProtector } from '@/components/PermissionProtector'
 
 export default function NuevaFacturaPage() {
   return (
-    <div style={{ padding: '20px', maxWidth: '1000px' }}>
+    <PermissionProtector requiredPermission="facturas">
+      <div style={{ padding: '20px', maxWidth: '1000px' }}>
       <div style={{ marginBottom: '20px' }}>
         <Link href="/admin/facturas" style={{ color: '#2563eb', textDecoration: 'none' }}>
           ← Volver a Facturas
@@ -15,6 +17,7 @@ export default function NuevaFacturaPage() {
       <h1 style={{ marginBottom: '30px' }}>Nueva Factura</h1>
 
       <InvoiceForm />
-    </div>
+      </div>
+    </PermissionProtector>
   )
 }

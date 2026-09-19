@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase-client'
 import { PermissionProtector } from '@/components/PermissionProtector'
 
 interface FacturaItem {
@@ -37,7 +38,14 @@ export default function FacturasPage() {
   useEffect(() => {
     const fetchFacturas = async () => {
       try {
-        const res = await fetch('/api/facturas')
+        const { data: { session } } = await supabase.auth.getSession()
+        const email = session?.user?.email
+
+        const url = email
+          ? `/api/facturas?email=${encodeURIComponent(email)}`
+          : '/api/facturas'
+
+        const res = await fetch(url)
         if (!res.ok) throw new Error('Error fetching facturas')
         const data = await res.json()
         setFacturas(data)

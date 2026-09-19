@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
     const periodo = searchParams.get('periodo') || 'mes' // hoy, semana, mes, personalizado
     const fechaInicio = searchParams.get('fechaInicio')
     const fechaFin = searchParams.get('fechaFin')
+    const email = searchParams.get('email')
 
     let desde: Date
     let hasta: Date = new Date()
@@ -41,6 +42,28 @@ export async function GET(request: NextRequest) {
         desde.setMonth(hasta.getMonth() - 1)
     }
 
+    // Verificar permisos si se proporciona email
+    let filtroUsuario: any = {}
+
+    if (email) {
+      const usuario = await prisma.usuario.findUnique({
+        where: { email },
+        include: { rolesPersonalizados: { include: { rol: { include: { permisos: { include: { modulo: true } } } } } } }
+      })
+
+      if (usuario) {
+        // Verificar si tiene permiso "administrador"
+        const tienePermisoAdmin = usuario.rolesPersonalizados?.some((ur: any) =>
+          ur.rol.permisos.some((p: any) => p.modulo.modulo === 'administrador')
+        )
+
+        // Si no tiene permiso admin, filtrar solo sus facturas
+        if (!tienePermisoAdmin) {
+          filtroUsuario.usuarioId = usuario.id
+        }
+      }
+    }
+
     // Obtener facturas en el rango
     const facturas = await prisma.factura.findMany({
       where: {
@@ -48,6 +71,7 @@ export async function GET(request: NextRequest) {
           gte: desde,
           lte: hasta,
         },
+        ...filtroUsuario,
       },
       include: {
         cliente: true,
