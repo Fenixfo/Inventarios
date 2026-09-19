@@ -54,12 +54,18 @@ export default function FacturasPage() {
     switch (estado) {
       case 'pagado':
         return '#10b981'
+      case 'entregado':
+        return '#0891b2'
       case 'anulado':
         return '#ef4444'
       case 'pendiente':
       default:
         return '#f59e0b'
     }
+  }
+
+  const formatearEstado = (estado: string) => {
+    return estado.charAt(0).toUpperCase() + estado.slice(1)
   }
 
   return (
@@ -104,9 +110,10 @@ export default function FacturasPage() {
                     backgroundColor: getStatusColor(factura.estado),
                     color: 'white',
                     borderRadius: '4px',
-                    fontSize: '12px'
+                    fontSize: '12px',
+                    fontWeight: 'bold'
                   }}>
-                    {factura.estado}
+                    {formatearEstado(factura.estado)}
                   </span>
                 </td>
                 <td style={{ padding: '10px', textAlign: 'center' }}>

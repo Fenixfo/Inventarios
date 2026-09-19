@@ -19,6 +19,9 @@ export async function GET(
             producto: true,
           },
         },
+        abonos: {
+          orderBy: { fecha: 'asc' },
+        },
       },
     })
 
@@ -46,12 +49,30 @@ export async function GET(
   }
 }
 
+function formatearEstado(estado: string): string {
+  return estado.charAt(0).toUpperCase() + estado.slice(1)
+}
+
+function formatearDinero(valor: number): string {
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(valor)
+}
+
 function generarHTML(factura: any): string {
   const fecha = new Date(factura.fecha).toLocaleDateString('es-CO')
   const subtotal = Number(factura.subtotal)
   const descuento = Number(factura.descuentoMonto)
   const impuesto = Number(factura.impuesto)
   const total = Number(factura.total)
+  const anticipo = Number(factura.anticipo || 0)
+  const totalAbonosRegistrados = (factura.abonos || []).reduce((sum: number, abono: any) => sum + Number(abono.monto), 0)
+  const totalAbonado = anticipo + totalAbonosRegistrados
+  const saldoPendienteCalculado = total - totalAbonado
+  const saldoPendiente = Math.max(0, saldoPendienteCalculado)
 
   const itemsHTML = factura.items
     .map(
@@ -60,8 +81,8 @@ function generarHTML(factura: any): string {
       <td style="padding: 10px; text-align: left;">${item.producto?.sku || 'PERSONALIZADO'}</td>
       <td style="padding: 10px; text-align: left;">${item.producto?.nombre || '(Personalizado)'}</td>
       <td style="padding: 10px; text-align: right;">${Number(item.cantidadM2).toFixed(2)}</td>
-      <td style="padding: 10px; text-align: right;">$${Number(item.precioUnitario).toFixed(2)}</td>
-      <td style="padding: 10px; text-align: right;">$${Number(item.subtotal).toFixed(2)}</td>
+      <td style="padding: 10px; text-align: right;">${formatearDinero(Number(item.precioUnitario))}</td>
+      <td style="padding: 10px; text-align: right;">${formatearDinero(Number(item.subtotal))}</td>
     </tr>
   `
     )
@@ -211,6 +232,10 @@ function generarHTML(factura: any): string {
       background-color: #dcfce7;
       color: #15803d;
     }
+    .estado-entregado {
+      background-color: #cffafe;
+      color: #0c4a6e;
+    }
     .estado-anulado {
       background-color: #fee2e2;
       color: #991b1b;
@@ -229,7 +254,7 @@ function generarHTML(factura: any): string {
         <h2>FACTURA</h2>
         <p><strong>${factura.numeroFactura}</strong></p>
         <p>Fecha: ${fecha}</p>
-        <p>Estado: <span class="estado-badge estado-${factura.estado}">${factura.estado.toUpperCase()}</span></p>
+        <p>Estado: <span class="estado-badge estado-${factura.estado}">${formatearEstado(factura.estado)}</span></p>
       </div>
     </div>
 
@@ -272,26 +297,70 @@ function generarHTML(factura: any): string {
       <div class="totales-box">
         <div class="totales-row">
           <span>Subtotal:</span>
-          <span>$${subtotal.toFixed(2)}</span>
+          <span>${formatearDinero(subtotal)}</span>
         </div>
         ${descuento > 0 ? `
           <div class="totales-row">
             <span>Descuento (${factura.descuentoPorcentaje}%):</span>
-            <span>-$${descuento.toFixed(2)}</span>
+            <span>-${formatearDinero(descuento)}</span>
           </div>
         ` : ''}
         ${impuesto > 0 ? `
           <div class="totales-row">
             <span>Impuesto:</span>
-            <span>$${impuesto.toFixed(2)}</span>
+            <span>${formatearDinero(impuesto)}</span>
           </div>
         ` : ''}
         <div class="totales-row total">
           <span>TOTAL:</span>
-          <span>$${total.toFixed(2)}</span>
+          <span>${formatearDinero(total)}</span>
         </div>
+        ${anticipo > 0 ? `
+          <div class="totales-row">
+            <span>Adelanto (Inicial):</span>
+            <span style="color: #059669;">${formatearDinero(anticipo)}</span>
+          </div>
+        ` : ''}
+        ${totalAbonosRegistrados > 0 ? `
+          <div class="totales-row">
+            <span>Abonos Registrados:</span>
+            <span style="color: #059669;">${formatearDinero(totalAbonosRegistrados)}</span>
+          </div>
+        ` : ''}
+        ${totalAbonado > 0 ? `
+          <div class="totales-row">
+            <span>Total Abonado:</span>
+            <span style="color: #059669;">${formatearDinero(totalAbonado)}</span>
+          </div>
+          <div class="totales-row" style="border-top: 1px solid #ddd; padding-top: 8px;">
+            <span style="font-weight: bold;">Saldo Pendiente:</span>
+            <span style="color: ${saldoPendiente > 0 ? '#dc2626' : '#10b981'}; font-weight: bold;">${formatearDinero(saldoPendiente)}</span>
+          </div>
+        ` : ''}
       </div>
     </div>
+
+    ${(factura.abonos || []).length > 0 ? `
+      <div class="section">
+        <h3>Historial de Abonos</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="border-bottom: 2px solid #ddd;">
+              <th style="padding: 10px; text-align: left; font-size: 12px;">Fecha</th>
+              <th style="padding: 10px; text-align: right; font-size: 12px;">Monto</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(factura.abonos || []).map((abono: any) => `
+              <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 10px; font-size: 12px;">${new Date(abono.fecha).toLocaleDateString('es-CO')}</td>
+                <td style="padding: 10px; text-align: right; font-size: 12px;">${formatearDinero(Number(abono.monto))}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    ` : ''}
 
     ${factura.observaciones ? `
       <div class="section">

@@ -31,6 +31,8 @@ interface Factura {
   descuentoMonto: number
   impuesto: number
   total: number
+  anticipo: number
+  contraEntrega: number
   estado: string
   observaciones?: string
   items: FacturaItem[]
@@ -46,6 +48,11 @@ export default function FacturaPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [estado, setEstado] = useState('')
+  const [nuevoAbono, setNuevoAbono] = useState('')
+  const [abonos, setAbonos] = useState<Array<{ monto: number; fecha: string }>>([])
+  const [abonoCargado, setAbonoCargado] = useState(false)
+  const [mostrarConfirmacionAbono, setMostrarConfirmacionAbono] = useState(false)
+  const [montoAbonoConfirmacion, setMontoAbonoConfirmacion] = useState(0)
 
   useEffect(() => {
     const fetchFactura = async () => {
@@ -55,6 +62,18 @@ export default function FacturaPage() {
         const data = await res.json()
         setFactura(data)
         setEstado(data.estado)
+
+        // Cargar abonos
+        const abonosRes = await fetch(`/api/abonos/${id}`)
+        if (abonosRes.ok) {
+          const abonosData = await abonosRes.json()
+          const abonosConNumeros = (abonosData || []).map((abono: any) => ({
+            ...abono,
+            monto: Number(abono.monto),
+          }))
+          setAbonos(abonosConNumeros)
+        }
+        setAbonoCargado(true)
       } catch (err: any) {
         setError(err.message)
       } finally {
@@ -64,6 +83,19 @@ export default function FacturaPage() {
 
     fetchFactura()
   }, [id])
+
+  useEffect(() => {
+    if (!factura || !abonoCargado) return
+
+    const adelanto = Number(factura.anticipo || 0)
+    const totalAbonosRegistrados = abonos.reduce((sum, abono) => sum + Number(abono.monto), 0)
+    const totalAbonado = adelanto + totalAbonosRegistrados
+    const saldoPendienteCalculado = Number(factura.total) - totalAbonado
+
+    if (saldoPendienteCalculado <= 0 && factura.estado === 'pendiente' && !saving) {
+      handleStatusChange('pagado')
+    }
+  }, [abonos, abonoCargado, factura?.total, factura?.anticipo])
 
   const handleStatusChange = async (newStatus: string) => {
     if (!factura) return
@@ -99,6 +131,58 @@ export default function FacturaPage() {
     await handleStatusChange('anulado')
   }
 
+  const handleAgregarAbono = () => {
+    if (!factura || !nuevoAbono) return
+
+    const monto = parseFloat(nuevoAbono)
+    if (isNaN(monto) || monto <= 0) {
+      alert('Ingrese un monto válido')
+      return
+    }
+
+    const montoMaximoPermitido = saldoPendiente + 10000
+    if (monto > montoMaximoPermitido) {
+      alert(`El abono no puede exceder el saldo pendiente en más de $10.000\nSaldo pendiente: ${formatearDinero(saldoPendiente)}\nMáximo permitido: ${formatearDinero(montoMaximoPermitido)}`)
+      return
+    }
+
+    setMontoAbonoConfirmacion(monto)
+    setMostrarConfirmacionAbono(true)
+  }
+
+  const handleConfirmarAbono = async () => {
+    if (!factura) return
+
+    setSaving(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/abonos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          facturaId: factura.id,
+          monto: montoAbonoConfirmacion,
+        }),
+      })
+
+      if (!res.ok) throw new Error('Error al agregar abono')
+      const nuevoAbonoData = await res.json()
+
+      setAbonos([...abonos, {
+        monto: Number(nuevoAbonoData.monto),
+        fecha: nuevoAbonoData.fecha,
+      }])
+      setNuevoAbono('')
+      setMostrarConfirmacionAbono(false)
+      setError(null)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const handleDescargarPDF = async () => {
     try {
       const res = await fetch(`/api/facturas/${id}/pdf`)
@@ -130,14 +214,35 @@ export default function FacturaPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pagado':
-        return '#10b981'
+        return { bg: '#10b981', text: 'white' }
+      case 'entregado':
+        return { bg: '#0891b2', text: 'white' }
       case 'anulado':
-        return '#ef4444'
+        return { bg: '#ef4444', text: 'white' }
       case 'pendiente':
       default:
-        return '#f59e0b'
+        return { bg: '#f59e0b', text: 'white' }
     }
   }
+
+  const formatearEstado = (estado: string) => {
+    return estado.charAt(0).toUpperCase() + estado.slice(1)
+  }
+
+  const formatearDinero = (valor: number) => {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(valor)
+  }
+
+  const totalAbonosRegistrados = abonos.reduce((sum, abono) => sum + Number(abono.monto), 0)
+  const adelanto = Number(factura?.anticipo || 0)
+  const totalAbonadoSinAdelanto = totalAbonosRegistrados
+  const totalAbonado = adelanto + totalAbonadoSinAdelanto
+  const saldoPendiente = factura ? Number(factura.total) - totalAbonado : 0
 
   return (
     <div style={{ padding: '20px', maxWidth: '900px' }}>
@@ -155,13 +260,14 @@ export default function FacturaPage() {
         <div style={{ textAlign: 'right' }}>
           <span style={{
             padding: '8px 12px',
-            backgroundColor: getStatusColor(factura.estado),
-            color: 'white',
+            backgroundColor: getStatusColor(factura.estado).bg,
+            color: getStatusColor(factura.estado).text,
             borderRadius: '4px',
             fontSize: '14px',
-            display: 'inline-block'
+            display: 'inline-block',
+            fontWeight: 'bold'
           }}>
-            {factura.estado.toUpperCase()}
+            {formatearEstado(factura.estado)}
           </span>
         </div>
       </div>
@@ -244,6 +350,95 @@ export default function FacturaPage() {
         </div>
       )}
 
+      <div style={{ backgroundColor: '#f0f9ff', padding: '15px', borderRadius: '4px', marginBottom: '20px', border: '1px solid #0ea5e9' }}>
+        <h3 style={{ margin: '0 0 15px 0', color: '#0369a1' }}>Términos de Pago</h3>
+
+        <div style={{ marginBottom: '15px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontFamily: 'monospace' }}>
+            <span>Total:</span>
+            <span style={{ fontWeight: 'bold' }}>{formatearDinero(factura.total)}</span>
+          </div>
+
+          {adelanto > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontFamily: 'monospace', color: '#059669' }}>
+              <span>Adelanto (Inicial):</span>
+              <span>{formatearDinero(adelanto)}</span>
+            </div>
+          )}
+
+          {abonos.length > 0 && (
+            <div style={{ backgroundColor: 'white', padding: '10px', borderRadius: '4px', marginBottom: '10px' }}>
+              <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', fontSize: '12px', color: '#666' }}>Abonos Registrados:</p>
+              {abonos.map((abono, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontFamily: 'monospace', fontSize: '12px' }}>
+                  <span>{new Date(abono.fecha).toLocaleDateString('es-CO')}</span>
+                  <span>{formatearDinero(abono.monto)}</span>
+                </div>
+              ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #e5e7eb', fontWeight: 'bold', fontFamily: 'monospace', fontSize: '12px' }}>
+                <span>Subtotal abonos:</span>
+                <span>{formatearDinero(totalAbonosRegistrados)}</span>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontFamily: 'monospace', backgroundColor: 'white', padding: '8px', borderRadius: '4px' }}>
+            <span>Total Abonado:</span>
+            <span style={{ fontWeight: 'bold', color: '#059669' }}>{formatearDinero(totalAbonado)}</span>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', backgroundColor: saldoPendiente > 0 ? '#fef2f2' : '#f0fdf4', padding: '10px', borderRadius: '4px', borderLeft: `4px solid ${saldoPendiente > 0 ? '#dc2626' : '#10b981'}` }}>
+            <span style={{ fontWeight: 'bold' }}>Saldo Pendiente:</span>
+            <span style={{ fontWeight: 'bold', color: saldoPendiente > 0 ? '#dc2626' : '#10b981' }}>{formatearDinero(saldoPendiente)}</span>
+          </div>
+        </div>
+
+        {factura.estado === 'pendiente' && saldoPendiente > 0 && (
+          <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #0ea5e9' }}>
+            <p style={{ margin: '0 0 10px 0', fontSize: '12px', fontWeight: 'bold', color: '#0369a1' }}>Agregar Nuevo Abono:</p>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+              <div style={{ flex: 1 }}>
+                <input
+                  type="number"
+                  value={nuevoAbono}
+                  onChange={(e) => setNuevoAbono(e.target.value)}
+                  placeholder="Ingrese monto del abono"
+                  title={`Máximo permitido: ${formatearDinero(Math.max(0, saldoPendiente + 10000))}`}
+                  min="0"
+                  step="100"
+                  onWheel={(e) => e.currentTarget.blur()}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #0ea5e9',
+                    borderRadius: '4px',
+                    fontFamily: 'monospace',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <button
+                onClick={handleAgregarAbono}
+                disabled={saving || !nuevoAbono}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#0ea5e9',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  opacity: saving || !nuevoAbono ? 0.6 : 1,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {saving ? 'Guardando...' : 'Agregar'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
         {factura.estado === 'pendiente' && (
           <>
@@ -279,6 +474,23 @@ export default function FacturaPage() {
           </>
         )}
 
+        {factura.estado === 'pagado' && (
+          <button
+            onClick={() => handleStatusChange('entregado')}
+            disabled={saving}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#0891b2',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            {saving ? 'Procesando...' : 'Marcar como Entregado'}
+          </button>
+        )}
+
         <button
           onClick={() => window.print()}
           style={{
@@ -307,6 +519,121 @@ export default function FacturaPage() {
           Descargar PDF
         </button>
       </div>
+
+      {mostrarConfirmacionAbono && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '30px',
+            borderRadius: '8px',
+            maxWidth: '500px',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
+          }}>
+            <h2 style={{ margin: '0 0 20px 0', color: '#1f2937' }}>Confirmar Abono</h2>
+
+            <div style={{
+              backgroundColor: '#f3f4f6',
+              padding: '15px',
+              borderRadius: '6px',
+              marginBottom: '20px',
+            }}>
+              <div style={{ marginBottom: '15px' }}>
+                <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '12px' }}>Saldo Actual:</p>
+                <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                  {formatearDinero(saldoPendiente)}
+                </p>
+              </div>
+
+              <div style={{ marginBottom: '15px' }}>
+                <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '12px' }}>Abono a Registrar:</p>
+                <p style={{ margin: 0, fontSize: '20px', fontWeight: 'bold', color: '#0ea5e9', fontFamily: 'monospace' }}>
+                  {formatearDinero(montoAbonoConfirmacion)}
+                </p>
+              </div>
+
+              <div style={{
+                borderTop: '1px solid #e5e7eb',
+                paddingTop: '15px',
+              }}>
+                <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '12px' }}>Nuevo Saldo Pendiente:</p>
+                <p style={{
+                  margin: 0,
+                  fontSize: '20px',
+                  fontWeight: 'bold',
+                  color: saldoPendiente - montoAbonoConfirmacion > 0 ? '#dc2626' : '#10b981',
+                  fontFamily: 'monospace'
+                }}>
+                  {formatearDinero(saldoPendiente - montoAbonoConfirmacion)}
+                </p>
+              </div>
+            </div>
+
+            {montoAbonoConfirmacion > saldoPendiente && (
+              <div style={{
+                backgroundColor: '#fef3c7',
+                border: '1px solid #fcd34d',
+                color: '#92400e',
+                padding: '12px',
+                borderRadius: '4px',
+                marginBottom: '15px',
+                fontSize: '12px',
+              }}>
+                <strong>⚠️ Advertencia:</strong> Este abono es superior al saldo pendiente de {formatearDinero(saldoPendiente)}.
+                Está pagando {formatearDinero(montoAbonoConfirmacion - saldoPendiente)} de más.
+              </div>
+            )}
+
+            <p style={{ margin: '0 0 20px 0', color: '#666', fontSize: '14px', textAlign: 'center' }}>
+              ¿Confirma el registro de este abono? Esta acción no se puede deshacer.
+            </p>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setMostrarConfirmacionAbono(false)}
+                disabled={saving}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmarAbono}
+                disabled={saving}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  opacity: saving ? 0.6 : 1,
+                }}
+              >
+                {saving ? 'Guardando...' : 'Confirmar Abono'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

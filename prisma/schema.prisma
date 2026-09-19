@@ -165,6 +165,7 @@ model Factura {
 
   // Relations
   items       FacturaItem[]
+  abonos      Abono[]
 
   @@index([numeroFactura])
   @@index([clienteId])
@@ -172,6 +173,22 @@ model Factura {
   @@index([fecha])
   @@index([usuarioId])
   @@map("facturas")
+}
+
+model Abono {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  facturaId   String   @map("factura_id") @db.Uuid
+  factura     Factura  @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+
+  monto       Decimal  @db.Decimal(12, 2)
+  fecha       DateTime @default(now()) @db.Timestamptz
+
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([facturaId])
+  @@index([fecha])
+  @@map("abonos")
 }
 
 model FacturaItem {
