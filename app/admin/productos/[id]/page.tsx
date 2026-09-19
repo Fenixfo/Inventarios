@@ -1,0 +1,339 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter, useParams } from 'next/navigation'
+import Link from 'next/link'
+
+interface Producto {
+  id: string
+  sku: string
+  nombre: string
+  categoria: string
+  dimensiones?: string
+  color?: string
+  acabado?: string
+  espesorMm?: number
+  m2PorCaja?: number
+  precioUnitario: number
+  costo?: number
+  stockActual: number
+  stockMinimo: number
+  proveedor?: string
+  descripcion?: string
+  imagenUrl?: string
+}
+
+export default function EditProductoPage() {
+  const router = useRouter()
+  const params = useParams()
+  const id = params.id as string
+
+  const [formData, setFormData] = useState<Producto | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchProducto = async () => {
+      try {
+        const res = await fetch(`/api/productos/${id}`)
+        if (!res.ok) throw new Error('Producto not found')
+        const data = await res.json()
+        setFormData(data)
+      } catch (err: any) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProducto()
+  }, [id])
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    if (!formData) return
+    const { name, value } = e.target
+    setFormData({
+      ...formData,
+      [name]: value,
+    })
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formData) return
+
+    setSaving(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/productos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+
+      if (!res.ok) throw new Error('Error updating producto')
+      router.push('/admin/productos')
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!window.confirm('¿Estás seguro de que quieres eliminar este producto?')) return
+
+    setSaving(true)
+    setError(null)
+
+    try {
+      const res = await fetch(`/api/productos/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!res.ok) throw new Error('Error deleting producto')
+      router.push('/admin/productos')
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) return <div style={{ padding: '20px' }}>Cargando...</div>
+  if (!formData) return <div style={{ padding: '20px', color: 'red' }}>Producto no encontrado</div>
+
+  return (
+    <div style={{ padding: '20px', maxWidth: '800px' }}>
+      <div style={{ marginBottom: '20px' }}>
+        <Link href="/admin/productos" style={{ color: '#2563eb', textDecoration: 'none' }}>
+          ← Volver a Productos
+        </Link>
+      </div>
+
+      <h1 style={{ marginBottom: '20px' }}>Editar Producto</h1>
+
+      {error && (
+        <div style={{ padding: '10px', marginBottom: '20px', backgroundColor: '#fee', color: '#c00', borderRadius: '4px' }}>
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '15px' }}>
+        <div>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>SKU *</label>
+          <input
+            type="text"
+            name="sku"
+            value={formData.sku}
+            onChange={handleChange}
+            required
+            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Nombre *</label>
+          <input
+            type="text"
+            name="nombre"
+            value={formData.nombre}
+            onChange={handleChange}
+            required
+            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Categoría *</label>
+          <select
+            name="categoria"
+            value={formData.categoria}
+            onChange={handleChange}
+            required
+            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+          >
+            <option value="">Selecciona una categoría</option>
+            <option value="Cerámica">Cerámica</option>
+            <option value="Porcellanato">Porcellanato</option>
+            <option value="Baldosa">Baldosa</option>
+          </select>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Dimensiones</label>
+            <input
+              type="text"
+              name="dimensiones"
+              value={formData.dimensiones || ''}
+              onChange={handleChange}
+              placeholder="Ej: 60x60"
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Color</label>
+            <input
+              type="text"
+              name="color"
+              value={formData.color || ''}
+              onChange={handleChange}
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Acabado</label>
+            <input
+              type="text"
+              name="acabado"
+              value={formData.acabado || ''}
+              onChange={handleChange}
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Espesor (mm)</label>
+            <input
+              type="number"
+              name="espesorMm"
+              value={formData.espesorMm || ''}
+              onChange={handleChange}
+              step="0.01"
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>m² por caja</label>
+          <input
+            type="number"
+            name="m2PorCaja"
+            value={formData.m2PorCaja || ''}
+            onChange={handleChange}
+            step="0.01"
+            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Precio Unitario *</label>
+            <input
+              type="number"
+              name="precioUnitario"
+              value={formData.precioUnitario}
+              onChange={handleChange}
+              step="0.01"
+              required
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Costo</label>
+            <input
+              type="number"
+              name="costo"
+              value={formData.costo || ''}
+              onChange={handleChange}
+              step="0.01"
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Stock Actual *</label>
+            <input
+              type="number"
+              name="stockActual"
+              value={formData.stockActual}
+              onChange={handleChange}
+              step="0.01"
+              required
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Stock Mínimo *</label>
+            <input
+              type="number"
+              name="stockMinimo"
+              value={formData.stockMinimo}
+              onChange={handleChange}
+              step="0.01"
+              required
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Proveedor</label>
+          <input
+            type="text"
+            name="proveedor"
+            value={formData.proveedor || ''}
+            onChange={handleChange}
+            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Descripción</label>
+          <textarea
+            name="descripcion"
+            value={formData.descripcion || ''}
+            onChange={handleChange}
+            rows={4}
+            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+          <button
+            type="submit"
+            disabled={saving}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#2563eb',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            {saving ? 'Guardando...' : 'Guardar Cambios'}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={saving}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#dc2626',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            {saving ? 'Eliminando...' : 'Eliminar Producto'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
