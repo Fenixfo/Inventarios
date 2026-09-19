@@ -3,8 +3,21 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const sku = searchParams.get('sku')
+
+    if (sku) {
+      const productos = await prisma.producto.findMany({
+        where: {
+          sku: sku,
+          activo: true
+        }
+      })
+      return NextResponse.json(productos)
+    }
+
     const productos = await prisma.producto.findMany({
       where: { activo: true },
       orderBy: { nombre: 'asc' },

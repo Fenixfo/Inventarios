@@ -23,36 +23,33 @@ export default function AdminDashboard() {
     const loadStats = async () => {
       try {
         // Total de productos
-        const { count: productosCount } = await supabase
-          .from('productos')
-          .select('*', { count: 'exact', head: true })
-          .eq('activo', true)
+        const productosRes = await fetch('/api/productos')
+        const productos = productosRes.ok ? await productosRes.json() : []
 
         // Total de clientes
-        const { count: clientesCount } = await supabase
-          .from('clientes')
-          .select('*', { count: 'exact', head: true })
-          .eq('activo', true)
+        const clientesRes = await fetch('/api/clientes')
+        const clientes = clientesRes.ok ? await clientesRes.json() : []
+
+        // Facturas
+        const facturasRes = await fetch('/api/facturas')
+        const facturas = facturasRes.ok ? await facturasRes.json() : []
 
         // Facturas de hoy
         const today = new Date().toISOString().split('T')[0]
-        const { count: facturasHoyCount } = await supabase
-          .from('facturas')
-          .select('*', { count: 'exact', head: true })
-          .gte('fecha', `${today}T00:00:00`)
-          .lte('fecha', `${today}T23:59:59`)
+        const facturasHoy = facturas.filter((f: any) =>
+          f.fecha.split('T')[0] === today
+        ).length
 
         // Stock bajo
-        const { count: stockBajoCount } = await supabase
-          .from('productos')
-          .select('*', { count: 'exact', head: true })
-          .lt('stock_actual', 'stock_minimo')
+        const stockBajo = productos.filter((p: any) =>
+          p.stockActual < p.stockMinimo
+        ).length
 
         setStats({
-          totalProductos: productosCount || 0,
-          totalClientes: clientesCount || 0,
-          facturasHoy: facturasHoyCount || 0,
-          stockBajo: stockBajoCount || 0,
+          totalProductos: productos.length,
+          totalClientes: clientes.length,
+          facturasHoy,
+          stockBajo,
         })
       } catch (error) {
         console.error('Error loading stats:', error)
@@ -129,7 +126,7 @@ export default function AdminDashboard() {
             </div>
             <div className="flex justify-between">
               <dt className="text-gray-600">Schema:</dt>
-              <dd className="font-semibold">beraca</dd>
+              <dd className="font-semibold">public</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-gray-600">ORM:</dt>

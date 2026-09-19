@@ -134,8 +134,8 @@ model Factura {
   clienteId       String?  @map("cliente_id") @db.Uuid
   cliente         Cliente? @relation(fields: [clienteId], references: [id])
 
-  usuarioId       String   @map("usuario_id") @db.Uuid
-  usuario         Usuario  @relation(fields: [usuarioId], references: [id])
+  usuarioId       String?  @map("usuario_id") @db.Uuid
+  usuario         Usuario? @relation(fields: [usuarioId], references: [id])
 
   // Fechas
   fecha           DateTime @default(now()) @db.Timestamptz
@@ -180,8 +180,8 @@ model FacturaItem {
   facturaId   String   @map("factura_id") @db.Uuid
   factura     Factura  @relation(fields: [facturaId], references: [id], onDelete: Cascade)
 
-  productoId  String   @map("producto_id") @db.Uuid
-  producto    Producto @relation(fields: [productoId], references: [id], onDelete: Restrict)
+  productoId  String?  @map("producto_id") @db.Uuid
+  producto    Producto? @relation(fields: [productoId], references: [id], onDelete: SetNull)
 
   cantidadM2  Decimal  @map("cantidad_m2") @db.Decimal(12, 2)
   precioUnitario Decimal @map("precio_unitario") @db.Decimal(10, 2)

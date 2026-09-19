@@ -59,6 +59,10 @@ export default function EditProductoPage() {
     })
   }
 
+  const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
+    e.currentTarget.blur()
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData) return
@@ -206,6 +210,7 @@ export default function EditProductoPage() {
               name="espesorMm"
               value={formData.espesorMm || ''}
               onChange={handleChange}
+              onWheel={preventWheelChange}
               step="0.01"
               style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
             />
@@ -232,6 +237,7 @@ export default function EditProductoPage() {
               name="precioUnitario"
               value={formData.precioUnitario}
               onChange={handleChange}
+              onWheel={preventWheelChange}
               step="0.01"
               required
               style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
@@ -245,6 +251,7 @@ export default function EditProductoPage() {
               name="costo"
               value={formData.costo || ''}
               onChange={handleChange}
+              onWheel={preventWheelChange}
               step="0.01"
               style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
             />
@@ -259,6 +266,7 @@ export default function EditProductoPage() {
               name="stockActual"
               value={formData.stockActual}
               onChange={handleChange}
+              onWheel={preventWheelChange}
               step="0.01"
               required
               style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
@@ -272,6 +280,7 @@ export default function EditProductoPage() {
               name="stockMinimo"
               value={formData.stockMinimo}
               onChange={handleChange}
+              onWheel={preventWheelChange}
               step="0.01"
               required
               style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}

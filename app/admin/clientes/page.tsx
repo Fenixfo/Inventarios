@@ -16,8 +16,10 @@ interface Cliente {
 
 export default function ClientesPage() {
   const [clientes, setClientes] = useState<Cliente[]>([])
+  const [filteredClientes, setFilteredClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [searchCedula, setSearchCedula] = useState('')
 
   useEffect(() => {
     const fetchClientes = async () => {
@@ -26,6 +28,7 @@ export default function ClientesPage() {
         if (!res.ok) throw new Error('Error fetching clientes')
         const data = await res.json()
         setClientes(data)
+        setFilteredClientes(data)
       } catch (err: any) {
         setError(err.message)
       } finally {
@@ -35,6 +38,18 @@ export default function ClientesPage() {
 
     fetchClientes()
   }, [])
+
+  const handleSearch = (value: string) => {
+    setSearchCedula(value)
+    if (value.trim() === '') {
+      setFilteredClientes(clientes)
+    } else {
+      const filtered = clientes.filter(c =>
+        c.cedulaCc?.toLowerCase().includes(value.toLowerCase())
+      )
+      setFilteredClientes(filtered)
+    }
+  }
 
   if (loading) return <div style={{ padding: '20px' }}>Cargando...</div>
   if (error) return <div style={{ padding: '20px', color: 'red' }}>Error: {error}</div>
@@ -54,8 +69,27 @@ export default function ClientesPage() {
         </Link>
       </div>
 
+      <div style={{ marginBottom: '20px' }}>
+        <input
+          type="text"
+          placeholder="Buscar por cédula..."
+          value={searchCedula}
+          onChange={(e) => handleSearch(e.target.value)}
+          style={{
+            width: '100%',
+            maxWidth: '300px',
+            padding: '10px',
+            borderRadius: '4px',
+            border: '1px solid #ddd',
+            fontSize: '14px'
+          }}
+        />
+      </div>
+
       {clientes.length === 0 ? (
         <p style={{ color: '#666' }}>No hay clientes registrados</p>
+      ) : filteredClientes.length === 0 ? (
+        <p style={{ color: '#666' }}>No se encontraron clientes con esa cédula</p>
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
@@ -70,7 +104,7 @@ export default function ClientesPage() {
             </tr>
           </thead>
           <tbody>
-            {clientes.map((cliente) => (
+            {filteredClientes.map((cliente) => (
               <tr key={cliente.id} style={{ borderBottom: '1px solid #eee' }}>
                 <td style={{ padding: '10px' }}>{cliente.nombre}</td>
                 <td style={{ padding: '10px' }}>{cliente.email || '-'}</td>

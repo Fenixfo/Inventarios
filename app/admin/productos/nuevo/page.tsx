@@ -7,6 +7,7 @@ export default function NuevoProductoPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [skuError, setSkuError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     sku: '',
     nombre: '',
@@ -27,6 +28,29 @@ export default function NuevoProductoPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const checkSkuExists = async () => {
+    if (!formData.sku.trim()) {
+      setSkuError(null)
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/productos?sku=${encodeURIComponent(formData.sku)}`)
+      const productos = await res.json()
+      if (Array.isArray(productos) && productos.length > 0) {
+        setSkuError('Este SKU ya existe')
+      } else {
+        setSkuError(null)
+      }
+    } catch (err) {
+      setSkuError(null)
+    }
+  }
+
+  const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
+    e.currentTarget.blur()
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -79,9 +103,21 @@ export default function NuevoProductoPage() {
               name="sku"
               value={formData.sku}
               onChange={handleChange}
+              onBlur={checkSkuExists}
               required
-              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+              style={{
+                width: '100%',
+                padding: '8px',
+                border: skuError ? '2px solid #dc2626' : '1px solid #ddd',
+                borderRadius: '4px',
+                boxSizing: 'border-box'
+              }}
             />
+            {skuError && (
+              <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                {skuError}
+              </div>
+            )}
           </div>
 
           <div>
@@ -153,6 +189,7 @@ export default function NuevoProductoPage() {
               name="precioUnitario"
               value={formData.precioUnitario}
               onChange={handleChange}
+              onWheel={preventWheelChange}
               step="0.01"
               required
               style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
@@ -166,6 +203,7 @@ export default function NuevoProductoPage() {
               name="costo"
               value={formData.costo}
               onChange={handleChange}
+              onWheel={preventWheelChange}
               step="0.01"
               style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
             />
@@ -178,6 +216,7 @@ export default function NuevoProductoPage() {
               name="stockActual"
               value={formData.stockActual}
               onChange={handleChange}
+              onWheel={preventWheelChange}
               step="0.01"
               style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
             />
@@ -190,6 +229,7 @@ export default function NuevoProductoPage() {
               name="stockMinimo"
               value={formData.stockMinimo}
               onChange={handleChange}
+              onWheel={preventWheelChange}
               step="0.01"
               style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
             />
@@ -213,6 +253,7 @@ export default function NuevoProductoPage() {
               name="m2PorCaja"
               value={formData.m2PorCaja}
               onChange={handleChange}
+              onWheel={preventWheelChange}
               step="0.01"
               style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
             />
@@ -233,15 +274,15 @@ export default function NuevoProductoPage() {
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !!skuError}
             style={{
               padding: '10px 20px',
-              backgroundColor: '#2563eb',
+              backgroundColor: loading || skuError ? '#999' : '#2563eb',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1,
+              cursor: loading || skuError ? 'not-allowed' : 'pointer',
+              opacity: loading || skuError ? 0.6 : 1,
             }}
           >
             {loading ? 'Guardando...' : 'Guardar Producto'}

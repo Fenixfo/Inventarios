@@ -129,12 +129,13 @@ export default function EditClientePage() {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Email</label>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Cédula/CC *</label>
             <input
-              type="email"
-              name="email"
-              value={formData.email || ''}
+              type="text"
+              name="cedulaCc"
+              value={formData.cedulaCc || ''}
               onChange={handleChange}
+              required
               style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
             />
           </div>
@@ -153,11 +154,11 @@ export default function EditClientePage() {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Cédula/CC</label>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Email</label>
             <input
-              type="text"
-              name="cedulaCc"
-              value={formData.cedulaCc || ''}
+              type="email"
+              name="email"
+              value={formData.email || ''}
               onChange={handleChange}
               style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
             />
