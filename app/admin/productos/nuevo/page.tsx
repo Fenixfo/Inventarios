@@ -1,13 +1,22 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+
+interface Producto {
+  id: string
+  nombre: string
+  sku: string
+}
 
 export default function NuevoProductoPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [skuError, setSkuError] = useState<string | null>(null)
+  const [productosExistentes, setProductosExistentes] = useState<Producto[]>([])
+  const [sugerenciasNombre, setSugerenciasNombre] = useState<Producto[]>([])
+  const [mostrarSugerenciasNombre, setMostrarSugerenciasNombre] = useState(false)
   const [formData, setFormData] = useState({
     sku: '',
     nombre: '',
@@ -25,9 +34,49 @@ export default function NuevoProductoPage() {
     descripcion: '',
   })
 
+  useEffect(() => {
+    const fetchProductos = async () => {
+      try {
+        const res = await fetch('/api/productos')
+        const data = await res.json()
+        setProductosExistentes(data)
+      } catch (err) {
+        console.error('Error fetching productos:', err)
+      }
+    }
+
+    fetchProductos()
+  }, [])
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+
+    if (name === 'nombre') {
+      if (value.trim() === '') {
+        setSugerenciasNombre([])
+        setMostrarSugerenciasNombre(false)
+        return
+      }
+
+      const sugerencias = productosExistentes.filter(p =>
+        p.nombre.toLowerCase().includes(value.toLowerCase())
+      )
+
+      setSugerenciasNombre(sugerencias)
+      setMostrarSugerenciasNombre(true)
+    }
+  }
+
+  const seleccionarProductoExistente = (producto: Producto) => {
+    setFormData(prev => ({ ...prev, nombre: producto.nombre }))
+    setSugerenciasNombre([])
+    setMostrarSugerenciasNombre(false)
+  }
+
+  const crearNombreNuevo = () => {
+    setSugerenciasNombre([])
+    setMostrarSugerenciasNombre(false)
   }
 
   const checkSkuExists = async () => {
@@ -120,7 +169,7 @@ export default function NuevoProductoPage() {
             )}
           </div>
 
-          <div>
+          <div style={{ position: 'relative' }}>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Nombre *</label>
             <input
               type="text"
@@ -128,8 +177,57 @@ export default function NuevoProductoPage() {
               value={formData.nombre}
               onChange={handleChange}
               required
-              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' }}
             />
+
+            {mostrarSugerenciasNombre && formData.nombre.trim() !== '' && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                backgroundColor: 'white',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                maxHeight: '200px',
+                overflow: 'auto',
+                zIndex: 10,
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                marginTop: '2px'
+              }}>
+                {sugerenciasNombre.map(producto => (
+                  <div
+                    key={producto.id}
+                    onClick={() => seleccionarProductoExistente(producto)}
+                    style={{
+                      padding: '10px',
+                      borderBottom: '1px solid #eee',
+                      cursor: 'pointer'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                  >
+                    <div style={{ fontWeight: 'bold' }}>{producto.nombre}</div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>SKU: {producto.sku}</div>
+                  </div>
+                ))}
+                <div
+                  onClick={() => crearNombreNuevo()}
+                  style={{
+                    padding: '10px',
+                    borderTop: sugerenciasNombre.length > 0 ? '1px solid #eee' : 'none',
+                    cursor: 'pointer',
+                    color: '#2563eb',
+                    backgroundColor: '#f9f9f9'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f9f9f9'}
+                >
+                  <div style={{ fontWeight: 'bold' }}>➕ Nuevo: {formData.nombre}</div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>Crear producto con este nombre</div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div>

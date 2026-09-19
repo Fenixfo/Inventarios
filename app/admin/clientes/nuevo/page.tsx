@@ -8,6 +8,7 @@ export default function NuevoClientePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [cedulaError, setCedulaError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
@@ -24,6 +25,26 @@ export default function NuevoClientePage() {
       ...formData,
       [name]: value,
     })
+  }
+
+  const checkCedulaExists = async () => {
+    if (!formData.cedulaCc.trim()) {
+      setCedulaError(null)
+      return
+    }
+
+    try {
+      const res = await fetch('/api/clientes')
+      const clientes = await res.json()
+      const exists = clientes.some((c: any) => c.cedulaCc === formData.cedulaCc)
+      if (exists) {
+        setCedulaError('Esta cédula ya existe')
+      } else {
+        setCedulaError(null)
+      }
+    } catch (err) {
+      setCedulaError(null)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -84,9 +105,21 @@ export default function NuevoClientePage() {
               name="cedulaCc"
               value={formData.cedulaCc}
               onChange={handleChange}
+              onBlur={checkCedulaExists}
               required
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: '4px',
+                border: cedulaError ? '2px solid #dc2626' : '1px solid #ddd',
+                boxSizing: 'border-box'
+              }}
             />
+            {cedulaError && (
+              <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                {cedulaError}
+              </div>
+            )}
           </div>
 
           <div>
@@ -156,14 +189,15 @@ export default function NuevoClientePage() {
         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !!cedulaError}
             style={{
               padding: '10px 20px',
-              backgroundColor: '#2563eb',
+              backgroundColor: loading || cedulaError ? '#999' : '#2563eb',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
-              cursor: 'pointer',
+              cursor: loading || cedulaError ? 'not-allowed' : 'pointer',
+              opacity: loading || cedulaError ? 0.6 : 1,
             }}
           >
             {loading ? 'Guardando...' : 'Guardar Cliente'}

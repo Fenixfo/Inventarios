@@ -25,6 +25,8 @@ export default function EditClientePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [cedulaError, setCedulaError] = useState<string | null>(null)
+  const [cedulaOriginal, setCedulaOriginal] = useState('')
 
   useEffect(() => {
     const fetchCliente = async () => {
@@ -33,6 +35,7 @@ export default function EditClientePage() {
         if (!res.ok) throw new Error('Cliente not found')
         const data = await res.json()
         setFormData(data)
+        setCedulaOriginal(data.cedulaCc || '')
       } catch (err: any) {
         setError(err.message)
       } finally {
@@ -50,6 +53,26 @@ export default function EditClientePage() {
       ...formData,
       [name]: value,
     })
+  }
+
+  const checkCedulaExists = async () => {
+    if (!formData?.cedulaCc?.trim() || formData.cedulaCc === cedulaOriginal) {
+      setCedulaError(null)
+      return
+    }
+
+    try {
+      const res = await fetch('/api/clientes')
+      const clientes = await res.json()
+      const exists = clientes.some((c: Cliente) => c.cedulaCc === formData.cedulaCc && c.id !== id)
+      if (exists) {
+        setCedulaError('Esta cédula ya existe')
+      } else {
+        setCedulaError(null)
+      }
+    } catch (err) {
+      setCedulaError(null)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -135,9 +158,21 @@ export default function EditClientePage() {
               name="cedulaCc"
               value={formData.cedulaCc || ''}
               onChange={handleChange}
+              onBlur={checkCedulaExists}
               required
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: '4px',
+                border: cedulaError ? '2px solid #dc2626' : '1px solid #ddd',
+                boxSizing: 'border-box'
+              }}
             />
+            {cedulaError && (
+              <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                {cedulaError}
+              </div>
+            )}
           </div>
 
           <div>
@@ -213,14 +248,15 @@ export default function EditClientePage() {
         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || !!cedulaError}
             style={{
               padding: '10px 20px',
-              backgroundColor: '#2563eb',
+              backgroundColor: saving || cedulaError ? '#999' : '#2563eb',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
-              cursor: 'pointer',
+              cursor: saving || cedulaError ? 'not-allowed' : 'pointer',
+              opacity: saving || cedulaError ? 0.6 : 1,
             }}
           >
             {saving ? 'Guardando...' : 'Guardar Cambios'}

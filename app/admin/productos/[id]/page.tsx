@@ -32,6 +32,8 @@ export default function EditProductoPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [skuError, setSkuError] = useState<string | null>(null)
+  const [skuOriginal, setSkuOriginal] = useState('')
 
   useEffect(() => {
     const fetchProducto = async () => {
@@ -40,6 +42,7 @@ export default function EditProductoPage() {
         if (!res.ok) throw new Error('Producto not found')
         const data = await res.json()
         setFormData(data)
+        setSkuOriginal(data.sku)
       } catch (err: any) {
         setError(err.message)
       } finally {
@@ -57,6 +60,25 @@ export default function EditProductoPage() {
       ...formData,
       [name]: value,
     })
+  }
+
+  const checkSkuExists = async () => {
+    if (!formData?.sku.trim() || formData.sku === skuOriginal) {
+      setSkuError(null)
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/productos?sku=${encodeURIComponent(formData.sku)}`)
+      const productos = await res.json()
+      if (Array.isArray(productos) && productos.length > 0) {
+        setSkuError('Este SKU ya existe')
+      } else {
+        setSkuError(null)
+      }
+    } catch (err) {
+      setSkuError(null)
+    }
   }
 
   const preventWheelChange = (e: React.WheelEvent<HTMLInputElement>) => {
@@ -133,9 +155,21 @@ export default function EditProductoPage() {
             name="sku"
             value={formData.sku}
             onChange={handleChange}
+            onBlur={checkSkuExists}
             required
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+            style={{
+              width: '100%',
+              padding: '8px',
+              borderRadius: '4px',
+              border: skuError ? '2px solid #dc2626' : '1px solid #ddd',
+              boxSizing: 'border-box'
+            }}
           />
+          {skuError && (
+            <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+              {skuError}
+            </div>
+          )}
         </div>
 
         <div>
@@ -313,14 +347,15 @@ export default function EditProductoPage() {
         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || !!skuError}
             style={{
               padding: '10px 20px',
-              backgroundColor: '#2563eb',
+              backgroundColor: saving || skuError ? '#999' : '#2563eb',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
-              cursor: 'pointer',
+              cursor: saving || skuError ? 'not-allowed' : 'pointer',
+              opacity: saving || skuError ? 0.6 : 1,
             }}
           >
             {saving ? 'Guardando...' : 'Guardar Cambios'}

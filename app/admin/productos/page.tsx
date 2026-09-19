@@ -17,6 +17,9 @@ export default function ProductosPage() {
   const [productos, setProductos] = useState<Producto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [filtroSku, setFiltroSku] = useState('')
+  const [filtroNombre, setFiltroNombre] = useState('')
+  const [filtroCategoria, setFiltroCategoria] = useState('')
 
   useEffect(() => {
     const fetchProductos = async () => {
@@ -34,6 +37,16 @@ export default function ProductosPage() {
 
     fetchProductos()
   }, [])
+
+  const productosFiltrados = productos.filter(p => {
+    const coincideSku = p.sku.toLowerCase().includes(filtroSku.toLowerCase())
+    const coincideNombre = p.nombre.toLowerCase().includes(filtroNombre.toLowerCase())
+    const coincideCategoria = !filtroCategoria || p.categoria === filtroCategoria
+
+    return coincideSku && coincideNombre && coincideCategoria
+  })
+
+  const categorias = Array.from(new Set(productos.map(p => p.categoria)))
 
   if (loading) return <div style={{ padding: '20px' }}>Cargando...</div>
   if (error) return <div style={{ padding: '20px', color: 'red' }}>Error: {error}</div>
@@ -53,8 +66,50 @@ export default function ProductosPage() {
         </Link>
       </div>
 
+      <div style={{ backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '4px', marginBottom: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>SKU</label>
+            <input
+              type="text"
+              placeholder="Buscar por SKU"
+              value={filtroSku}
+              onChange={(e) => setFiltroSku(e.target.value)}
+              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>Nombre</label>
+            <input
+              type="text"
+              placeholder="Buscar por nombre"
+              value={filtroNombre}
+              onChange={(e) => setFiltroNombre(e.target.value)}
+              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>Categoría</label>
+            <select
+              value={filtroCategoria}
+              onChange={(e) => setFiltroCategoria(e.target.value)}
+              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' }}
+            >
+              <option value="">Todas las categorías</option>
+              {categorias.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
       {productos.length === 0 ? (
         <p style={{ color: '#666' }}>No hay productos registrados</p>
+      ) : productosFiltrados.length === 0 ? (
+        <p style={{ color: '#666' }}>No hay productos que coincidan con los filtros</p>
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
@@ -68,7 +123,7 @@ export default function ProductosPage() {
             </tr>
           </thead>
           <tbody>
-            {productos.map((producto) => (
+            {productosFiltrados.map((producto) => (
               <tr key={producto.id} style={{ borderBottom: '1px solid #eee' }}>
                 <td style={{ padding: '10px' }}>{producto.sku}</td>
                 <td style={{ padding: '10px' }}>{producto.nombre}</td>
