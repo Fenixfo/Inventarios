@@ -99,6 +99,31 @@ export default function FacturaPage() {
     await handleStatusChange('anulado')
   }
 
+  const handleDescargarPDF = async () => {
+    try {
+      const res = await fetch(`/api/facturas/${id}/pdf`)
+      if (!res.ok) throw new Error('Error al descargar PDF')
+
+      const html = await res.text()
+
+      // Abrir en nueva ventana para imprimir/guardar como PDF
+      const ventana = window.open('', '_blank')
+      if (ventana) {
+        ventana.document.write(html)
+        ventana.document.close()
+
+        // Auto-imprimir a PDF después de que cargue
+        setTimeout(() => {
+          ventana.print()
+        }, 500)
+      } else {
+        alert('Por favor, permite las ventanas emergentes para descargar el PDF')
+      }
+    } catch (err: any) {
+      alert('Error al descargar PDF: ' + err.message)
+    }
+  }
+
   if (loading) return <div style={{ padding: '20px' }}>Cargando...</div>
   if (!factura) return <div style={{ padding: '20px', color: 'red' }}>Factura no encontrada</div>
 
@@ -266,6 +291,20 @@ export default function FacturaPage() {
           }}
         >
           Imprimir
+        </button>
+
+        <button
+          onClick={handleDescargarPDF}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: '#8b5cf6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+        >
+          Descargar PDF
         </button>
       </div>
     </div>
