@@ -30,6 +30,7 @@ model Usuario {
   movimientosInventario InventarioMovimiento[]
   auditoria Auditoria[]
   configuracionesActualizadas Configuracion[]
+  rolesPersonalizados UsuarioRolPersonalizado[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
@@ -49,6 +50,64 @@ model UsuarioRol {
 
   @@unique([usuarioId, rol])
   @@map("usuarios_roles")
+}
+
+model RolPersonalizado {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre      String   @unique @db.VarChar(100)
+  descripcion String?  @db.Text
+  esAdmin     Boolean  @default(false) @map("es_admin")
+  activo      Boolean  @default(true)
+
+  // Relaciones
+  permisos    PermisoRolPersonalizado[]
+  usuarios    UsuarioRolPersonalizado[]
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("roles_personalizados")
+}
+
+model PermisoModulo {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  modulo    String   @unique @db.VarChar(50)
+  nombre    String   @db.VarChar(100)
+  descripcion String? @db.Text
+  icono     String?  @db.VarChar(20)
+
+  // Relaciones
+  permisos  PermisoRolPersonalizado[]
+
+  @@map("permisos_modulos")
+}
+
+model PermisoRolPersonalizado {
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rolId       String @map("rol_id") @db.Uuid
+  moduloId    String @map("modulo_id") @db.Uuid
+
+  // Relaciones
+  rol         RolPersonalizado @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  modulo      PermisoModulo @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+
+  @@unique([rolId, moduloId])
+  @@map("permisos_roles_personalizados")
+}
+
+model UsuarioRolPersonalizado {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId String   @map("usuario_id") @db.Uuid
+  rolId     String   @map("rol_id") @db.Uuid
+
+  // Relaciones
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  rol       RolPersonalizado @relation(fields: [rolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([usuarioId, rolId])
+  @@map("usuarios_roles_personalizados")
 }
 
 model Tienda {

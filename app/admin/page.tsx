@@ -18,10 +18,29 @@ export default function AdminDashboard() {
     stockBajo: 0,
   })
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     const loadStats = async () => {
       try {
+        // Verificar si el usuario es admin
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user?.id) {
+          const syncRes = await fetch('/api/auth/sync-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: session.user.id,
+              email: session.user.email,
+            }),
+          })
+
+          if (syncRes.ok) {
+            const syncData = await syncRes.json()
+            setIsAdmin(syncData.usuario.roles.includes('admin'))
+          }
+        }
+
         // Total de productos
         const productosRes = await fetch('/api/productos')
         const productos = productosRes.ok ? await productosRes.json() : []
@@ -126,18 +145,28 @@ export default function AdminDashboard() {
             >
               📊 Reportes
             </a>
-            <a
-              href="/admin/usuarios"
-              className="block px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-            >
-              👥 Gestión de Usuarios
-            </a>
-            <a
-              href="/admin/solicitudes-acceso"
-              className="block px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700"
-            >
-              ✋ Solicitudes de Acceso
-            </a>
+            {isAdmin && (
+              <>
+                <a
+                  href="/admin/roles"
+                  className="block px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+                >
+                  🎭 Gestión de Roles
+                </a>
+                <a
+                  href="/admin/usuarios"
+                  className="block px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                >
+                  👥 Gestión de Usuarios
+                </a>
+                <a
+                  href="/admin/solicitudes-acceso"
+                  className="block px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700"
+                >
+                  ✋ Solicitudes de Acceso
+                </a>
+              </>
+            )}
             <a
               href="/admin/auditoria"
               className="block px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700"
