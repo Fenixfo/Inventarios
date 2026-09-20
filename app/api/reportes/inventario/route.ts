@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         fecha: {
           gte: hace30Dias,
         },
-        estado: 'pagado',
+        estado: { in: ['pagado', 'entregado'] },
       },
       include: {
         items: {
