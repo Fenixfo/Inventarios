@@ -19,7 +19,9 @@ export async function POST(request: NextRequest) {
       where: { email },
       include: {
         roles: true,
-        rolesPersonalizados: true,
+        rolesPersonalizados: {
+          include: { rol: true },
+        },
       },
     })
 
@@ -32,7 +34,9 @@ export async function POST(request: NextRequest) {
         },
         include: {
           roles: true,
-          rolesPersonalizados: true,
+          rolesPersonalizados: {
+            include: { rol: true },
+          },
         },
       })
     } else if (usuario.id !== userId) {
@@ -57,7 +61,7 @@ export async function POST(request: NextRequest) {
         id: usuario.id,
         email: usuario.email,
         roles: usuario.roles.map((r) => r.rol),
-        rolesPersonalizados: usuario.rolesPersonalizados.map((r) => r.nombre),
+        rolesPersonalizados: usuario.rolesPersonalizados.map((r) => r.rol.nombre),
         tiendas: usuarioTiendas.map((ut) => ({
           id: ut.tienda.id,
           nombre: ut.tienda.nombre,

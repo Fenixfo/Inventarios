@@ -8,9 +8,10 @@ import { apiFetch } from '@/lib/api-client'
 
 interface FacturaItem {
   id: string
-  producto: {
+  productoNombre?: string | null
+  producto?: {
     nombre: string
-  }
+  } | null
   cantidadM2: number
   precioUnitario: number
   subtotal: number
