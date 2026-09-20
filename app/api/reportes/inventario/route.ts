@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const email = searchParams.get('email')
+    const estadosParam = searchParams.get('estados')
 
     // Verificar permisos si se proporciona email
     if (email) {
@@ -36,16 +37,21 @@ export async function GET(request: NextRequest) {
       where: { activo: true },
     })
 
-    // Obtener facturas pagadas de los últimos 30 días para calcular rotación
+    // Obtener facturas de los últimos 30 días para calcular rotación
     const hace30Dias = new Date()
     hace30Dias.setDate(hace30Dias.getDate() - 30)
+
+    // Determinar qué estados filtrar
+    const estadosFiltro = estadosParam
+      ? estadosParam.split(',').filter((s) => ['pagado', 'entregado', 'pendiente'].includes(s))
+      : ['pagado', 'entregado']
 
     const facturasRecientes = await prisma.factura.findMany({
       where: {
         fecha: {
           gte: hace30Dias,
         },
-        estado: { in: ['pagado', 'entregado'] },
+        estado: { in: estadosFiltro },
       },
       include: {
         items: {

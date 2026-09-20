@@ -47,39 +47,49 @@ export default function ReportesInventarioPage() {
   const [reporte, setReporte] = useState<ReporteInventario | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [estados, setEstados] = useState<string[]>(['pagado', 'entregado'])
+
+  const cargarReporte = async (estadosFiltro: string[] = estados) => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const email = session?.user?.email
+
+      const estadosParam = estadosFiltro.length > 0 ? `&estados=${estadosFiltro.join(',')}` : ''
+      const url = email
+        ? `/api/reportes/inventario?email=${encodeURIComponent(email)}${estadosParam}`
+        : `/api/reportes/inventario${estadosParam}`
+
+      const res = await apiFetch(url)
+      if (!res.ok) {
+        if (res.status === 403) {
+          setError('No tienes permiso para ver reportes')
+        } else {
+          throw new Error('Error al cargar reporte')
+        }
+        return
+      }
+
+      const data = await res.json()
+      setReporte(data)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleEstadoChange = (estado: string) => {
+    const nuevosEstados = estados.includes(estado)
+      ? estados.filter((e) => e !== estado)
+      : [...estados, estado]
+    setEstados(nuevosEstados)
+    cargarReporte(nuevosEstados)
+  }
 
   useEffect(() => {
-    const cargarReporte = async () => {
-      setLoading(true)
-      setError(null)
-
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        const email = session?.user?.email
-
-        const url = email
-          ? `/api/reportes/inventario?email=${encodeURIComponent(email)}`
-          : '/api/reportes/inventario'
-
-        const res = await apiFetch(url)
-        if (!res.ok) {
-          if (res.status === 403) {
-            setError('No tienes permiso para ver reportes')
-          } else {
-            throw new Error('Error al cargar reporte')
-          }
-          return
-        }
-
-        const data = await res.json()
-        setReporte(data)
-      } catch (err: any) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     cargarReporte()
   }, [])
 
@@ -135,6 +145,40 @@ export default function ReportesInventarioPage() {
           >
             📦 Inventario
           </button>
+        </div>
+      </div>
+
+      {/* Filtros de estado */}
+      <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f3f4f6', borderRadius: '4px' }}>
+        <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', fontSize: '14px', color: '#374151' }}>Estado de Facturas:</p>
+        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+            <input
+              type="checkbox"
+              checked={estados.includes('pagado')}
+              onChange={() => handleEstadoChange('pagado')}
+              style={{ cursor: 'pointer' }}
+            />
+            ✅ Pagado
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+            <input
+              type="checkbox"
+              checked={estados.includes('entregado')}
+              onChange={() => handleEstadoChange('entregado')}
+              style={{ cursor: 'pointer' }}
+            />
+            🚚 Entregado
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+            <input
+              type="checkbox"
+              checked={estados.includes('pendiente')}
+              onChange={() => handleEstadoChange('pendiente')}
+              style={{ cursor: 'pointer' }}
+            />
+            ⏳ Pendiente
+          </label>
         </div>
       </div>
 

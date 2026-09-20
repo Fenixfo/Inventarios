@@ -64,6 +64,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Determinar qué estados filtrar
+    const estadosParam = searchParams.get('estados')
+    const estadosFiltro = estadosParam
+      ? estadosParam.split(',').filter((s) => ['pagado', 'entregado', 'pendiente'].includes(s))
+      : ['pagado', 'entregado']
+
     // Obtener facturas en el rango
     const facturas = await prisma.factura.findMany({
       where: {
@@ -71,6 +77,7 @@ export async function GET(request: NextRequest) {
           gte: desde,
           lte: hasta,
         },
+        estado: { in: estadosFiltro },
         ...filtroUsuario,
       },
       include: {

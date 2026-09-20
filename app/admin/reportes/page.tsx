@@ -34,11 +34,13 @@ interface ReporteFacturacion {
 }
 
 export default function ReportesPage() {
-  const [periodo, setPeriodo] = useState('mes')
+  const [periodo, setPeriodo] = useState('hoy')
   const [mesSeleccionado, setMesSeleccionado] = useState<string>('')
   const [reporte, setReporte] = useState<ReporteFacturacion | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [estados, setEstados] = useState<string[]>(['pagado', 'entregado'])
+  const [inicializado, setInicializado] = useState(false)
 
   // Obtener mes actual en formato YYYY-MM
   useEffect(() => {
@@ -47,7 +49,7 @@ export default function ReportesPage() {
     setMesSeleccionado(mes)
   }, [])
 
-  const cargarReporte = async (p: string = periodo, mes?: string) => {
+  const cargarReporte = async (p: string = periodo, mes?: string, estadosFiltro: string[] = estados) => {
     setLoading(true)
     setError(null)
 
@@ -55,7 +57,8 @@ export default function ReportesPage() {
       const { data: { session } } = await supabase.auth.getSession()
       const email = session?.user?.email
 
-      let url = `/api/reportes/facturacion?periodo=${p}`
+      const estadosParam = estadosFiltro.length > 0 ? `&estados=${estadosFiltro.join(',')}` : ''
+      let url = `/api/reportes/facturacion?periodo=${p}${estadosParam}`
 
       if (email) {
         url += `&email=${encodeURIComponent(email)}`
@@ -66,7 +69,7 @@ export default function ReportesPage() {
         const desde = new Date(parseInt(year), parseInt(month) - 1, 1)
         const hasta = new Date(parseInt(year), parseInt(month), 0)
 
-        url = `/api/reportes/facturacion?periodo=personalizado&fechaInicio=${desde.toISOString()}&fechaFin=${hasta.toISOString()}&email=${encodeURIComponent(email || '')}`
+        url = `/api/reportes/facturacion?periodo=personalizado&fechaInicio=${desde.toISOString()}&fechaFin=${hasta.toISOString()}${estadosParam}&email=${encodeURIComponent(email || '')}`
       }
 
       const res = await apiFetch(url)
@@ -81,11 +84,21 @@ export default function ReportesPage() {
     }
   }
 
+  const handleEstadoChange = (estado: string) => {
+    const nuevosEstados = estados.includes(estado)
+      ? estados.filter((e) => e !== estado)
+      : [...estados, estado]
+    setEstados(nuevosEstados)
+    cargarReporte(periodo, mesSeleccionado, nuevosEstados)
+  }
+
+  // Cargar reporte inicial
   useEffect(() => {
-    if (mesSeleccionado) {
-      cargarReporte(periodo, mesSeleccionado)
+    if (!inicializado) {
+      cargarReporte('hoy')
+      setInicializado(true)
     }
-  }, [])
+  }, [inicializado])
 
   const formatearDinero = (valor: number) => {
     return new Intl.NumberFormat('es-CO', {
@@ -166,6 +179,40 @@ export default function ReportesPage() {
             </button>
           ))}
         </div>
+
+      {/* Filtros de estado */}
+      <div style={{ padding: '15px', backgroundColor: '#f3f4f6', borderRadius: '4px', marginBottom: '15px' }}>
+        <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', fontSize: '14px', color: '#374151' }}>Estado de Facturas:</p>
+        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+            <input
+              type="checkbox"
+              checked={estados.includes('pagado')}
+              onChange={() => handleEstadoChange('pagado')}
+              style={{ cursor: 'pointer' }}
+            />
+            ✅ Pagado
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+            <input
+              type="checkbox"
+              checked={estados.includes('entregado')}
+              onChange={() => handleEstadoChange('entregado')}
+              style={{ cursor: 'pointer' }}
+            />
+            🚚 Entregado
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+            <input
+              type="checkbox"
+              checked={estados.includes('pendiente')}
+              onChange={() => handleEstadoChange('pendiente')}
+              style={{ cursor: 'pointer' }}
+            />
+            ⏳ Pendiente
+          </label>
+        </div>
+      </div>
 
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Ver mes específico:</label>
