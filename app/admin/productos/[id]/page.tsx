@@ -209,10 +209,10 @@ export default function EditProductoPage() {
             required
             style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
           >
-            <option value="">Selecciona una categoría</option>
-            <option value="Cerámica">Cerámica</option>
-            <option value="Porcellanato">Porcellanato</option>
-            <option value="Baldosa">Baldosa</option>
+            <option value="">Selecciona categoría</option>
+            <option value="baldosa">Baldosa</option>
+            <option value="ceramica">Cerámica</option>
+            <option value="porcelanato">Porcelanato</option>
           </select>
         </div>
 
