@@ -30,11 +30,14 @@ export default defineConfig({
 
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 
-  // Reutiliza el servidor si ya está levantado; si no, lo arranca.
-  webServer: {
-    command: 'npm run dev',
-    url: BASE_URL,
-    reuseExistingServer: true,
-    timeout: 180000,
-  },
+  // Solo se levanta un servidor local cuando no se apunta a una URL externa
+  // (un despliegue de Vercel, por ejemplo).
+  webServer: process.env.E2E_BASE_URL
+    ? undefined
+    : {
+        command: 'npm run dev',
+        url: BASE_URL,
+        reuseExistingServer: true,
+        timeout: 180000,
+      },
 })

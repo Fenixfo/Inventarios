@@ -213,9 +213,11 @@ export default function Catalogo() {
                     </div>
 
                     {/* Nombre */}
-                    <h3 className="font-semibold text-lg text-gray-900 mb-2">
+                    {/* h2 y no h3: el h1 es el título del catálogo y saltar
+                        un nivel rompe la navegación por encabezados. */}
+                    <h2 className="font-semibold text-lg text-gray-900 mb-2">
                       {producto.nombre}
-                    </h3>
+                    </h2>
 
                     {/* Atributos */}
                     <div className="text-sm text-gray-600 mb-3 space-y-1">
