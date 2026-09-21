@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+// El cliente se crea dentro del handler, no al importar el módulo: si
+// faltara una variable de entorno, un throw a nivel de módulo tumbaría el
+// build entero en vez de fallar solo esta ruta al usarla.
+function crearClienteAdmin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Faltan variables de entorno de Supabase')
+  if (!supabaseUrl || !supabaseServiceKey) return null
+
+  return createClient(supabaseUrl, supabaseServiceKey)
 }
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,6 +21,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Token inválido' },
         { status: 401 }
+      )
+    }
+
+    const supabase = crearClienteAdmin()
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Faltan variables de entorno de Supabase en el servidor' },
+        { status: 500 }
       )
     }
 
