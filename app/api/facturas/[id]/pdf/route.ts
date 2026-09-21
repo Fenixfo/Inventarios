@@ -78,8 +78,8 @@ function generarHTML(factura: any): string {
     .map(
       (item: any) => `
     <tr style="border-bottom: 1px solid #ddd;">
-      <td style="padding: 10px; text-align: left;">${item.producto?.sku || 'PERSONALIZADO'}</td>
-      <td style="padding: 10px; text-align: left;">${item.producto?.nombre || '(Personalizado)'}</td>
+      <td style="padding: 10px; text-align: left;">${item.producto?.sku || '—'}</td>
+      <td style="padding: 10px; text-align: left;">${item.productoNombre || item.producto?.nombre || '(Sin nombre)'}</td>
       <td style="padding: 10px; text-align: right;">${Number(item.cantidadM2).toFixed(2)}</td>
       <td style="padding: 10px; text-align: right;">${formatearDinero(Number(item.precioUnitario))}</td>
       <td style="padding: 10px; text-align: right;">${formatearDinero(Number(item.subtotal))}</td>
@@ -105,6 +105,52 @@ function generarHTML(factura: any): string {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       color: #333;
       line-height: 1.6;
+    }
+
+    /* El navegador omite fondos y colores al imprimir salvo que se le fuerce;
+       sin esto los encabezados y estados salen en blanco en el PDF. */
+    @media print {
+      @page {
+        size: A4;
+        margin: 12mm;
+      }
+
+      html, body {
+        width: 100%;
+        background: white;
+      }
+
+      body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .container {
+        max-width: 100%;
+        padding: 0;
+        margin: 0;
+      }
+
+      .no-print {
+        display: none !important;
+      }
+
+      table {
+        page-break-inside: auto;
+      }
+
+      tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+      }
+
+      thead {
+        display: table-header-group;
+      }
+
+      .totales, .footer {
+        page-break-inside: avoid;
+      }
     }
     .container {
       max-width: 800px;
@@ -376,15 +422,33 @@ function generarHTML(factura: any): string {
     </div>
   </div>
 
-  <script>
-    // Auto-print o download cuando se carga
-    window.addEventListener('load', function() {
-      // Opción 1: Abrir diálogo de impresión
-      // window.print();
+  <div class="no-print" style="position: fixed; top: 16px; right: 16px; display: flex; gap: 8px;">
+    <button onclick="window.print()" style="padding: 10px 18px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+      Guardar como PDF
+    </button>
+  </div>
 
-      // Opción 2: Usar html2canvas y jsPDF en frontend
-      // (si prefieres generar PDF en browser)
-    });
+  <script>
+    // Abre el diálogo de impresión una sola vez. El navegador produce un PDF
+    // vectorial (texto seleccionable), mejor que rasterizar el HTML.
+    (function () {
+      var yaImprimio = false;
+
+      function imprimir() {
+        if (yaImprimio) return;
+        yaImprimio = true;
+        setTimeout(function () { window.print() }, 300);
+      }
+
+      if (location.search.indexOf('print=0') !== -1) return;
+
+      // Con document.write el evento load puede haber ocurrido ya.
+      if (document.readyState === 'complete') {
+        imprimir();
+      } else {
+        window.addEventListener('load', imprimir);
+      }
+    })();
   </script>
 </body>
 </html>

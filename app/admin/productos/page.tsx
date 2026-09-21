@@ -133,12 +133,37 @@ export default function ProductosPage() {
                 <td style={{ padding: '10px' }}>{producto.nombre}</td>
                 <td style={{ padding: '10px' }}>{producto.categoria}</td>
                 <td style={{ padding: '10px', textAlign: 'right' }}>${Number(producto.precioUnitario).toFixed(2)}</td>
-                <td style={{
-                  padding: '10px',
-                  textAlign: 'right',
-                  color: producto.stockActual < producto.stockMinimo ? 'red' : 'green'
-                }}>
-                  {producto.stockActual}
+                <td style={{ padding: '10px', textAlign: 'right' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                    {Number(producto.stockActual) < Number(producto.stockMinimo) && (
+                      <span
+                        title={`Mínimo: ${producto.stockMinimo} m²`}
+                        style={{
+                          backgroundColor: Number(producto.stockActual) <= 0 ? '#dc2626' : '#f59e0b',
+                          color: 'white',
+                          padding: '2px 7px',
+                          borderRadius: '4px',
+                          fontSize: '10px',
+                          fontWeight: 'bold',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {Number(producto.stockActual) <= 0 ? 'AGOTADO' : 'STOCK BAJO'}
+                      </span>
+                    )}
+                    <span
+                      style={{
+                        fontFamily: 'monospace',
+                        fontWeight: 'bold',
+                        color:
+                          Number(producto.stockActual) < Number(producto.stockMinimo)
+                            ? '#dc2626'
+                            : '#059669',
+                      }}
+                    >
+                      {producto.stockActual}
+                    </span>
+                  </div>
                 </td>
                 <td style={{ padding: '10px', textAlign: 'center' }}>
                   <Link href={`/admin/productos/${producto.id}`} style={{

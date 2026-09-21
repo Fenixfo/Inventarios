@@ -11,6 +11,14 @@ interface Stats {
   stockBajo: number
 }
 
+interface ProductoAlerta {
+  id: string
+  sku: string
+  nombre: string
+  stockActual: number
+  stockMinimo: number
+}
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats>({
     totalProductos: 0,
@@ -18,6 +26,7 @@ export default function AdminDashboard() {
     facturasHoy: 0,
     stockBajo: 0,
   })
+  const [productosAlerta, setProductosAlerta] = useState<ProductoAlerta[]>([])
   const [permisos, setPermisos] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -59,16 +68,27 @@ export default function AdminDashboard() {
           f.fecha.split('T')[0] === today
         ).length
 
-        // Stock bajo
-        const stockBajo = productos.filter((p: any) =>
-          p.stockActual < p.stockMinimo
-        ).length
+        // Stock bajo: los más críticos primero (mayor déficit frente al mínimo)
+        const bajos = productos
+          .filter((p: any) => Number(p.stockActual) < Number(p.stockMinimo))
+          .map((p: any) => ({
+            id: p.id,
+            sku: p.sku,
+            nombre: p.nombre,
+            stockActual: Number(p.stockActual),
+            stockMinimo: Number(p.stockMinimo),
+          }))
+          .sort(
+            (a: ProductoAlerta, b: ProductoAlerta) =>
+              a.stockActual - a.stockMinimo - (b.stockActual - b.stockMinimo)
+          )
 
+        setProductosAlerta(bajos)
         setStats({
           totalProductos: productos.length,
           totalClientes: clientes.length,
           facturasHoy,
-          stockBajo,
+          stockBajo: bajos.length,
         })
       } catch (error) {
         console.error('Error loading data:', error)
@@ -110,6 +130,79 @@ export default function AdminDashboard() {
           color="red"
         />
       </div>
+
+      {/* Alertas de stock bajo */}
+      {productosAlerta.length > 0 && permisos.includes('productos') && (
+        <div className="bg-white rounded-lg shadow mb-8 overflow-hidden border-l-4 border-red-500">
+          <div className="flex items-center justify-between px-6 py-4 bg-red-50">
+            <h2 className="text-lg font-bold text-red-800">
+              ⚠️ Stock bajo mínimo
+              <span className="ml-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                {productosAlerta.length}
+              </span>
+            </h2>
+            <a href="/admin/inventario" className="text-sm text-red-700 hover:text-red-900 font-medium">
+              Registrar entrada →
+            </a>
+          </div>
+
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 border-b text-xs text-gray-600">
+                <th className="px-6 py-2 text-left font-medium">Producto</th>
+                <th className="px-6 py-2 text-right font-medium">Actual</th>
+                <th className="px-6 py-2 text-right font-medium">Mínimo</th>
+                <th className="px-6 py-2 text-right font-medium">Faltante</th>
+                <th className="px-6 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {productosAlerta.slice(0, 5).map((p) => {
+                const faltante = p.stockMinimo - p.stockActual
+                return (
+                  <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50">
+                    <td className="px-6 py-3">
+                      <span className="font-medium text-sm">{p.nombre}</span>
+                      <span className="text-xs text-gray-500 ml-2">{p.sku}</span>
+                      {p.stockActual <= 0 && (
+                        <span className="ml-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded">
+                          AGOTADO
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-3 text-right font-mono text-sm font-bold text-red-600">
+                      {p.stockActual.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-3 text-right font-mono text-sm text-gray-500">
+                      {p.stockMinimo.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-3 text-right font-mono text-sm font-bold text-amber-600">
+                      +{faltante.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-3 text-right">
+                      <a
+                        href={`/admin/productos/${p.id}`}
+                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        Editar
+                      </a>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+
+          {productosAlerta.length > 5 && (
+            <div className="px-6 py-3 bg-gray-50 text-sm text-gray-600 border-t">
+              y {productosAlerta.length - 5} producto{productosAlerta.length - 5 !== 1 ? 's' : ''} más —{' '}
+              <a href="/admin/reportes/inventario" className="text-blue-600 hover:text-blue-800 font-medium">
+                ver reporte completo
+              </a>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6">
         <div className="bg-white p-6 rounded-lg shadow">

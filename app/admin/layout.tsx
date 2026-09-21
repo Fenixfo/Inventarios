@@ -27,6 +27,7 @@ export default function AdminLayout({
   const menuItems: MenuItem[] = [
     { label: 'Dashboard', href: '/admin', icono: '📊' }, // Visible para todos
     { label: 'Productos', href: '/admin/productos', permiso: 'productos', icono: '📦' },
+    { label: 'Inventario', href: '/admin/inventario', permiso: 'productos', icono: '🔄' },
     { label: 'Clientes', href: '/admin/clientes', permiso: 'clientes', icono: '👥' },
     { label: 'Facturas', href: '/admin/facturas', permiso: 'facturas', icono: '📄' },
     { label: 'Reportes', href: '/admin/reportes', permiso: 'reportes', icono: '📈' },

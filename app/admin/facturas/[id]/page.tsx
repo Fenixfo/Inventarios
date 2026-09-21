@@ -209,25 +209,22 @@ export default function FacturaPage() {
   const handleDescargarPDF = async () => {
     try {
       const res = await apiFetch(`/api/facturas/${id}/pdf`)
-      if (!res.ok) throw new Error('Error al descargar PDF')
+      if (!res.ok) throw new Error('Error al generar la factura')
 
       const html = await res.text()
 
-      // Abrir en nueva ventana para imprimir/guardar como PDF
+      // El HTML dispara su propio diálogo de impresión al cargar,
+      // así que aquí solo se abre la pestaña.
       const ventana = window.open('', '_blank')
-      if (ventana) {
-        ventana.document.write(html)
-        ventana.document.close()
-
-        // Auto-imprimir a PDF después de que cargue
-        setTimeout(() => {
-          ventana.print()
-        }, 500)
-      } else {
-        alert('Por favor, permite las ventanas emergentes para descargar el PDF')
+      if (!ventana) {
+        alert('Permite las ventanas emergentes para ver la factura')
+        return
       }
+
+      ventana.document.write(html)
+      ventana.document.close()
     } catch (err: any) {
-      alert('Error al descargar PDF: ' + err.message)
+      alert('Error al generar el PDF: ' + err.message)
     }
   }
 
@@ -513,20 +510,6 @@ export default function FacturaPage() {
             {saving ? 'Procesando...' : 'Marcar como Entregado'}
           </button>
         )}
-
-        <button
-          onClick={() => window.print()}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: '#6366f1',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-          }}
-        >
-          Imprimir
-        </button>
 
         <button
           onClick={handleDescargarPDF}

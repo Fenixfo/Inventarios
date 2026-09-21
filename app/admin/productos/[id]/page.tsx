@@ -274,6 +274,7 @@ export default function EditProductoPage() {
             name="m2PorCaja"
             value={formData.m2PorCaja || ''}
             onChange={handleChange}
+            onWheel={preventWheelChange}
             step="0.01"
             style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
           />
