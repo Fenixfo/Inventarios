@@ -24,6 +24,7 @@ export function Cart({ carrito, onQuitarItem, onActualizarCantidad, onVaciarCarr
   if (carrito.items.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-6 text-center">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Carrito de Compras</h1>
         <p className="text-gray-600 mb-4">El carrito está vacío</p>
         <Link href="/" className="text-blue-600 hover:text-blue-800 font-medium">
           ← Volver al catálogo
@@ -36,7 +37,7 @@ export function Cart({ carrito, onQuitarItem, onActualizarCantidad, onVaciarCarr
     <div className="bg-white rounded-lg shadow overflow-hidden">
       {/* Resumen del carrito */}
       <div className="p-6 border-b">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Carrito de Compras</h2>
+        <h1 className="text-2xl font-bold text-gray-900 mb-4">Carrito de Compras</h1>
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
             <p className="text-sm text-gray-600">Productos</p>
@@ -59,7 +60,7 @@ export function Cart({ carrito, onQuitarItem, onActualizarCantidad, onVaciarCarr
           <div key={item.id} className="p-4 hover:bg-gray-50 transition">
             <div className="flex items-start justify-between mb-3">
               <div className="flex-1">
-                <h3 className="font-semibold text-gray-900">{item.nombre}</h3>
+                <h2 className="font-semibold text-gray-900">{item.nombre}</h2>
                 <p className="text-sm text-gray-600">SKU: {item.sku}</p>
               </div>
               <button

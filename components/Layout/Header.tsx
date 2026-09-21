@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase-client'
 
 interface HeaderProps {
   showNav?: boolean
@@ -16,25 +15,41 @@ export function Header({ showNav = true, compact = false, showLogo = true }: Hea
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
+  // El cliente de Supabase se carga aparte del bundle inicial. Importarlo
+  // arriba obliga a cada visitante del catálogo a descargar y ejecutar toda
+  // la librería de autenticación antes de ver la página, solo para decidir
+  // si el botón dice "Ingresar" o muestra el menú de la sesión.
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user)
-      setLoading(false)
-    }
+    let cancelado = false
+    let desuscribir: (() => void) | undefined
 
-    checkUser()
+    import('@/lib/supabase-client')
+      .then(async ({ supabase }) => {
+        if (cancelado) return
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (cancelado) return
+
         setUser(session?.user)
-      }
-    )
+        setLoading(false)
 
-    return () => subscription?.unsubscribe()
+        const { data } = supabase.auth.onAuthStateChange((_event, sesion) => {
+          setUser(sesion?.user)
+        })
+        desuscribir = () => data.subscription?.unsubscribe()
+      })
+      .catch(() => {
+        if (!cancelado) setLoading(false)
+      })
+
+    return () => {
+      cancelado = true
+      desuscribir?.()
+    }
   }, [])
 
   const handleLogout = async () => {
+    const { supabase } = await import('@/lib/supabase-client')
     await supabase.auth.signOut()
     router.push('/')
   }
