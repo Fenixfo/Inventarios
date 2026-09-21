@@ -7,21 +7,36 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const factura = await prisma.factura.findUnique({
-      where: { id },
-      include: {
-        cliente: true,
-        usuario: true,
-        items: {
-          include: {
-            producto: true,
+
+    // Las dos consultas son independientes: en secuencia pagaban dos veces
+    // la ida y vuelta a la base de datos.
+    const [factura, registros] = await Promise.all([
+      prisma.factura.findUnique({
+        where: { id },
+        include: {
+          cliente: true,
+          usuario: true,
+          items: { include: { producto: true } },
+          abonos: { orderBy: { fecha: 'asc' } },
+        },
+      }),
+      prisma.configuracion.findMany({
+        where: {
+          clave: {
+            in: [
+              'nombre_empresa',
+              'eslogan_empresa',
+              'nit_empresa',
+              'direccion_empresa',
+              'telefono_empresa',
+              'email_empresa',
+              'logo_url',
+            ],
           },
         },
-        abonos: {
-          orderBy: { fecha: 'asc' },
-        },
-      },
-    })
+        select: { clave: true, valor: true },
+      }),
+    ])
 
     if (!factura) {
       return NextResponse.json(
@@ -29,23 +44,6 @@ export async function GET(
         { status: 404 }
       )
     }
-
-    const registros = await prisma.configuracion.findMany({
-      where: {
-        clave: {
-          in: [
-            'nombre_empresa',
-            'eslogan_empresa',
-            'nit_empresa',
-            'direccion_empresa',
-            'telefono_empresa',
-            'email_empresa',
-            'logo_url',
-          ],
-        },
-      },
-      select: { clave: true, valor: true },
-    })
 
     const config = Object.fromEntries(registros.map((r) => [r.clave, r.valor || '']))
 

@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verificar:
+    name: Tests y build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # jsdom depende de undici@8, que necesita webidl.util.markAsUncloneable,
+      # disponible desde Node 22. Con Node 20 los tests ni siquiera arrancan.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Generar cliente de Prisma
+        run: npx prisma generate
+
+      - name: Tests unitarios
+        run: npm run test:unit
+
+      # Compila igual que Vercel: si el type-check falla aquí, el deploy
+      # también habría fallado. Las claves son de relleno porque las
+      # NEXT_PUBLIC_* se inyectan en el bundle y el build no consulta la BD.
+      - name: Build de producción
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          DATABASE_URL: postgresql://user:pass@localhost:5432/placeholder
+          DIRECT_URL: postgresql://user:pass@localhost:5432/placeholder

@@ -50,17 +50,19 @@ export default function AdminDashboard() {
           }
         }
 
-        // Total de productos
-        const productosRes = await apiFetch('/api/productos')
-        const productos = productosRes.ok ? await productosRes.json() : []
+        // Las tres consultas son independientes: en secuencia el dashboard
+        // esperaba la suma de las tres en vez de la más lenta.
+        const [productosRes, clientesRes, facturasRes] = await Promise.all([
+          apiFetch('/api/productos'),
+          apiFetch('/api/clientes'),
+          apiFetch('/api/facturas'),
+        ])
 
-        // Total de clientes
-        const clientesRes = await apiFetch('/api/clientes')
-        const clientes = clientesRes.ok ? await clientesRes.json() : []
-
-        // Facturas
-        const facturasRes = await apiFetch('/api/facturas')
-        const facturas = facturasRes.ok ? await facturasRes.json() : []
+        const [productos, clientes, facturas] = await Promise.all([
+          productosRes.ok ? productosRes.json() : [],
+          clientesRes.ok ? clientesRes.json() : [],
+          facturasRes.ok ? facturasRes.json() : [],
+        ])
 
         // Facturas de hoy
         const today = new Date().toISOString().split('T')[0]

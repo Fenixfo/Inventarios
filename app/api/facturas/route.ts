@@ -55,19 +55,29 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // El listado solo necesita la cabecera de cada factura. Traer los items
+    // con su producto completo multiplicaba el tiempo de respuesta por tres
+    // sin que la UI los usara; el detalle los carga en /api/facturas/[id].
+    const limite = parseInt(searchParams.get('limit') || '', 10)
+
     const facturas = await prisma.factura.findMany({
       where: filtro,
-      include: {
-        cliente: true,
-        usuario: true,
-        items: {
-          include: {
-            producto: true,
-          },
-        },
+      select: {
+        id: true,
+        numeroFactura: true,
+        fecha: true,
+        total: true,
+        estado: true,
+        terminoPago: true,
+        anticipo: true,
+        usuarioId: true,
+        cliente: { select: { id: true, nombre: true, cedulaCc: true } },
+        usuario: { select: { id: true, email: true } },
       },
       orderBy: { fecha: 'desc' },
+      ...(Number.isFinite(limite) && limite > 0 ? { take: limite } : {}),
     })
+
     return NextResponse.json(facturas)
   } catch (error) {
     return NextResponse.json(

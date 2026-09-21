@@ -2,18 +2,28 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+// Se crea dentro del handler: un throw al importar el módulo tumbaría el
+// build entero si faltara una variable, en vez de fallar solo esta ruta.
+function crearClienteAdmin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Faltan variables de entorno')
+  if (!supabaseUrl || !supabaseServiceKey) return null
+
+  return createClient(supabaseUrl, supabaseServiceKey)
 }
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 export async function POST(request: NextRequest) {
   try {
     const { userId, email } = await request.json()
+
+    const supabase = crearClienteAdmin()
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Faltan variables de entorno de Supabase en el servidor' },
+        { status: 500 }
+      )
+    }
 
     console.log(`\n🔍 DEBUG: Verificando usuario ${email} (ID: ${userId})`)
 

@@ -29,12 +29,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Obtener todos los productos activos
-    const productos = await prisma.producto.findMany({
-      where: { activo: true },
-    })
-
-    // Obtener facturas de los últimos 30 días para calcular rotación
     const hace30Dias = new Date()
     hace30Dias.setDate(hace30Dias.getDate() - 30)
 
@@ -43,21 +37,39 @@ export async function GET(request: NextRequest) {
       ? estadosParam.split(',').filter((s) => ['pagado', 'entregado', 'pendiente'].includes(s))
       : ['pagado', 'entregado']
 
-    const facturasRecientes = await prisma.factura.findMany({
-      where: {
-        fecha: {
-          gte: hace30Dias,
+    // Las dos consultas son independientes; en secuencia el reporte pagaba
+    // dos veces la ida y vuelta a la base de datos.
+    const [productos, facturasRecientes] = await Promise.all([
+      prisma.producto.findMany({
+        where: { activo: true },
+        select: {
+          id: true,
+          sku: true,
+          nombre: true,
+          categoria: true,
+          stockActual: true,
+          stockMinimo: true,
+          precioUnitario: true,
         },
-        estado: { in: estadosFiltro },
-      },
-      include: {
-        items: {
-          include: {
-            producto: true,
+      }),
+      prisma.factura.findMany({
+        where: {
+          fecha: { gte: hace30Dias },
+          estado: { in: estadosFiltro },
+        },
+        select: {
+          items: {
+            select: {
+              productoId: true,
+              productoNombre: true,
+              cantidadM2: true,
+              subtotal: true,
+              producto: { select: { nombre: true } },
+            },
           },
         },
-      },
-    })
+      }),
+    ])
 
     // Calcular rotación por producto (últimos 30 días)
     const rotacionPorProducto = new Map<
