@@ -88,42 +88,90 @@ export async function POST(request: NextRequest) {
     const sequence = await getNextSequence(datePrefix)
     const numeroFactura = `${datePrefix}-${String(sequence).padStart(3, '0')}`
 
-    const factura = await prisma.factura.create({
-      data: {
-        numeroFactura,
-        clienteId: data.clienteId || null,
-        usuarioId: data.usuarioId || null,
-        terminoPago: data.terminoPago || null,
-        metodoPago: data.metodoPago || null,
-        anticipo: data.anticipo ? parseFloat(data.anticipo) : 0,
-        contraEntrega: data.contraEntrega ? parseFloat(data.contraEntrega) : 0,
-        subtotal: parseFloat(data.subtotal || 0),
-        descuentoPorcentaje: data.descuentoPorcentaje ? parseFloat(data.descuentoPorcentaje) : 0,
-        descuentoMonto: data.descuentoMonto ? parseFloat(data.descuentoMonto) : 0,
-        impuesto: parseFloat(data.impuesto || 0),
-        total: parseFloat(data.total || 0),
-        estado: 'pendiente',
-        observaciones: data.observaciones || null,
-        items: {
-          create: data.items?.map((item: any) => ({
-            productoId: item.productoId || null,
-            productoNombre: item.productoNombre || null,
-            cantidadM2: parseFloat(item.cantidadM2),
-            precioUnitario: parseFloat(item.precioUnitario),
-            subtotal: parseFloat(item.subtotal),
-          })) || [],
-        },
-      },
-      include: {
-        cliente: true,
-        usuario: true,
-        items: {
-          include: {
-            producto: true,
+    const factura = await prisma.$transaction(async (tx) => {
+      const nuevaFactura = await tx.factura.create({
+        data: {
+          numeroFactura,
+          clienteId: data.clienteId || null,
+          usuarioId: data.usuarioId || null,
+          terminoPago: data.terminoPago || null,
+          metodoPago: data.metodoPago || null,
+          anticipo: data.anticipo ? parseFloat(data.anticipo) : 0,
+          contraEntrega: data.contraEntrega ? parseFloat(data.contraEntrega) : 0,
+          subtotal: parseFloat(data.subtotal || 0),
+          descuentoPorcentaje: data.descuentoPorcentaje ? parseFloat(data.descuentoPorcentaje) : 0,
+          descuentoMonto: data.descuentoMonto ? parseFloat(data.descuentoMonto) : 0,
+          impuesto: parseFloat(data.impuesto || 0),
+          total: parseFloat(data.total || 0),
+          estado: 'pendiente',
+          observaciones: data.observaciones || null,
+          items: {
+            create: data.items?.map((item: any) => ({
+              productoId: item.productoId || null,
+              productoNombre: item.productoNombre || null,
+              cantidadM2: parseFloat(item.cantidadM2),
+              precioUnitario: parseFloat(item.precioUnitario),
+              subtotal: parseFloat(item.subtotal),
+            })) || [],
           },
         },
-      },
-    })
+        include: {
+          cliente: true,
+          usuario: true,
+          items: {
+            include: {
+              producto: true,
+            },
+          },
+        },
+      })
+
+      // Descontar stock de los productos del catálogo.
+      // Los items personalizados no tienen productoId y no afectan inventario.
+      const cantidadPorProducto = new Map<string, number>()
+      for (const item of data.items || []) {
+        if (!item.productoId) continue
+        const acumulado = cantidadPorProducto.get(item.productoId) || 0
+        cantidadPorProducto.set(item.productoId, acumulado + parseFloat(item.cantidadM2))
+      }
+
+      if (cantidadPorProducto.size > 0) {
+        const productos = await tx.producto.findMany({
+          where: { id: { in: Array.from(cantidadPorProducto.keys()) } },
+          select: { id: true, stockActual: true },
+        })
+
+        const movimientos = productos.map((producto) => {
+          const cantidad = cantidadPorProducto.get(producto.id)!
+          const stockAntes = Number(producto.stockActual)
+
+          return {
+            productoId: producto.id,
+            tipo: 'salida',
+            cantidad,
+            stockAntes,
+            stockDespues: stockAntes - cantidad,
+            referenciaTipo: 'factura',
+            referenciaId: nuevaFactura.id,
+            motivo: `Venta - Factura ${numeroFactura}`,
+            usuarioId: data.usuarioId || null,
+          }
+        })
+
+        await Promise.all(
+          movimientos.map((m) =>
+            tx.producto.update({
+              where: { id: m.productoId },
+              data: { stockActual: m.stockDespues },
+            })
+          )
+        )
+
+        await tx.inventarioMovimiento.createMany({ data: movimientos })
+      }
+
+      return nuevaFactura
+    }, { timeout: 20000 })
 
     // Registrar en auditoría
     try {
