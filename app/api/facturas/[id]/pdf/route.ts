@@ -32,8 +32,27 @@ export async function GET(
       )
     }
 
+    const registros = await prisma.configuracion.findMany({
+      where: {
+        clave: {
+          in: [
+            'nombre_empresa',
+            'eslogan_empresa',
+            'nit_empresa',
+            'direccion_empresa',
+            'telefono_empresa',
+            'email_empresa',
+            'logo_url',
+          ],
+        },
+      },
+      select: { clave: true, valor: true },
+    })
+
+    const config = Object.fromEntries(registros.map((r) => [r.clave, r.valor || '']))
+
     // Generar HTML de la factura
-    const html = generarHTML(factura)
+    const html = generarHTML(factura, config)
 
     return new NextResponse(html, {
       headers: {
@@ -62,7 +81,17 @@ function formatearDinero(valor: number): string {
   }).format(valor)
 }
 
-function generarHTML(factura: any): string {
+function generarHTML(factura: any, config: Record<string, string> = {}): string {
+  const empresa = {
+    nombre: config.nombre_empresa || 'BERACA',
+    eslogan: config.eslogan_empresa || 'Distribuidora de Cerámicas y Porcelanatos',
+    nit: config.nit_empresa || '',
+    direccion: config.direccion_empresa || '',
+    telefono: config.telefono_empresa || '',
+    email: config.email_empresa || '',
+    logo: config.logo_url || '',
+  }
+
   const fecha = new Date(factura.fecha).toLocaleDateString('es-CO')
   const subtotal = Number(factura.subtotal)
   const descuento = Number(factura.descuentoMonto)
@@ -293,8 +322,13 @@ function generarHTML(factura: any): string {
     <!-- Header -->
     <div class="header">
       <div class="empresa">
-        <h1>BERACA</h1>
-        <p>Distribuidora de Cerámicas y Porcelanatos</p>
+        ${empresa.logo ? `<img src="${empresa.logo}" alt="${empresa.nombre}" style="max-height: 60px; max-width: 200px; object-fit: contain; margin-bottom: 8px; display: block;">` : ''}
+        <h1>${empresa.nombre}</h1>
+        <p>${empresa.eslogan}</p>
+        ${empresa.nit ? `<p style="font-size: 12px; color: #666;">NIT: ${empresa.nit}</p>` : ''}
+        ${empresa.direccion ? `<p style="font-size: 12px; color: #666;">${empresa.direccion}</p>` : ''}
+        ${empresa.telefono ? `<p style="font-size: 12px; color: #666;">Tel: ${empresa.telefono}</p>` : ''}
+        ${empresa.email ? `<p style="font-size: 12px; color: #666;">${empresa.email}</p>` : ''}
       </div>
       <div class="factura-info">
         <h2>FACTURA</h2>
@@ -418,7 +452,7 @@ function generarHTML(factura: any): string {
     <!-- Footer -->
     <div class="footer">
       <p>Generado el ${new Date().toLocaleDateString('es-CO')} a las ${new Date().toLocaleTimeString('es-CO')}</p>
-      <p>Plataforma de Gestión de Inventarios Beraca</p>
+      <p>${empresa.nombre}</p>
     </div>
   </div>
 

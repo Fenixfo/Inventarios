@@ -35,6 +35,7 @@ export default function AdminLayout({
     { label: 'Solicitudes de Acceso', href: '/admin/solicitudes-acceso', permiso: 'solicitudes-acceso', icono: '✋' },
     { label: 'Gestión de Roles', href: '/admin/roles', permiso: 'roles', icono: '🎭' },
     { label: 'Gestión de Usuarios', href: '/admin/usuarios', permiso: 'usuarios', icono: '👨‍💼' },
+    { label: 'Configuración', href: '/admin/configuracion', permiso: 'administrador', icono: '⚙️' },
   ]
 
   useEffect(() => {
