@@ -113,8 +113,9 @@ export function WhatsAppButton({ carrito, onPedidoEnviado }: WhatsAppButtonProps
 
       window.open(url, '_blank', 'noopener,noreferrer')
 
+      // El carrito se vacía al cerrar la confirmación, no aquí: vaciarlo
+      // ahora desmontaría este modal junto con el resto del carrito.
       setEnviado(true)
-      onPedidoEnviado?.()
     } catch (err: any) {
       setErrorGeneral(err.message)
     } finally {
@@ -123,10 +124,14 @@ export function WhatsAppButton({ carrito, onPedidoEnviado }: WhatsAppButtonProps
   }
 
   const cerrarModal = () => {
+    const sePudoEnviar = enviado
+
     setModalAbierto(false)
     setEnviado(false)
     setErrorTelefono(null)
     setErrorGeneral(null)
+
+    if (sePudoEnviar) onPedidoEnviado?.()
   }
 
   return (

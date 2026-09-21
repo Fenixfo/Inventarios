@@ -1,18 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-
-const prisma = new PrismaClient()
 
 const TIPOS_VALIDOS = ['entrada', 'salida', 'ajuste'] as const
 
-const movimientoSchema = z.object({
-  productoId: z.string().uuid('Producto inválido'),
-  tipo: z.enum(TIPOS_VALIDOS),
-  cantidad: z.number().positive('La cantidad debe ser mayor a cero'),
-  motivo: z.string().trim().min(1, 'El motivo es obligatorio'),
-  email: z.string().email().optional().nullable(),
-})
+const movimientoSchema = z
+  .object({
+    productoId: z.string().uuid('Producto inválido'),
+    tipo: z.enum(TIPOS_VALIDOS),
+    // En un ajuste la cantidad es el stock real contado, y cero es un
+    // resultado válido (producto agotado). En entradas y salidas, no.
+    cantidad: z.number().min(0, 'La cantidad no puede ser negativa'),
+    motivo: z.string().trim().min(1, 'El motivo es obligatorio'),
+    // Solo sirve para atribuir el movimiento a un usuario. Si no llega, no
+    // corresponde a nadie o tiene un formato raro, el movimiento se registra
+    // igual sin autor: no es motivo para rechazar la operación.
+    email: z.string().trim().optional().nullable(),
+  })
+  .refine((d) => d.tipo === 'ajuste' || d.cantidad > 0, {
+    message: 'La cantidad debe ser mayor a cero',
+    path: ['cantidad'],
+  })
 
 async function resolverUsuario(email: string | null | undefined) {
   if (!email) return null

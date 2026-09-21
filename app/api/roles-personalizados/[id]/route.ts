@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
-
+import { prisma } from '@/lib/prisma'
 // PATCH: Actualizar rol personalizado
 export async function PATCH(
   request: NextRequest,

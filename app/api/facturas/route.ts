@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
-
+import { prisma } from '@/lib/prisma'
 function generateFacturaNumber(): string {
   const today = new Date()
   const year = today.getFullYear()
@@ -145,15 +142,23 @@ export async function POST(request: NextRequest) {
           const cantidad = cantidadPorProducto.get(producto.id)!
           const stockAntes = Number(producto.stockActual)
 
+          // Se permite facturar por encima del stock disponible, pero el
+          // inventario nunca queda en negativo: el piso es cero.
+          const stockDespues = Math.max(0, stockAntes - cantidad)
+          const faltante = cantidad - (stockAntes - stockDespues)
+
           return {
             productoId: producto.id,
             tipo: 'salida',
             cantidad,
             stockAntes,
-            stockDespues: stockAntes - cantidad,
+            stockDespues,
             referenciaTipo: 'factura',
             referenciaId: nuevaFactura.id,
-            motivo: `Venta - Factura ${numeroFactura}`,
+            motivo:
+              faltante > 0
+                ? `Venta - Factura ${numeroFactura} (se facturaron ${faltante} m² sin stock disponible)`
+                : `Venta - Factura ${numeroFactura}`,
             usuarioId: data.usuarioId || null,
           }
         })

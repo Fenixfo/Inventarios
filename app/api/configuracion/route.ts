@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-
-const prisma = new PrismaClient()
 
 // Claves permitidas y su tipo. Cualquier clave fuera de esta lista se ignora.
 export const CLAVES_CONFIG = {
@@ -45,7 +43,10 @@ const configSchema = z.object({
       message: 'El logo debe ser una URL que empiece por http:// o https://',
     })
     .optional(),
-  email: z.string().email().optional().nullable(),
+  // Identifica a quien hace la petición. El permiso se resuelve buscando
+  // el usuario en la BD, así que un formato inesperado simplemente no
+  // encuentra a nadie y devuelve 403; no hace falta validarlo aquí.
+  email: z.string().trim().optional().nullable(),
 })
 
 async function verificarAdmin(email: string | null | undefined) {
