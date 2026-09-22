@@ -89,7 +89,11 @@ export async function PUT(request: NextRequest) {
     if (data.costo) updateData.costo = parseFloat(data.costo)
     if (data.proveedor) updateData.proveedor = data.proveedor
     if (data.descripcion) updateData.descripcion = data.descripcion
-    if (data.imagenUrl) updateData.imagenUrl = data.imagenUrl
+
+    // Se compara contra undefined y no por valor: una cadena vacía significa
+    // que el usuario quitó la imagen, y con `if (data.imagenUrl)` ese borrado
+    // se perdía silenciosamente.
+    if (data.imagenUrl !== undefined) updateData.imagenUrl = data.imagenUrl || null
 
     const producto = await prisma.producto.update({
       where: { id },

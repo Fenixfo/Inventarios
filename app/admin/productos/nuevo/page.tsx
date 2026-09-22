@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/api-client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { PermissionProtector } from '@/components/PermissionProtector'
+import { ImageUploader } from '@/components/ImageUploader'
 
 interface Producto {
   id: string
@@ -35,6 +36,7 @@ export default function NuevoProductoPage() {
     stockMinimo: '0',
     proveedor: '',
     descripcion: '',
+    imagenUrl: '',
   })
 
   useEffect(() => {
@@ -370,6 +372,16 @@ export default function NuevoProductoPage() {
             onChange={handleChange}
             rows={4}
             style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '15px' }}>
+          <ImageUploader
+            etiqueta="Imagen del producto"
+            valor={formData.imagenUrl}
+            onChange={(url) => setFormData((prev) => ({ ...prev, imagenUrl: url }))}
+            carpeta="productos"
+            ayuda="Es lo que ven tus clientes en el catálogo. Se reduce y optimiza automáticamente."
           />
         </div>
 

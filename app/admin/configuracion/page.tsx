@@ -3,6 +3,7 @@
 import { apiFetch } from '@/lib/api-client'
 import { useEffect, useState } from 'react'
 import { PermissionProtector } from '@/components/PermissionProtector'
+import { ImageUploader } from '@/components/ImageUploader'
 import { supabase } from '@/lib/supabase-client'
 import Link from 'next/link'
 
@@ -256,41 +257,12 @@ export default function ConfiguracionPage() {
             <div style={cardStyle}>
               <h2 style={{ fontSize: '16px', marginTop: 0, marginBottom: '18px' }}>🖼️ Logo</h2>
 
-              <label style={labelStyle}>URL de la imagen</label>
-              <input
-                type="url"
-                value={config.logo_url}
-                onChange={(e) => actualizar('logo_url', e.target.value)}
-                placeholder="https://ejemplo.com/logo.png"
-                style={inputStyle}
+              <ImageUploader
+                valor={config.logo_url}
+                onChange={(url) => actualizar('logo_url', url)}
+                carpeta="logos"
+                ayuda="Aparece en el encabezado de tus facturas. Se recomienda PNG con fondo transparente."
               />
-              <p style={ayudaStyle}>
-                Aparece en el encabezado de las facturas. Se recomienda PNG con fondo transparente.
-              </p>
-
-              {config.logo_url && (
-                <div style={{ marginTop: '14px', padding: '14px', backgroundColor: '#f9fafb', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
-                  <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px' }}>Vista previa:</p>
-                  <img
-                    src={config.logo_url}
-                    alt="Logo"
-                    style={{ maxHeight: '70px', maxWidth: '220px', objectFit: 'contain' }}
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                      const aviso = e.currentTarget.nextElementSibling as HTMLElement
-                      if (aviso) aviso.style.display = 'block'
-                    }}
-                    onLoad={(e) => {
-                      e.currentTarget.style.display = 'block'
-                      const aviso = e.currentTarget.nextElementSibling as HTMLElement
-                      if (aviso) aviso.style.display = 'none'
-                    }}
-                  />
-                  <p style={{ display: 'none', fontSize: '13px', color: '#dc2626' }}>
-                    No se pudo cargar la imagen desde esa URL.
-                  </p>
-                </div>
-              )}
             </div>
 
             {error && (

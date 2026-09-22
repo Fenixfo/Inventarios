@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
 import { apiFetch } from '@/lib/api-client'
+import { ImageUploader } from '@/components/ImageUploader'
 
 interface Producto {
   id: string
@@ -358,6 +359,18 @@ export default function EditProductoPage() {
             onChange={handleChange}
             rows={4}
             style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '15px' }}>
+          <ImageUploader
+            etiqueta="Imagen del producto"
+            valor={formData.imagenUrl || ''}
+            onChange={(url) =>
+              setFormData((prev) => (prev ? { ...prev, imagenUrl: url } : prev))
+            }
+            carpeta="productos"
+            ayuda="Es lo que ven tus clientes en el catálogo. Se reduce y optimiza automáticamente."
           />
         </div>
 
