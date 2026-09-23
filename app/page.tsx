@@ -25,6 +25,7 @@ export default function Catalogo() {
   const [error, setError] = useState<string | null>(null)
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('')
   const [categorias, setCategorias] = useState<string[]>([])
+  const [busqueda, setBusqueda] = useState('')
   const [modalAbierto, setModalAbierto] = useState(false)
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null)
   const [cantidadModal, setCantidadModal] = useState('1')
@@ -63,6 +64,21 @@ export default function Catalogo() {
       setLoading(false)
     }
   }
+
+  /** Sin tildes y en minúsculas, para que "cafe" encuentre "Pared Café". */
+  const normalizar = (texto: string) =>
+    texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+  // El filtro trabaja sobre lo ya cargado: no hace falta ir al servidor por
+  // cada tecla. Cada palabra debe aparecer, así "pared gris" vale aunque el
+  // nombre sea "Pared Mancha Gris".
+  const palabras = normalizar(busqueda.trim()).split(/\s+/).filter(Boolean)
+  const productosFiltrados = palabras.length
+    ? productos.filter((p) => {
+        const nombre = normalizar(p.nombre)
+        return palabras.every((w) => nombre.includes(w))
+      })
+    : productos
 
   const formatearPrecio = (precio: number) => {
     return new Intl.NumberFormat('es-CO', {
@@ -157,8 +173,34 @@ export default function Catalogo() {
             </p>
           </div>
 
-          {/* Filtro por categoría */}
+          {/* Filtros */}
           <div className="bg-white p-6 rounded-lg shadow mb-8">
+            <label htmlFor="buscar" className="block font-semibold text-gray-700 mb-2">
+              Buscar por nombre:
+            </label>
+            <div className="relative mb-6">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden="true">
+                🔍
+              </span>
+              <input
+                id="buscar"
+                type="search"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Ej: pared gris, carrara, porcelanato…"
+                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+              />
+              {busqueda && (
+                <button
+                  onClick={() => setBusqueda('')}
+                  aria-label="Borrar búsqueda"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-xl leading-none"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
             <p className="font-semibold text-gray-700 mb-4">Filtrar por categoría:</p>
             <div className="flex flex-wrap gap-3">
               <button
@@ -201,10 +243,19 @@ export default function Catalogo() {
             </div>
           )}
 
+          {/* Cuántos resultados hay */}
+          {!loading && !error && productos.length > 0 && (
+            <p className="text-sm text-gray-600 mb-4">
+              {productosFiltrados.length} de {productos.length} producto
+              {productos.length !== 1 ? 's' : ''}
+              {busqueda && ` para “${busqueda}”`}
+            </p>
+          )}
+
           {/* Grid de productos */}
-          {!loading && productos.length > 0 && (
+          {!loading && productosFiltrados.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {productos.map((producto) => (
+              {productosFiltrados.map((producto) => (
                 <div
                   key={producto.id}
                   className="bg-white rounded-lg shadow hover:shadow-lg transition transform hover:-translate-y-1 overflow-hidden flex flex-col"
@@ -286,12 +337,136 @@ export default function Catalogo() {
           )}
 
           {/* Sin productos */}
-          {!loading && productos.length === 0 && !error && (
+          {!loading && productosFiltrados.length === 0 && !error && (
             <div className="text-center py-12 text-gray-600">
-              <p className="text-lg">No hay productos disponibles en esta categoría</p>
+              {busqueda ? (
+                <>
+                  <p className="text-lg">
+                    Ningún producto coincide con “{busqueda}”
+                  </p>
+                  <button
+                    onClick={() => setBusqueda('')}
+                    className="mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded font-medium hover:bg-gray-300 transition"
+                  >
+                    Borrar búsqueda
+                  </button>
+                </>
+              ) : (
+                <p className="text-lg">No hay productos disponibles en esta categoría</p>
+              )}
             </div>
           )}
         </div>
+
+        {/* Ficha ampliada del producto */}
+        {detalle && (
+          <div
+            onClick={() => setDetalle(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-label={detalle.nombre}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-y-auto popup-in"
+            >
+              <div className="md:flex">
+                {/* Imagen grande: object-contain para no recortar la pieza */}
+                <div className="md:w-1/2 bg-gray-100 flex items-center justify-center p-4">
+                  {detalle.imagenUrl ? (
+                    <img
+                      src={detalle.imagenUrl}
+                      alt={detalle.nombre}
+                      className="max-h-[60vh] w-auto max-w-full object-contain rounded-lg"
+                    />
+                  ) : (
+                    <div className="py-20 text-center text-gray-400">
+                      <div className="text-6xl mb-2">📦</div>
+                      <p className="text-sm">Sin imagen disponible</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Datos */}
+                <div className="md:w-1/2 p-6 flex flex-col">
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div className="flex gap-2 flex-wrap">
+                      <span className="inline-block bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">
+                        {detalle.sku}
+                      </span>
+                      <span className="inline-block bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded capitalize">
+                        {detalle.categoria}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setDetalle(null)}
+                      aria-label="Cerrar"
+                      className="text-gray-400 hover:text-gray-700 text-3xl leading-none transition -mt-2"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                    {detalle.nombre}
+                  </h2>
+
+                  <dl className="text-sm text-gray-700 divide-y divide-gray-100 mb-6">
+                    {detalle.dimensiones && (
+                      <div className="flex justify-between py-2">
+                        <dt className="text-gray-500">📏 Medida</dt>
+                        <dd className="font-medium">{detalle.dimensiones}</dd>
+                      </div>
+                    )}
+                    {detalle.color && (
+                      <div className="flex justify-between py-2">
+                        <dt className="text-gray-500">🎨 Color</dt>
+                        <dd className="font-medium">{detalle.color}</dd>
+                      </div>
+                    )}
+                    {detalle.acabado && (
+                      <div className="flex justify-between py-2">
+                        <dt className="text-gray-500">✨ Acabado</dt>
+                        <dd className="font-medium">{detalle.acabado}</dd>
+                      </div>
+                    )}
+                    {detalle.m2PorCaja && (
+                      <div className="flex justify-between py-2">
+                        <dt className="text-gray-500">📦 Metraje por caja</dt>
+                        <dd className="font-medium">{detalle.m2PorCaja} m²</dd>
+                      </div>
+                    )}
+                    <div className="flex justify-between py-2">
+                      <dt className="text-gray-500">🏷️ Precio</dt>
+                      <dd className="font-bold text-red-600 text-lg">
+                        {formatearPrecio(detalle.precioUnitario)}
+                        <span className="text-sm font-normal text-gray-600"> / m²</span>
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <div className="flex-1" />
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setDetalle(null)}
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition"
+                    >
+                      Cerrar
+                    </button>
+                    <button
+                      onClick={() => abrirModalAgregar(detalle)}
+                      className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition"
+                    >
+                      🛒 Agregar al carrito
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal para agregar al carrito */}
         {modalAbierto && productoSeleccionado && (
