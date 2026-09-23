@@ -12,6 +12,7 @@ interface Producto {
   nombre: string
   categoria: string
   precioUnitario: number
+  precioBodega?: number | null
   stockActual: number
   stockMinimo: number
 }
@@ -121,7 +122,8 @@ export default function ProductosPage() {
               <th style={{ padding: '10px', textAlign: 'left' }}>SKU</th>
               <th style={{ padding: '10px', textAlign: 'left' }}>Nombre</th>
               <th style={{ padding: '10px', textAlign: 'left' }}>Categoría</th>
-              <th style={{ padding: '10px', textAlign: 'right' }}>Precio</th>
+              <th style={{ padding: '10px', textAlign: 'right' }}>Público</th>
+              <th style={{ padding: '10px', textAlign: 'right' }}>Bodega</th>
               <th style={{ padding: '10px', textAlign: 'right' }}>Stock</th>
               <th style={{ padding: '10px', textAlign: 'center' }}>Acciones</th>
             </tr>
@@ -133,6 +135,11 @@ export default function ProductosPage() {
                 <td style={{ padding: '10px' }}>{producto.nombre}</td>
                 <td style={{ padding: '10px' }}>{producto.categoria}</td>
                 <td style={{ padding: '10px', textAlign: 'right' }}>${Number(producto.precioUnitario).toFixed(2)}</td>
+                <td style={{ padding: '10px', textAlign: 'right', color: producto.precioBodega ? 'inherit' : '#9ca3af' }}>
+                  {producto.precioBodega
+                    ? `$${Number(producto.precioBodega).toFixed(2)}`
+                    : '—'}
+                </td>
                 <td style={{ padding: '10px', textAlign: 'right' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
                     {Number(producto.stockActual) < Number(producto.stockMinimo) && (

@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
           stockActual: true,
           stockMinimo: true,
           precioUnitario: true,
+          costo: true,
         },
       }),
       prisma.factura.findMany({
@@ -114,10 +115,15 @@ export async function GET(request: NextRequest) {
     // Calcular métricas
     const totalProductos = productos.length
     const productosActivos = productos.filter((p) => Number(p.stockActual) > 0).length
+    // El inventario se valora al costo, que es lo que realmente está
+    // inmovilizado en bodega; a precio de venta la cifra incluye un margen
+    // que todavía no se ha ganado. Sin costo cargado, ese producto no suma.
     const valorInventario = productos.reduce(
-      (sum, p) => sum + Number(p.stockActual) * Number(p.precioUnitario),
+      (sum, p) => sum + Number(p.stockActual) * Number(p.costo || 0),
       0
     )
+
+    const productosSinCosto = productos.filter((p) => !p.costo).length
 
     return NextResponse.json({
       metricas: {
@@ -126,6 +132,7 @@ export async function GET(request: NextRequest) {
         productosStockBajo: stockBajo.length,
         productosSinMovimiento: sinMovimiento.length,
         valorInventario: Math.round(valorInventario * 100) / 100,
+        productosSinCosto,
       },
       stockBajo,
       rotacion,

@@ -335,6 +335,7 @@ function generarHTML(factura: any, config: Record<string, string> = {}): string 
         <p><strong>${factura.numeroFactura}</strong></p>
         <p>Fecha: ${fecha}</p>
         <p>Estado: <span class="estado-badge estado-${factura.estado}">${formatearEstado(factura.estado)}</span></p>
+        ${factura.esBodega ? '<p style="font-size: 12px; color: #92400e; font-weight: bold;">Precio de bodega</p>' : ''}
       </div>
     </div>
 

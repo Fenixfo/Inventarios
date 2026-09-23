@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
           impuesto: parseFloat(data.impuesto || 0),
           total: parseFloat(data.total || 0),
           estado: 'pendiente',
+          esBodega: Boolean(data.esBodega),
           observaciones: data.observaciones || null,
           items: {
             create: data.items?.map((item: any) => ({

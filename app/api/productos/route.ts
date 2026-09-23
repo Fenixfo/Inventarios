@@ -49,7 +49,13 @@ export async function POST(request: NextRequest) {
         espesorMm: data.espesorMm ? parseFloat(data.espesorMm) : null,
         m2PorCaja: data.m2PorCaja ? parseFloat(data.m2PorCaja) : null,
         precioUnitario: parseFloat(data.precioUnitario),
+        precioUnitarioUpdatedAt: new Date(),
+        // Sin precio de bodega se cobra el del público: es preferible a
+        // dejarlo en cero y vender regalado.
+        precioBodega: data.precioBodega ? parseFloat(data.precioBodega) : null,
+        precioBodegaUpdatedAt: data.precioBodega ? new Date() : null,
         costo: data.costo ? parseFloat(data.costo) : null,
+        costoUpdatedAt: data.costo ? new Date() : null,
         stockActual: parseFloat(data.stockActual || 0),
         stockMinimo: parseFloat(data.stockMinimo || 0),
         proveedor: data.proveedor,
@@ -87,6 +93,7 @@ export async function PUT(request: NextRequest) {
       nombre: data.nombre,
       categoria: data.categoria,
       precioUnitario: parseFloat(data.precioUnitario),
+      precioUnitarioUpdatedAt: new Date(),
       stockActual: parseFloat(data.stockActual || 0),
       stockMinimo: parseFloat(data.stockMinimo || 0),
     }
@@ -96,7 +103,20 @@ export async function PUT(request: NextRequest) {
     if (data.acabado) updateData.acabado = data.acabado
     if (data.espesorMm) updateData.espesorMm = parseFloat(data.espesorMm)
     if (data.m2PorCaja) updateData.m2PorCaja = parseFloat(data.m2PorCaja)
-    if (data.costo) updateData.costo = parseFloat(data.costo)
+
+    // Cadena vacía significa "sin precio de bodega", que no es lo mismo que
+    // no haber tocado el campo; por eso se compara contra undefined.
+    if (data.precioBodega !== undefined) {
+      updateData.precioBodega = data.precioBodega === '' || data.precioBodega === null
+        ? null
+        : parseFloat(data.precioBodega)
+      updateData.precioBodegaUpdatedAt = updateData.precioBodega === null ? null : new Date()
+    }
+
+    if (data.costo) {
+      updateData.costo = parseFloat(data.costo)
+      updateData.costoUpdatedAt = new Date()
+    }
     if (data.proveedor) updateData.proveedor = data.proveedor
     if (data.descripcion) updateData.descripcion = data.descripcion
 

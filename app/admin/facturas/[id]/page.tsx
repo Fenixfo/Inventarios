@@ -38,6 +38,7 @@ interface Factura {
   anticipo: number
   contraEntrega: number
   estado: string
+  esBodega?: boolean
   observaciones?: string
   items: FacturaItem[]
 }
@@ -279,7 +280,21 @@ export default function FacturaPage() {
             <h1 style={{ margin: '0 0 10px 0' }}>{factura.numeroFactura}</h1>
             <p style={{ margin: '5px 0', color: '#666' }}>{new Date(factura.fecha).toLocaleDateString()}</p>
           </div>
-          <div style={{ textAlign: 'right' }}>
+          <div style={{ textAlign: 'right', display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {/* Marca por qué los precios de esta factura son distintos. */}
+            {factura.esBodega && (
+              <span style={{
+                padding: '8px 12px',
+                backgroundColor: '#fef3c7',
+                color: '#92400e',
+                borderRadius: '4px',
+                fontSize: '14px',
+                display: 'inline-block',
+                fontWeight: 'bold'
+              }}>
+                🏭 Precio de bodega
+              </span>
+            )}
             <span style={{
               padding: '8px 12px',
               backgroundColor: getStatusColor(factura.estado).bg,

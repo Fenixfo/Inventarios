@@ -10,6 +10,7 @@ interface Producto {
   sku: string
   nombre: string
   precioUnitario: number
+  precioBodega?: number | null
   stockActual: number
 }
 
@@ -53,6 +54,9 @@ export default function InvoiceForm() {
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
 
   // Factura
+  // Venta a bodega: cambia la lista de precios que se aplica.
+  const [esBodega, setEsBodega] = useState(false)
+  const [preguntaBodega, setPreguntaBodega] = useState<boolean | null>(null)
   const [terminoPago, setTerminoPago] = useState('')
   const [metodoPago, setMetodoPago] = useState('')
   const [items, setItems] = useState<FacturaItem[]>([])
@@ -178,6 +182,43 @@ export default function InvoiceForm() {
     setMostrarSugerenciasProductos(false)
   }
 
+  /**
+   * Precio que corresponde al producto según la lista activa.
+   *
+   * Un producto sin precio de bodega se cobra al precio del público: es
+   * preferible a facturarlo en cero por un dato que falta.
+   */
+  const precioDe = (producto: Producto, bodega = esBodega): number =>
+    bodega && producto.precioBodega ? Number(producto.precioBodega) : Number(producto.precioUnitario)
+
+  /** Cambia la lista de precios y, si el usuario quiere, recalcula lo ya añadido. */
+  const cambiarListaPrecios = (bodega: boolean, recalcular: boolean) => {
+    setEsBodega(bodega)
+    setPreguntaBodega(null)
+
+    if (!recalcular) return
+
+    setItems(items.map((item) => {
+      // Los productos escritos a mano no tienen lista de precios.
+      if (!item.productoId) return item
+
+      const producto = productos.find((p) => p.id === item.productoId)
+      if (!producto) return item
+
+      const precio = precioDe(producto, bodega)
+      return { ...item, precioUnitario: precio, subtotal: item.cantidadM2 * precio }
+    }))
+  }
+
+  const alMarcarBodega = (bodega: boolean) => {
+    // Sin productos añadidos no hay nada que recalcular ni que preguntar.
+    if (items.filter((i) => i.productoId).length === 0) {
+      setEsBodega(bodega)
+      return
+    }
+    setPreguntaBodega(bodega)
+  }
+
   const addItem = () => {
     if (newItemProductoId && newItemCantidad) {
       const producto = productos.find(p => p.id === newItemProductoId)
@@ -187,13 +228,14 @@ export default function InvoiceForm() {
       }
 
       const cantidad = parseFloat(newItemCantidad)
-      const subtotal = cantidad * Number(producto.precioUnitario)
+      const precio = precioDe(producto)
+      const subtotal = cantidad * precio
 
       setItems([...items, {
         productoId: producto.id,
         productoNombre: producto.nombre,
         cantidadM2: cantidad,
-        precioUnitario: Number(producto.precioUnitario),
+        precioUnitario: precio,
         subtotal,
         esPersonalizado: false,
       }])
@@ -368,6 +410,7 @@ export default function InvoiceForm() {
         body: JSON.stringify({
           usuarioId,
           clienteId: finalClienteId || null,
+          esBodega,
           terminoPago,
           metodoPago,
           subtotal,
@@ -532,7 +575,40 @@ export default function InvoiceForm() {
 
       {/* Productos */}
       <div style={{ backgroundColor: '#f9f9f9', padding: '20px', borderRadius: '4px' }}>
-        <h3 style={{ marginBottom: '15px' }}>Productos</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '15px' }}>
+          <h3 style={{ margin: 0 }}>Productos</h3>
+
+          <label
+            title="Aplica la lista de precios de bodega a esta factura"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              padding: '8px 14px',
+              borderRadius: '6px',
+              border: `1px solid ${esBodega ? '#f59e0b' : '#d1d5db'}`,
+              backgroundColor: esBodega ? '#fef3c7' : 'white',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={esBodega}
+              onChange={(e) => alMarcarBodega(e.target.checked)}
+              style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+            />
+            🏭 Precio de bodega / mayorista
+          </label>
+        </div>
+
+        {esBodega && (
+          <div style={{ backgroundColor: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '6px', padding: '10px 12px', marginBottom: '15px', fontSize: '13px' }}>
+            Esta factura usa los precios de bodega. Los productos que no tengan uno definido
+            se cobran al precio del público.
+          </div>
+        )}
 
         <div style={{ position: 'relative', marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Buscar Producto</label>
@@ -572,7 +648,11 @@ export default function InvoiceForm() {
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                 >
                   <div style={{ fontWeight: 'bold' }}>{producto.nombre}</div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>SKU: {producto.sku} | Stock: {producto.stockActual}m² | $${Number(producto.precioUnitario).toFixed(2)}</div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>
+                    SKU: {producto.sku} | Stock: {producto.stockActual}m² |{' '}
+                    {formatearDinero(precioDe(producto))}
+                    {esBodega && !producto.precioBodega && ' (sin precio de bodega)'}
+                  </div>
                 </div>
               ))}
               {productoSearchText.trim() !== '' && (
@@ -855,6 +935,83 @@ export default function InvoiceForm() {
           {saving ? 'Creando factura...' : 'Crear Factura'}
         </button>
       </div>
+
+      {/* Qué hacer con los productos ya añadidos al cambiar de lista */}
+      {preguntaBodega !== null && (
+        <div
+          onClick={() => setPreguntaBodega(null)}
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 60 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '520px', width: '100%', padding: '24px' }}
+          >
+            <h3 style={{ marginTop: 0, marginBottom: '8px', fontSize: '18px' }}>
+              {preguntaBodega ? 'Cambiar a precio de bodega' : 'Volver al precio del público'}
+            </h3>
+
+            <p style={{ fontSize: '14px', color: '#4b5563', marginTop: 0, marginBottom: '18px' }}>
+              Ya tienes {items.filter((i) => i.productoId).length} producto
+              {items.filter((i) => i.productoId).length !== 1 ? 's' : ''} en la factura.
+              ¿Actualizo sus precios a los de{' '}
+              {preguntaBodega ? 'bodega' : 'público'}, o los dejo como están?
+            </p>
+
+            {/* Vista previa del cambio, para no decidir a ciegas. */}
+            <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', marginBottom: '18px', maxHeight: '220px', overflowY: 'auto', fontSize: '13px' }}>
+              {items.filter((i) => i.productoId).map((item, i) => {
+                const producto = productos.find((p) => p.id === item.productoId)
+                const nuevo = producto ? precioDe(producto, preguntaBodega) : item.precioUnitario
+
+                return (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: '6px' }}>
+                    <span style={{ color: '#4b5563' }}>{item.productoNombre}</span>
+                    <span style={{ whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
+                      {formatearDinero(item.precioUnitario)}
+                      {nuevo !== item.precioUnitario && (
+                        <>
+                          {' → '}
+                          <strong style={{ color: nuevo < item.precioUnitario ? '#059669' : '#dc2626' }}>
+                            {formatearDinero(nuevo)}
+                          </strong>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+
+            <p style={{ fontSize: '12px', color: '#6b7280', marginTop: 0, marginBottom: '18px' }}>
+              Si habías ajustado algún precio a mano, actualizar lo sobrescribe.
+            </p>
+
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => setPreguntaBodega(null)}
+                style={{ padding: '11px 16px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px' }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => cambiarListaPrecios(preguntaBodega, false)}
+                style={{ flex: 1, padding: '11px 16px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px' }}
+              >
+                Mantener los actuales
+              </button>
+              <button
+                type="button"
+                onClick={() => cambiarListaPrecios(preguntaBodega, true)}
+                style={{ flex: 1, padding: '11px 16px', backgroundColor: '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+              >
+                Actualizar precios
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   )
 }

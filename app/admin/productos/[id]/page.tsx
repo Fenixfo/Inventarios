@@ -19,6 +19,7 @@ interface Producto {
   espesorMm?: number
   m2PorCaja?: number
   precioUnitario: number
+  precioBodega?: number | null
   costo?: number
   stockActual: number
   stockMinimo: number
@@ -283,9 +284,9 @@ export default function EditProductoPage() {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Precio Unitario *</label>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Precio al público *</label>
               <input
                 type="number"
                 name="precioUnitario"
@@ -296,6 +297,23 @@ export default function EditProductoPage() {
                 required
                 style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
               />
+              <small style={{ color: '#6b7280', fontSize: '12px' }}>El que ve el cliente.</small>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Precio de bodega</label>
+              <input
+                type="number"
+                name="precioBodega"
+                value={formData.precioBodega ?? ''}
+                onChange={handleChange}
+                onWheel={preventWheelChange}
+                step="0.01"
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+              />
+              <small style={{ color: '#6b7280', fontSize: '12px' }}>
+                Vacío = se cobra el del público.
+              </small>
             </div>
 
             <div>
@@ -309,6 +327,7 @@ export default function EditProductoPage() {
                 step="0.01"
                 style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
               />
+              <small style={{ color: '#6b7280', fontSize: '12px' }}>Precio de compra.</small>
             </div>
           </div>
 

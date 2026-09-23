@@ -121,10 +121,12 @@ describe('Cart', () => {
       expect(onActualizarCantidad).not.toHaveBeenCalled()
     })
 
+    // Los botones se buscan por su aria-label: para quien usa lector de
+    // pantalla, "+" o "✕" no dicen nada, así que llevan nombre propio.
     it('el botón + suma 0.5 m²', async () => {
       const { onActualizarCantidad } = renderCart(CARRITO_CON_ITEMS)
 
-      await userEvent.click(screen.getAllByRole('button', { name: '+' })[0])
+      await userEvent.click(screen.getAllByRole('button', { name: /añadir medio metro/i })[0])
 
       expect(onActualizarCantidad).toHaveBeenCalledWith('prod-a', 2.5)
     })
@@ -132,7 +134,7 @@ describe('Cart', () => {
     it('el botón − resta 0.5 m²', async () => {
       const { onActualizarCantidad } = renderCart(CARRITO_CON_ITEMS)
 
-      await userEvent.click(screen.getAllByRole('button', { name: '−' })[0])
+      await userEvent.click(screen.getAllByRole('button', { name: /quitar medio metro/i })[0])
 
       expect(onActualizarCantidad).toHaveBeenCalledWith('prod-a', 1.5)
     })
@@ -140,7 +142,10 @@ describe('Cart', () => {
     it('la ✕ quita el producto correcto', async () => {
       const { onQuitarItem } = renderCart(CARRITO_CON_ITEMS)
 
-      await userEvent.click(screen.getAllByRole('button', { name: '✕' })[1])
+      // Cada ✕ nombra su producto, así que no hace falta acertar el índice.
+      await userEvent.click(
+        screen.getByRole('button', { name: /quitar porcelanato gris del carrito/i })
+      )
 
       expect(onQuitarItem).toHaveBeenCalledWith('prod-b')
     })

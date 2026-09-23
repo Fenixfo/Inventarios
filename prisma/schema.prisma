@@ -239,8 +239,16 @@ model Producto {
   m2PorCaja   Decimal?  @map("m2_por_caja") @db.Decimal(6, 2)
 
   // Precios
+  /// Precio al público: es el que ve el cliente en el catálogo.
   precioUnitario        Decimal   @map("precio_unitario") @db.Decimal(10, 2)
   precioUnitarioUpdatedAt DateTime? @map("precio_unitario_updated_at") @db.Timestamptz
+
+  /// Precio a bodega o mayorista. Anulable a propósito: sin él se cobra el
+  /// precio al público, en vez de vender a cero.
+  precioBodega          Decimal?  @map("precio_bodega") @db.Decimal(10, 2)
+  precioBodegaUpdatedAt DateTime? @map("precio_bodega_updated_at") @db.Timestamptz
+
+  /// Precio de compra.
   costo                 Decimal?  @db.Decimal(10, 2)
   costoUpdatedAt        DateTime? @map("costo_updated_at") @db.Timestamptz
 
@@ -345,6 +353,10 @@ model Factura {
   // Estado
   estado      String   @default("pendiente") @db.VarChar(50)
   observaciones String? @db.Text
+
+  /// Se facturó a precio de bodega. Queda guardado para poder explicar
+  /// después por qué dos facturas del mismo producto valen distinto.
+  esBodega    Boolean  @default(false) @map("es_bodega")
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz

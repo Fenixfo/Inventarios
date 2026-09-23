@@ -14,6 +14,7 @@ interface ReporteInventario {
     productosStockBajo: number
     productosSinMovimiento: number
     valorInventario: number
+    productosSinCosto?: number
   }
   stockBajo: Array<{
     id: string
@@ -223,10 +224,18 @@ export default function ReportesInventarioPage() {
             </div>
 
             <div style={{ backgroundColor: '#ede9fe', padding: '20px', borderRadius: '8px', borderLeft: '4px solid #a855f7' }}>
-              <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '12px' }}>VALOR INVENTARIO</p>
+              <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '12px' }}>VALOR INVENTARIO (AL COSTO)</p>
               <p style={{ margin: 0, fontSize: '20px', fontWeight: 'bold', color: '#7c3aed', fontFamily: 'monospace' }}>
                 {formatearDinero(reporte.metricas.valorInventario)}
               </p>
+              {/* Un producto sin costo cargado no suma, y la cifra se queda
+                  corta sin explicación si no se avisa. */}
+              {Boolean(reporte.metricas.productosSinCosto) && (
+                <p style={{ margin: '8px 0 0 0', fontSize: '11px', color: '#6b21a8' }}>
+                  {reporte.metricas.productosSinCosto} producto
+                  {reporte.metricas.productosSinCosto !== 1 ? 's' : ''} sin costo, no suman
+                </p>
+              )}
             </div>
           </div>
 

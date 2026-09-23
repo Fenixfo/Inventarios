@@ -31,6 +31,7 @@ export default function NuevoProductoPage() {
     espesorMm: '',
     m2PorCaja: '',
     precioUnitario: '',
+    precioBodega: '',
     costo: '',
     stockActual: '0',
     stockMinimo: '0',
@@ -287,7 +288,7 @@ export default function NuevoProductoPage() {
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Precio Unitario *</label>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Precio al público *</label>
             <input
               type="number"
               name="precioUnitario"
@@ -298,10 +299,29 @@ export default function NuevoProductoPage() {
               required
               style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
             />
+            <small style={{ color: '#6b7280', fontSize: '12px' }}>
+              Es el que ve el cliente en el catálogo.
+            </small>
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Costo</label>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Precio de bodega</label>
+            <input
+              type="number"
+              name="precioBodega"
+              value={formData.precioBodega}
+              onChange={handleChange}
+              onWheel={preventWheelChange}
+              step="0.01"
+              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+            />
+            <small style={{ color: '#6b7280', fontSize: '12px' }}>
+              Para las facturas marcadas como bodega. Si lo dejas vacío se cobra el precio al público.
+            </small>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Costo (precio de compra)</label>
             <input
               type="number"
               name="costo"
@@ -311,6 +331,9 @@ export default function NuevoProductoPage() {
               step="0.01"
               style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
             />
+            <small style={{ color: '#6b7280', fontSize: '12px' }}>
+              No se muestra al cliente. Con él se valora el inventario.
+            </small>
           </div>
 
           <div>
