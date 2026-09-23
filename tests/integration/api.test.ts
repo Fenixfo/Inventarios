@@ -554,6 +554,35 @@ describe('GET /api/facturas/[id]/pdf', () => {
     const { status } = await api('/api/facturas/00000000-0000-0000-0000-000000000000/pdf')
     expect(status).toBe(404)
   })
+
+  it('con formato=pdf devuelve el archivo, no la página', async () => {
+    // Es el que se comparte por WhatsApp: tiene que ser un PDF de verdad.
+    const factura = await prisma.factura.findFirst({
+      where: { items: { some: {} } },
+      select: { id: true, numeroFactura: true },
+      orderBy: { fecha: 'desc' },
+    })
+
+    const res = await fetch(`${BASE}/api/facturas/${factura!.id}/pdf?formato=pdf`, {
+      headers: HEADERS,
+    })
+
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('application/pdf')
+    expect(res.headers.get('content-disposition')).toContain(
+      `Factura-${factura!.numeroFactura}.pdf`
+    )
+
+    const bytes = Buffer.from(await res.arrayBuffer())
+    expect(bytes.subarray(0, 5).toString()).toBe('%PDF-')
+    expect(bytes.length).toBeGreaterThan(1000)
+  })
+
+  it('el PDF también exige permiso', async () => {
+    const factura = await prisma.factura.findFirst({ select: { id: true } })
+    const res = await fetch(`${BASE}/api/facturas/${factura!.id}/pdf?formato=pdf`)
+    expect(res.status).toBe(401)
+  })
 })
 
 describe('GET/PUT /api/configuracion', () => {

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { enlaceWhatsApp, mensajeFactura, normalizarTelefono } from '@/lib/whatsapp'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
 import { apiFetch } from '@/lib/api-client'
@@ -23,6 +24,7 @@ interface Factura {
   numeroFactura: string
   cliente?: {
     nombre: string
+    telefono?: string | null
   }
   usuario?: {
     email: string
@@ -62,6 +64,13 @@ export default function FacturaPage() {
   // Marca que el saldo se está cerrando desde el botón de "pagado", para
   // que el efecto que vigila el saldo no dispare el mismo cambio a la vez.
   const saldandoRef = useRef(false)
+
+  // Envío por WhatsApp: el destinatario se puede corregir antes de abrir
+  // el chat, y queda vacío si la factura no trae teléfono.
+  const [envioWhatsApp, setEnvioWhatsApp] = useState(false)
+  const [destinoWhatsApp, setDestinoWhatsApp] = useState('')
+  const [compartiendo, setCompartiendo] = useState(false)
+  const [avisoDescarga, setAvisoDescarga] = useState(false)
 
   useEffect(() => {
     const fetchFactura = async () => {
@@ -281,6 +290,79 @@ export default function FacturaPage() {
     } catch (err: any) {
       alert('Error al generar el PDF: ' + err.message)
     }
+  }
+
+  /**
+   * Comparte el archivo PDF de la factura.
+   *
+   * En el celular abre el menú de compartir del sistema: se elige WhatsApp
+   * y ahí mismo el contacto, y va el PDF adjunto. Es la única forma de
+   * mandar el archivo sin pagar la API de WhatsApp, y a cambio el
+   * destinatario no se puede preseleccionar.
+   *
+   * En computador casi ningún navegador permite compartir archivos, así
+   * que se descarga y se adjunta a mano.
+   */
+  const compartirPdf = async () => {
+    if (!factura) return
+
+    setCompartiendo(true)
+    setError(null)
+
+    try {
+      const res = await apiFetch(`/api/facturas/${id}/pdf?formato=pdf`)
+      if (!res.ok) throw new Error('No se pudo generar el PDF')
+
+      const blob = await res.blob()
+      const nombre = `Factura-${factura.numeroFactura}.pdf`
+      const archivo = new File([blob], nombre, { type: 'application/pdf' })
+
+      // canShare con archivos es lo que distingue un celular capaz de
+      // entregarle el PDF a WhatsApp de un navegador que solo sabe bajarlo.
+      if (navigator.canShare?.({ files: [archivo] })) {
+        await navigator.share({ files: [archivo], title: nombre })
+        setEnvioWhatsApp(false)
+        return
+      }
+
+      const url = URL.createObjectURL(blob)
+      const enlace = document.createElement('a')
+      enlace.href = url
+      enlace.download = nombre
+      enlace.click()
+      URL.revokeObjectURL(url)
+
+      setAvisoDescarga(true)
+    } catch (err: any) {
+      // Cancelar el menú de compartir no es un error que haya que mostrar.
+      if (err?.name !== 'AbortError') {
+        setError(err.message || 'No se pudo compartir la factura')
+      }
+    } finally {
+      setCompartiendo(false)
+    }
+  }
+
+  /**
+   * Abre WhatsApp con el resumen de la factura.
+   *
+   * WhatsApp no deja adjuntar archivos desde un enlace, así que va el
+   * resumen en el mensaje y el PDF se adjunta a mano desde la otra ventana.
+   * Sin teléfono, el enlace abre sin destinatario y WhatsApp pide a quién
+   * enviarlo.
+   */
+  const abrirWhatsApp = () => {
+    if (!factura) return
+
+    const numero = normalizarTelefono(destinoWhatsApp)
+
+    const mensaje = mensajeFactura(factura, {
+      totalAbonado,
+      saldoPendiente,
+    })
+
+    window.open(enlaceWhatsApp(numero, mensaje), '_blank', 'noopener,noreferrer')
+    setEnvioWhatsApp(false)
   }
 
   if (loading) return <div style={{ padding: '20px' }}>Cargando...</div>
@@ -603,7 +685,128 @@ export default function FacturaPage() {
           >
             Descargar PDF
           </button>
+
+          <button
+            onClick={() => {
+              // El teléfono del cliente se propone como destinatario; si no
+              // tiene, el campo queda vacío y se elige el contacto en
+              // WhatsApp.
+              setDestinoWhatsApp(factura.cliente?.telefono || '')
+              setEnvioWhatsApp(true)
+            }}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#25d366',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+            }}
+          >
+            Enviar factura por WhatsApp
+          </button>
         </div>
+
+        {/* Envío por WhatsApp */}
+        {envioWhatsApp && (
+          <div
+            onClick={() => setEnvioWhatsApp(false)}
+            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 60 }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '520px', width: '100%', maxHeight: '88vh', overflowY: 'auto', padding: '24px' }}
+            >
+              <h3 style={{ marginTop: 0, marginBottom: '6px', fontSize: '18px' }}>
+                Enviar la factura {factura.numeroFactura}
+              </h3>
+
+              {/* Camino principal: el archivo */}
+              <div style={{ border: '1px solid #bbf7d0', backgroundColor: '#f0fdf4', borderRadius: '8px', padding: '16px', marginBottom: '20px' }}>
+                <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#166534' }}>
+                  Se abre el menú de compartir del celular: eliges WhatsApp, eliges el contacto
+                  y va el PDF adjunto.
+                </p>
+
+                <button
+                  onClick={compartirPdf}
+                  disabled={compartiendo}
+                  style={{
+                    width: '100%',
+                    padding: '13px 16px',
+                    backgroundColor: compartiendo ? '#9ca3af' : '#25d366',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: compartiendo ? 'wait' : 'pointer',
+                    fontSize: '15px',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  {compartiendo ? 'Generando el PDF...' : '📎 Enviar el PDF'}
+                </button>
+
+                {avisoDescarga && (
+                  <p style={{ margin: '12px 0 0 0', fontSize: '12px', color: '#166534' }}>
+                    Este navegador no puede entregarle el archivo a WhatsApp, así que el PDF se
+                    descargó. Adjúntalo desde WhatsApp, o abre esta factura desde el celular
+                    para mandarlo directo.
+                  </p>
+                )}
+              </div>
+
+              <p style={{ fontSize: '13px', color: '#6b7280', marginTop: 0, marginBottom: '14px' }}>
+                O envía solo el resumen escrito, sin archivo. Esta vía sí permite indicar el
+                número de una vez:
+              </p>
+
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>
+                Número de destino
+              </label>
+              <input
+                type="tel"
+                value={destinoWhatsApp}
+                onChange={(e) => setDestinoWhatsApp(e.target.value)}
+                placeholder="Sin número: eliges el contacto en WhatsApp"
+                style={{ width: '100%', padding: '10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', fontFamily: 'inherit' }}
+              />
+
+              <p style={{ fontSize: '12px', color: '#6b7280', margin: '6px 0 18px 0' }}>
+                {factura.cliente?.telefono
+                  ? `Tomado del cliente ${factura.cliente.nombre}.`
+                  : 'Esta factura no tiene teléfono registrado.'}{' '}
+                {normalizarTelefono(destinoWhatsApp)
+                  ? `Se abrirá el chat con +${normalizarTelefono(destinoWhatsApp)}.`
+                  : 'Se abrirá WhatsApp sin destinatario para que elijas a quién enviarlo.'}
+              </p>
+
+              <details style={{ marginBottom: '18px' }}>
+                <summary style={{ cursor: 'pointer', fontSize: '13px', color: '#2563eb' }}>
+                  Ver el mensaje que se va a enviar
+                </summary>
+                <pre style={{ backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '6px', padding: '12px', fontSize: '12px', whiteSpace: 'pre-wrap', fontFamily: 'inherit', marginTop: '8px' }}>
+                  {mensajeFactura(factura, { totalAbonado, saldoPendiente })}
+                </pre>
+              </details>
+
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => setEnvioWhatsApp(false)}
+                  style={{ padding: '11px 16px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={abrirWhatsApp}
+                  style={{ flex: 1, padding: '11px 16px', border: '1px solid #25d366', borderRadius: '6px', backgroundColor: 'white', color: '#128c3e', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
+                >
+                  Enviar solo el resumen
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {mostrarConfirmacionAbono && (
           <div style={{

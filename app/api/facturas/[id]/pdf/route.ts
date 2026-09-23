@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { exigirPermiso } from '@/lib/permisos'
+import { generarPdfFactura, nombreArchivoFactura } from '@/lib/factura-pdf'
 
 export async function GET(
   request: NextRequest,
@@ -50,6 +51,23 @@ export async function GET(
     }
 
     const config = Object.fromEntries(registros.map((r) => [r.clave, r.valor || '']))
+
+    // Con ?formato=pdf se devuelve el archivo, que es lo que se puede
+    // adjuntar en WhatsApp. Por defecto sigue saliendo el HTML, que es el
+    // que abre el diálogo de imprimir del navegador.
+    const { searchParams } = new URL(request.url)
+
+    if (searchParams.get('formato') === 'pdf') {
+      const bytes = await generarPdfFactura(factura as any, config)
+
+      return new NextResponse(Buffer.from(bytes), {
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="${nombreArchivoFactura(factura.numeroFactura)}"`,
+          'Content-Length': String(bytes.length),
+        },
+      })
+    }
 
     // Generar HTML de la factura
     const html = generarHTML(factura, config)
