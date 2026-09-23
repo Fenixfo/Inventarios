@@ -1,132 +1,53 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
-import { Session } from '@supabase/supabase-js'
+import { usePermisos } from '@/components/PermisosProvider'
 
+/**
+ * Comprueba que haya sesión y que el usuario tenga acceso a alguna tienda.
+ *
+ * Los permisos vienen del contexto, que ya los cargó: antes este componente
+ * llamaba a sync-user en cada navegación, y ese endpoint tardaba unos tres
+ * segundos contra la base remota.
+ */
 export function AdminProtector({ children }: { children: React.ReactNode }) {
   const router = useRouter()
-  const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const { datos, cargando } = usePermisos()
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-
-        if (!session) {
-          router.replace('/login')
-          return
-        }
-
-        setSession(session)
-
-        // Sincronizar usuario y obtener roles de BD
-        console.log('🔍 AdminProtector: Sincronizando usuario...', session.user.id)
-
-        const res = await fetch('/api/auth/sync-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: session.user.id,
-            email: session.user.email,
-          }),
-        })
-
-        console.log('Response status:', res.status)
-
-        if (res.ok) {
-          const data = await res.json()
-          console.log('Response data:', data)
-
-          const hasAdminRole = data.usuario.roles.includes('admin')
-          const hasTiendas = data.usuario.tiendas && data.usuario.tiendas.length > 0
-          console.log('Has admin role:', hasAdminRole)
-          console.log('Has tiendas:', hasTiendas)
-
-          if (hasAdminRole || hasTiendas) {
-            console.log('✅ Acceso permitido')
-            setIsAdmin(true)
-          } else {
-            console.log('❌ No tiene acceso a ninguna tienda')
-            router.replace('/request-access')
-          }
-        } else {
-          console.log('❌ Error en sync-user:', res.status)
-          router.replace('/request-access')
-        }
-      } catch (error) {
-        console.error('Error checking auth:', error)
-        router.replace('/login')
-      } finally {
-        setLoading(false)
-      }
+    const revisarSesion = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) router.replace('/login')
     }
 
-    checkAuth()
+    revisarSesion()
 
-    // Escuchar cambios de autenticación
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!session) {
-        router.replace('/login')
-      } else {
-        try {
-          console.log('🔄 Auth state changed, checking permissions...')
-
-          const res = await fetch('/api/auth/sync-user', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: session.user.id,
-              email: session.user.email,
-            }),
-          })
-
-          if (res.ok) {
-            const data = await res.json()
-            console.log('User roles:', data.usuario.roles)
-
-            const hasAdminRole = data.usuario.roles.includes('admin')
-            const hasTiendas = data.usuario.tiendas && data.usuario.tiendas.length > 0
-            if (hasAdminRole || hasTiendas) {
-              console.log('✅ User has admin role or tiendas')
-              setIsAdmin(true)
-              setSession(session)
-            } else {
-              console.log('❌ User does not have access')
-              router.replace('/request-access')
-            }
-          } else {
-            console.log('❌ Failed to get user roles')
-            router.replace('/request-access')
-          }
-        } catch (error) {
-          console.error('Error checking auth:', error)
-          router.replace('/')
-        }
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_evento, session) => {
+      if (!session) router.replace('/login')
     })
 
-    return () => {
-      subscription?.unsubscribe()
-    }
+    return () => subscription?.unsubscribe()
   }, [router])
 
-  if (loading) {
+  useEffect(() => {
+    // Sin tiendas asignadas no hay nada que mostrar en el panel: el usuario
+    // existe pero todavía no le dieron acceso.
+    if (!cargando && datos && datos.tiendas.length === 0) {
+      router.replace('/request-access')
+    }
+  }, [cargando, datos, router])
+
+  if (cargando) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        Verificando autenticación...
+      <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+        Cargando...
       </div>
     )
   }
 
-  if (!isAdmin) {
+  if (!datos || datos.tiendas.length === 0) {
     return null
   }
 

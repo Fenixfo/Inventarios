@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@supabase/supabase-js'
+import { exigirPermiso } from '@/lib/permisos'
 
 // Se crea dentro del handler: un throw al importar el módulo tumbaría el
 // build entero si faltara una variable, en vez de fallar solo esta ruta.
@@ -15,6 +16,9 @@ function crearClienteAdmin() {
 
 export async function POST(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'administrador')
+    if (sinPermiso) return sinPermiso
+
     const { userId, email } = await request.json()
 
     const supabase = crearClienteAdmin()

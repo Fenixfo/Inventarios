@@ -3,6 +3,7 @@
 import { apiFetch } from '@/lib/api-client'
 import { useEffect, useState } from 'react'
 import { PermissionProtector } from '@/components/PermissionProtector'
+import { SelectorProducto } from '@/components/Common/SelectorProducto'
 import { supabase } from '@/lib/supabase-client'
 import Link from 'next/link'
 
@@ -204,18 +205,14 @@ export default function InventarioPage() {
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', color: '#374151' }}>
                   Producto
                 </label>
-                <select
+                <SelectorProducto
+                  productos={productos}
                   value={formProducto}
-                  onChange={(e) => setFormProducto(e.target.value)}
-                  style={{ ...inputStyle, width: '100%' }}
-                >
-                  <option value="">Selecciona...</option>
-                  {productos.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.sku} - {p.nombre} (stock: {p.stockActual})
-                    </option>
-                  ))}
-                </select>
+                  onChange={setFormProducto}
+                  placeholder="Selecciona..."
+                  mostrarStock
+                  ancho="100%"
+                />
               </div>
 
               <div>
@@ -315,14 +312,13 @@ export default function InventarioPage() {
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', color: '#374151' }}>
                 Producto
               </label>
-              <select value={filtroProducto} onChange={(e) => setFiltroProducto(e.target.value)} style={inputStyle}>
-                <option value="">Todos</option>
-                {productos.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.sku} - {p.nombre}
-                  </option>
-                ))}
-              </select>
+              <SelectorProducto
+                productos={productos}
+                value={filtroProducto}
+                onChange={setFiltroProducto}
+                placeholder="Todos"
+                ancho="280px"
+              />
             </div>
 
             <div>

@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+
+/**
+ * Crea el usuario en la base la primera vez que entra, y devuelve su acceso.
+ *
+ * Se llama al iniciar sesión. Una sola consulta: antes hacía dos seguidas y
+ * arrastraba relaciones del modelo de roles que ya no existe, lo que contra
+ * una base en otra región costaba unos tres segundos.
+ */
 export async function POST(request: NextRequest) {
   try {
     const { userId, email } = await request.json()
@@ -11,57 +19,41 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Buscar usuario por email primero (ya que el email es el identificador único en Supabase Auth)
-    let usuario = await prisma.usuario.findUnique({
-      where: { email },
-      include: {
-        roles: true,
-        rolesPersonalizados: {
-          include: { rol: true },
-        },
+    const incluirAcceso = {
+      tiendas: {
+        include: { tienda: { select: { id: true, nombre: true } } },
       },
-    })
-
-    // Si no existe, crear nuevo usuario con el ID de Supabase
-    if (!usuario) {
-      usuario = await prisma.usuario.create({
-        data: {
-          id: userId,
-          email,
-        },
-        include: {
-          roles: true,
-          rolesPersonalizados: {
-            include: { rol: true },
-          },
-        },
-      })
-    } else if (usuario.id !== userId) {
-      // Si existe pero con diferente ID de Supabase, actualizar el ID
-      // Esto maneja el caso de un usuario que cambió de ID en Supabase
-      await prisma.usuario.update({
-        where: { email },
-        data: { id: userId },
-      })
-      usuario.id = userId
     }
 
-    // Obtener tiendas del usuario
-    const usuarioTiendas = await prisma.usuarioTienda.findMany({
-      where: { usuarioId: usuario.id },
-      include: { tienda: true },
+    let usuario = await prisma.usuario.findUnique({
+      where: { email },
+      include: incluirAcceso,
     })
 
-    // Retornar usuario con sus roles y tiendas
+    if (!usuario) {
+      usuario = await prisma.usuario.create({
+        data: { id: userId, email },
+        include: incluirAcceso,
+      })
+    } else if (usuario.id !== userId) {
+      // El usuario cambió de identificador en Supabase (por ejemplo, si se
+      // recreó la cuenta con el mismo correo).
+      usuario = await prisma.usuario.update({
+        where: { email },
+        data: { id: userId },
+        include: incluirAcceso,
+      })
+    }
+
     return NextResponse.json({
       usuario: {
         id: usuario.id,
         email: usuario.email,
-        roles: usuario.roles.map((r) => r.rol),
-        rolesPersonalizados: usuario.rolesPersonalizados.map((r) => r.rol.nombre),
-        tiendas: usuarioTiendas.map((ut) => ({
+        tiendas: usuario.tiendas.map((ut) => ({
           id: ut.tienda.id,
           nombre: ut.tienda.nombre,
+          esOwner: ut.esOwner,
+          esAdmin: ut.esAdmin,
         })),
       },
     })

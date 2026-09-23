@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { exigirPermiso } from '@/lib/permisos'
 // PATCH: Actualizar rol personalizado
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'usuarios.gestionar')
+    if (sinPermiso) return sinPermiso
+
     const { id } = await context.params
     const { nombre, descripcion, permisoIds } = await request.json()
 
@@ -71,10 +75,13 @@ export async function PATCH(
 
 // DELETE: Eliminar rol personalizado
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'usuarios.gestionar')
+    if (sinPermiso) return sinPermiso
+
     const { id } = await context.params
 
     // Verificar que el rol existe

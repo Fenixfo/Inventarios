@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { exigirPermiso } from '@/lib/permisos'
 // POST: Asignar rol personalizado a usuario
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'usuarios.gestionar')
+    if (sinPermiso) return sinPermiso
+
     const { id } = await context.params
     const { rolId } = await request.json()
 
@@ -91,6 +95,9 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'usuarios.gestionar')
+    if (sinPermiso) return sinPermiso
+
     const { id } = await context.params
     const { rolId } = await request.json()
 

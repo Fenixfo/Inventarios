@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { exigirPermiso, veTodasLasFacturas } from '@/lib/permisos'
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { usuario, error: sinPermiso } = await exigirPermiso(request, 'facturas.ver')
+    if (sinPermiso) return sinPermiso
+
     const { id } = await context.params
-    const { searchParams } = new URL(request.url)
-    const email = searchParams.get('email')
 
     const factura = await prisma.factura.findUnique({
       where: { id },
@@ -29,27 +32,12 @@ export async function GET(
       )
     }
 
-    // Verificar permisos si se proporciona email
-    if (email) {
-      const usuario = await prisma.usuario.findUnique({
-        where: { email },
-        include: { rolesPersonalizados: { include: { rol: { include: { permisos: { include: { modulo: true } } } } } } }
-      })
-
-      if (usuario) {
-        // Verificar si tiene permiso "administrador"
-        const tienePermisoAdmin = usuario.rolesPersonalizados?.some((ur: any) =>
-          ur.rol.permisos.some((p: any) => p.modulo.modulo === 'administrador')
-        )
-
-        // Si no tiene permiso admin, verificar que sea su factura
-        if (!tienePermisoAdmin && factura.usuarioId !== usuario.id) {
-          return NextResponse.json(
-            { error: 'No tienes permiso para ver esta factura' },
-            { status: 403 }
-          )
-        }
-      }
+    // Sin 'facturas.ver_todas' solo se pueden abrir las facturas propias.
+    if (!veTodasLasFacturas(usuario) && factura.usuarioId !== usuario.id) {
+      return NextResponse.json(
+        { error: 'No tienes permiso para ver esta factura' },
+        { status: 403 }
+      )
     }
 
     return NextResponse.json(factura)
@@ -66,6 +54,9 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'facturas.anular')
+    if (sinPermiso) return sinPermiso
+
     const { id } = await context.params
 
     // Obtener factura antes de actualizar

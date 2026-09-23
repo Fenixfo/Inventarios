@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { exigirPermiso } from '@/lib/permisos'
 import { z } from 'zod'
 
 // Claves permitidas y su tipo. Cualquier clave fuera de esta lista se ignora.
@@ -49,39 +50,10 @@ const configSchema = z.object({
   email: z.string().trim().optional().nullable(),
 })
 
-async function verificarAdmin(email: string | null | undefined) {
-  if (!email) return { autorizado: false, usuarioId: null }
-
-  const usuario = await prisma.usuario.findUnique({
-    where: { email },
-    include: {
-      rolesPersonalizados: {
-        include: { rol: { include: { permisos: { include: { modulo: true } } } } },
-      },
-    },
-  })
-
-  if (!usuario) return { autorizado: false, usuarioId: null }
-
-  const esAdmin = usuario.rolesPersonalizados?.some((ur: any) =>
-    ur.rol.permisos.some((p: any) => p.modulo.modulo === 'administrador')
-  )
-
-  return { autorizado: Boolean(esAdmin), usuarioId: usuario.id }
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const email = searchParams.get('email')
-
-    const { autorizado } = await verificarAdmin(email)
-    if (!autorizado) {
-      return NextResponse.json(
-        { error: 'No tienes permiso para ver la configuración' },
-        { status: 403 }
-      )
-    }
+    const { error: sinPermiso } = await exigirPermiso(request, 'configuracion.ver')
+    if (sinPermiso) return sinPermiso
 
     const registros = await prisma.configuracion.findMany({
       where: { clave: { in: Object.keys(CLAVES_CONFIG) } },
@@ -109,6 +81,12 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const { usuario, error: sinPermiso } = await exigirPermiso(
+      request,
+      'configuracion.editar'
+    )
+    if (sinPermiso) return sinPermiso
+
     const body = await request.json()
     const parsed = configSchema.safeParse(body)
 
@@ -120,14 +98,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const { email, ...valores } = parsed.data
-    const { autorizado, usuarioId } = await verificarAdmin(email)
-
-    if (!autorizado) {
-      return NextResponse.json(
-        { error: 'No tienes permiso para modificar la configuración' },
-        { status: 403 }
-      )
-    }
+    const usuarioId = usuario.id
 
     const claves = Object.keys(valores).filter(
       (k): k is ClaveConfig => k in CLAVES_CONFIG && valores[k as ClaveConfig] !== undefined

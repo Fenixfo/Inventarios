@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { exigirPermiso } from '@/lib/permisos'
 export async function POST(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'facturas.crear')
+    if (sinPermiso) return sinPermiso
+
     const { searchParams } = new URL(request.url)
     const email = searchParams.get('email')
     const { facturaId, monto } = await request.json()

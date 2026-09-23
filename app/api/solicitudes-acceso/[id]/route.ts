@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { exigirPermiso } from '@/lib/permisos'
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'solicitudes-acceso.gestionar')
+    if (sinPermiso) return sinPermiso
+
     const { id } = await context.params
     const { estado, comentarioAdmin, adminId } = await request.json()
 

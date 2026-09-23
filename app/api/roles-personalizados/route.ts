@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { exigirPermiso } from '@/lib/permisos'
 // GET: Obtener todos los roles personalizados (excepto Owner)
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'usuarios.ver')
+    if (sinPermiso) return sinPermiso
+
     const roles = await prisma.rolPersonalizado.findMany({
       where: {
         activo: true,
@@ -29,6 +33,9 @@ export async function GET() {
 // POST: Crear nuevo rol personalizado
 export async function POST(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'usuarios.gestionar')
+    if (sinPermiso) return sinPermiso
+
     const { nombre, descripcion, permisoIds } = await request.json()
 
     if (!nombre) {

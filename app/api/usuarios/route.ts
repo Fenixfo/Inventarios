@@ -1,40 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { exigirPermiso } from '@/lib/permisos'
+
 export async function GET(request: NextRequest) {
   try {
-    // Obtener todos los usuarios
-    const todosUsuarios = await prisma.usuario.findMany({
+    const { error } = await exigirPermiso(request, 'usuarios.ver')
+    if (error) return error
+
+    const usuarios = await prisma.usuario.findMany({
       include: {
-        roles: true,
-        rolesPersonalizados: {
-          include: {
-            rol: {
-              include: {
-                permisos: {
-                  include: { modulo: true }
-                }
-              }
-            }
-          }
-        },
         tiendas: {
-          include: { tienda: true }
-        }
+          include: {
+            tienda: { select: { id: true, nombre: true } },
+            permisos: { include: { permiso: true } },
+          },
+        },
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: { createdAt: 'desc' },
     })
 
-    // Filtrar para excluir usuarios con rol Owner
-    const usuarios = todosUsuarios.filter(usuario => {
-      const tieneRolOwner = usuario.rolesPersonalizados.some(
-        ur => ur.rol.nombre === 'Owner'
-      )
-      return !tieneRolOwner
-    })
-
-    return NextResponse.json(usuarios)
+    // Se devuelve el dueño también, marcado: la interfaz lo muestra pero no
+    // permite modificarlo.
+    return NextResponse.json(
+      usuarios.map((u) => ({
+        id: u.id,
+        email: u.email,
+        createdAt: u.createdAt,
+        lastLogin: u.lastLogin,
+        tiendas: u.tiendas.map((ut) => ({
+          tiendaId: ut.tiendaId,
+          tiendaNombre: ut.tienda.nombre,
+          esOwner: ut.esOwner,
+          esAdmin: ut.esAdmin,
+          permisos: ut.permisos.map((pa) => `${pa.permiso.modulo}.${pa.permiso.accion}`),
+        })),
+      }))
+    )
   } catch (error: any) {
     console.error('Error obteniendo usuarios:', error)
     return NextResponse.json(

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { exigirPermiso } from '@/lib/permisos'
 export async function GET(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'reportes.ver')
+    if (sinPermiso) return sinPermiso
+
     const { searchParams } = new URL(request.url)
     const periodo = searchParams.get('periodo') || 'mes' // hoy, semana, mes, personalizado
     const fechaInicio = searchParams.get('fechaInicio')
@@ -40,26 +44,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Verificar permisos si se proporciona email
-    let filtroUsuario: any = {}
-
-    if (email) {
-      const usuario = await prisma.usuario.findUnique({
-        where: { email },
-        include: { rolesPersonalizados: { include: { rol: { include: { permisos: { include: { modulo: true } } } } } } }
-      })
-
-      if (usuario) {
-        // Verificar si tiene permiso "administrador"
-        const tienePermisoAdmin = usuario.rolesPersonalizados?.some((ur: any) =>
-          ur.rol.permisos.some((p: any) => p.modulo.modulo === 'administrador')
-        )
-
-        // Si no tiene permiso admin, filtrar solo sus facturas
-        if (!tienePermisoAdmin) {
-          filtroUsuario.usuarioId = usuario.id
-        }
-      }
-    }
+    // A diferencia del listado de facturas, los reportes no distinguen autoría:
+    // quien tiene el permiso ve las cifras de toda la tienda.
 
     // Determinar qué estados filtrar
     const estadosParam = searchParams.get('estados')
@@ -75,7 +61,7 @@ export async function GET(request: NextRequest) {
           lte: hasta,
         },
         estado: { in: estadosFiltro },
-        ...filtroUsuario,
+
       },
       include: {
         cliente: true,

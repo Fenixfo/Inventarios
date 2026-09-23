@@ -1,11 +1,10 @@
 'use client'
 
 import { AdminProtector } from '@/components/AdminProtector'
+import { PermisosProvider, usePermisos, invalidarPermisos } from '@/components/PermisosProvider'
 import { Header } from '@/components/Layout/Header'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
-import { apiFetch } from '@/lib/api-client'
-import { useState, useEffect } from 'react'
 
 interface MenuItem {
   label: string
@@ -14,76 +13,41 @@ interface MenuItem {
   icono?: string
 }
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  // El proveedor envuelve todo el panel: carga los permisos una vez y los
+  // comparte, incluido este layout, que los usa para armar el menú.
+  return (
+    <PermisosProvider>
+      <PanelAdmin>{children}</PanelAdmin>
+    </PermisosProvider>
+  )
+}
+
+function PanelAdmin({ children }: { children: React.ReactNode }) {
   const router = useRouter()
-  const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [permisos, setPermisos] = useState<string[]>([])
-  const [esAdmin, setEsAdmin] = useState(false)
 
   const menuItems: MenuItem[] = [
     { label: 'Dashboard', href: '/admin', icono: '📊' }, // Visible para todos
-    { label: 'Productos', href: '/admin/productos', permiso: 'productos', icono: '📦' },
-    { label: 'Inventario', href: '/admin/inventario', permiso: 'productos', icono: '🔄' },
-    { label: 'Clientes', href: '/admin/clientes', permiso: 'clientes', icono: '👥' },
-    { label: 'Facturas', href: '/admin/facturas', permiso: 'facturas', icono: '📄' },
-    { label: 'Reportes', href: '/admin/reportes', permiso: 'reportes', icono: '📈' },
-    { label: 'Auditoría', href: '/admin/auditoria', permiso: 'auditoria', icono: '🔍' },
-    { label: 'Solicitudes de Acceso', href: '/admin/solicitudes-acceso', permiso: 'solicitudes-acceso', icono: '✋' },
-    { label: 'Gestión de Roles', href: '/admin/roles', permiso: 'roles', icono: '🎭' },
-    { label: 'Gestión de Usuarios', href: '/admin/usuarios', permiso: 'usuarios', icono: '👨‍💼' },
-    { label: 'Configuración', href: '/admin/configuracion', permiso: 'administrador', icono: '⚙️' },
+    { label: 'Productos', href: '/admin/productos', permiso: 'productos.ver', icono: '📦' },
+    { label: 'Inventario', href: '/admin/inventario', permiso: 'inventario.ver', icono: '🔄' },
+    { label: 'Clientes', href: '/admin/clientes', permiso: 'clientes.ver', icono: '👥' },
+    { label: 'Facturas', href: '/admin/facturas', permiso: 'facturas.ver', icono: '📄' },
+    { label: 'Reportes', href: '/admin/reportes', permiso: 'reportes.ver', icono: '📈' },
+    { label: 'Auditoría', href: '/admin/auditoria', permiso: 'auditoria.ver', icono: '🔍' },
+    { label: 'Solicitudes de Acceso', href: '/admin/solicitudes-acceso', permiso: 'solicitudes-acceso.ver', icono: '✋' },
+    { label: 'Gestión de Usuarios', href: '/admin/usuarios', permiso: 'usuarios.ver', icono: '👨‍💼' },
+    { label: 'Configuración', href: '/admin/configuracion', permiso: 'configuracion.ver', icono: '⚙️' },
   ]
 
-  useEffect(() => {
-    const getUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (session?.user) {
-        setUserEmail(session.user.email || null)
-
-        // Obtener permisos del usuario
-        try {
-          const res = await apiFetch(`/api/debug/usuario-actual?email=${encodeURIComponent(session.user.email || '')}`)
-          if (res.ok) {
-            const usuario = await res.json()
-
-            // Verificar si es Owner (admin)
-            const esOwner = usuario.rolesPersonalizados?.some(
-              (ur: any) => ur.rol.nombre === 'Owner'
-            )
-
-            if (esOwner) {
-              setEsAdmin(true)
-              setPermisos(['dashboard', 'productos', 'clientes', 'facturas', 'reportes', 'auditoria', 'administrador', 'roles', 'usuarios', 'solicitudes-acceso'])
-            } else {
-              // Obtener permisos de los roles del usuario
-              const permisosUnicos = new Set<string>()
-              usuario.rolesPersonalizados?.forEach((ur: any) => {
-                ur.rol.permisos.forEach((p: any) => {
-                  permisosUnicos.add(p.modulo.modulo)
-                })
-              })
-              const permisosArray = Array.from(permisosUnicos)
-              console.log('Roles:', usuario.rolesPersonalizados)
-              console.log('Permisos obtenidos:', permisosArray)
-              setPermisos(permisosArray)
-            }
-          }
-        } catch (error) {
-          console.error('Error obteniendo permisos:', error)
-        }
-      }
-    }
-
-    getUser()
-  }, [])
+  // El menú se arma con los permisos del contexto: ya están cargados y no
+  // hace falta volver a pedirlos en cada navegación.
+  const { datos } = usePermisos()
+  const permisos = datos?.permisos || []
+  const esAdmin = Boolean(datos?.administraTienda)
+  const userEmail = datos?.email || null
 
   const handleLogout = async () => {
+    invalidarPermisos()
     await supabase.auth.signOut()
     router.push('/login')
   }

@@ -69,6 +69,47 @@ Queda aparte `usuarios_roles` (6 registros), que los módulos admin, auth y usua
 paralelo a los roles personalizados. Hay que decidir si se unifica con el sistema principal o se
 conserva con un propósito definido.
 
+### Modelo de permisos acordado (para la Prioridad 2)
+
+**Jerarquía de tres niveles:**
+
+| Nivel | Cómo se obtiene | Alcance | Quién se lo quita |
+|---|---|---|---|
+| Owner | crea la tienda | todo, y puede delegar todo | nadie |
+| Administrador | lo nombra el owner | lo mismo que el owner | solo el owner |
+| Usuario | permisos asignados | lo que tenga | owner o administrador |
+
+La asimetría es lo esencial: el administrador tiene los mismos permisos efectivos que el owner,
+pero no puede retirarle permisos a este.
+
+**Permisos = módulo + acción.** El módulo da *ver*; las acciones se asignan aparte:
+
+```
+productos   → ver          inventario → ver
+  + crear                    + movimientos
+  + editar                   + editar
+
+clientes    → ver          facturas   → ver (solo las propias)
+  + crear                    + ver_todas   ← permiso adicional
+  + editar                   + crear
+                             + anular
+```
+
+**Alcance:** solo *facturas* distingue entre lo propio y lo de toda la tienda. **Reportes no**:
+quien tenga el permiso `reportes` ve los de toda la tienda, sin distinción de autoría.
+
+**Los permisos son por tienda.** Cuelgan de la relación usuario–tienda, no del usuario: alguien
+puede ser bodeguero en una tienda y vendedor en otra.
+
+**Los roles quedan como plantilla.** Dejan de ser una entidad que se consulta al verificar
+permisos y pasan a ser un atajo que precarga un conjunto al crear o editar un usuario
+(bodeguero, vendedor, administrador). Los permisos sueltos siguen disponibles, así que alguien
+puede tener la plantilla de bodeguero y además permisos extra de otros módulos.
+
+**Desaparece la gestión de roles** como módulo del panel; queda solo gestión de usuarios.
+
+---
+
 **Prioridad 3: mejorar el módulo de auditoría.** Medido sobre los 190 registros actuales:
 
 - **El 78% no tiene usuario asociado.** Los endpoints reciben el email de forma opcional y muchas
@@ -1259,6 +1300,213 @@ Crear documentación básica: cómo agregar productos, cómo crear facturas, có
 | Fecha | Decisión | Contexto |
 |---|---|---|
 | | | |
+
+---
+
+## FASE 12: Rediseño de permisos (Duración: 4-6 días)
+
+Nace de auditar el sistema actual el 2026-09-21: conviven dos modelos de permisos (uno con datos y
+otro vacío), la verificación está repetida en cada endpoint y los permisos no distinguen acciones.
+
+**Modelo acordado** — ver "Modelo de permisos acordado" al inicio de este documento. En resumen:
+permisos como `módulo + acción`, asignados **por tienda**, con jerarquía owner → administrador →
+usuario, y tres plantillas fijas no editables que solo sirven de atajo.
+
+---
+
+### TASK-35: Cerrar la verificación de permisos en la API
+
+- **Cubre:** RF-11, seguridad
+- **Componente:** lib/permisos, endpoints
+- **Tipo:** fix
+- **Estado:** completada
+
+**Descripción:**
+La protección era solo visual: 28 de 36 endpoints exigían sesión pero no permisos, así que cualquier
+usuario con cuenta podía consultarlos —incluso asignarse permisos a sí mismo— llamando la API
+directamente. Centralizar la verificación y aplicarla a todos los endpoints y páginas.
+
+**Criterio de done:**
+- [x] Función única de verificación (`usuarioDePeticion`, `puede`, `exigirPermiso`, `exigirSesion`)
+- [x] El usuario se resuelve desde el token, no desde un parámetro de la petición
+- [x] 19 endpoints protegidos con el permiso de su módulo
+- [x] Páginas de detalle protegidas (productos, clientes, facturas)
+- [x] Excepciones justificadas: `/api/tiendas` y crear solicitudes solo exigen sesión
+- [x] Lectura cruzada permitida donde hace falta (facturar necesita leer productos y clientes)
+- [x] Verificado con un usuario sin permisos: 403 en todo lo protegido
+- [x] Tests de integración con sesión real en vez de token inventado
+
+**Log de decisiones:**
+| Fecha | Decisión | Contexto |
+|---|---|---|
+| 2026-09-22 | `/api/debug/usuario-actual` solo exige sesión | Lo consulta el propio verificador de permisos; exigirle un permiso creaba un círculo y dejaba las páginas en "Verificando permisos..." |
+| 2026-09-22 | Caché de 60 s en la resolución del token | Validar contra Supabase en cada petición subió los tiempos de 1 s a 6 s. El coste es que un cambio de permisos tarda hasta un minuto en aplicarse |
+| 2026-09-22 | El tablero queda sin exigir permiso | Sus datos ya están protegidos en la API y exigir `dashboard` dejaría fuera a Bodega y Vendedor |
+
+---
+
+### TASK-36: Esquema de permisos por tienda y migración
+
+- **Cubre:** RF-11, multi-tienda
+- **Componente:** Database, Prisma
+- **Tipo:** refactor
+- **Estado:** completada
+
+**Descripción:**
+Reemplazar el modelo de roles por permisos `módulo + acción` asignados por tienda. Un mismo usuario
+puede ser administrador en una tienda y vendedor en otra, u owner de una y no tener acceso a otra.
+
+**Criterio de done:**
+- [x] Tabla `permisos` con pares módulo + acción
+- [x] `usuarios_tiendas` con banderas `es_owner` y `es_admin` por tienda
+- [x] Tabla de permisos asignados: usuario + tienda + permiso
+- [x] Un solo owner por tienda, garantizado por la base
+- [x] Migración de los datos actuales sin que nadie pierda acceso
+- [x] `admin@beraca.com` queda como owner de Beraca; `t@t` como administrador
+- [x] Eliminadas las tablas del modelo viejo y las cuatro vacías
+- [x] El esquema baja de 21 a ~17 tablas
+
+**Log de decisiones:**
+| Fecha | Decisión | Contexto |
+|---|---|---|
+| 2026-09-22 | Las plantillas viven en código, no en la base | Son tres, fijas y no editables: una tabla solo agregaría una consulta y la posibilidad de que queden inconsistentes |
+
+---
+
+### TASK-37: Verificación con acciones y alcance
+
+- **Cubre:** RF-11
+- **Componente:** lib/permisos
+- **Tipo:** feature
+- **Estado:** completada
+
+**Descripción:**
+Ampliar la verificación para entender `módulo.acción`, resolver la tienda del contexto y aplicar el
+alcance de facturas (propias contra toda la tienda).
+
+**Criterio de done:**
+- [x] `puede(usuario, 'productos.crear')` distingue ver de crear y editar
+- [x] La jerarquía se respeta: owner y administrador pasan cualquier comprobación
+- [x] Un administrador no puede retirarle permisos al owner
+- [x] Facturas: sin `facturas.ver_todas` el usuario solo ve las suyas
+- [x] Reportes: quien tenga el permiso ve los de toda la tienda
+- [x] Los permisos se resuelven para la tienda activa
+- [x] Tests de cada regla, incluida la asimetría owner/administrador
+
+**Log de decisiones:**
+| Fecha | Decisión | Contexto |
+|---|---|---|
+| | | |
+
+---
+
+### TASK-38: Aplicar los permisos nuevos en endpoints y páginas
+
+- **Cubre:** RF-11
+- **Componente:** Endpoints, páginas del panel
+- **Tipo:** refactor
+- **Estado:** completada
+
+**Descripción:**
+Pasar de exigir el módulo a exigir la acción concreta, y aplicar el filtro de facturas propias.
+
+**Criterio de done:**
+- [x] Cada endpoint exige la acción que corresponde, no solo el módulo
+- [x] `inventario` deja de usar el permiso `productos`
+- [x] El listado de facturas filtra por autor salvo que se tenga `facturas.ver_todas`
+- [x] Las páginas muestran u ocultan botones según la acción permitida
+- [x] El menú lateral refleja los permisos nuevos
+- [x] Ningún flujo existente se rompe: los e2e siguen pasando
+
+**Log de decisiones:**
+| Fecha | Decisión | Contexto |
+|---|---|---|
+| | | |
+
+---
+
+### TASK-39: Gestión de usuarios con permisos granulares
+
+- **Cubre:** RF-11
+- **Componente:** /admin/usuarios
+- **Tipo:** feature
+- **Estado:** completada
+
+**Descripción:**
+Rehacer la pantalla de usuarios para asignar permisos por módulo y acción, con las tres plantillas
+como atajo. Retirar la gestión de roles del panel.
+
+**Criterio de done:**
+- [x] Casillas por módulo y acción, agrupadas por módulo
+- [x] Tres plantillas fijas (Bodeguero, Vendedor, Administrador) que precargan permisos
+- [x] Las plantillas no se pueden editar ni borrar
+- [x] Tras aplicar una plantilla, los permisos se pueden ajustar uno por uno
+- [x] Nombrar y retirar administradores (solo el owner)
+- [x] La sección "Gestión de Roles" desaparece del menú
+- [x] Se ve a qué tienda corresponde cada asignación
+
+**Flujo de asignación (acordado con el usuario):**
+
+La asignación no se guarda permiso por permiso, sino en un solo paso confirmado:
+
+1. Se marcan todos los permisos necesarios (y los usuarios, si se asigna a varios a la vez)
+2. Se pulsa **Añadir permisos**
+3. Aparece un diálogo de confirmación que enumera **a qué usuarios** y **qué permisos**
+   se van a asignar
+4. Recién al confirmar se guardan los cambios
+
+- [x] Selección múltiple antes de guardar, sin efectos inmediatos al marcar
+- [x] Botón "Añadir permisos" que abre la confirmación
+- [x] El diálogo lista usuarios afectados y permisos a conceder
+- [x] Se puede cancelar sin que nada cambie
+
+**Log de decisiones:**
+| Fecha | Decisión | Contexto |
+|---|---|---|
+| | | |
+
+---
+
+### TASK-40: Sesión con caducidad y permisos en caché del cliente
+
+- **Cubre:** RNF-2 (rendimiento percibido), seguridad de sesión
+- **Componente:** PermisosProvider, AdminProtector, PermissionProtector
+- **Tipo:** feature
+- **Estado:** pendiente
+
+**Descripción:**
+Hoy cada pantalla del panel vuelve a preguntar los permisos: el `AdminProtector` del layout consulta
+y el `PermissionProtector` de la página consulta otra vez, en cada navegación. Nada se comparte, así
+que moverse entre secciones se siente lento.
+
+Se resuelve con un contexto que cargue los permisos una sola vez al entrar al panel y los comparta
+con todas las pantallas, respaldado en `sessionStorage` para que sobreviva a una recarga. En el mismo
+lugar se controla la caducidad de la sesión a las 6 horas.
+
+**Dos vencimientos distintos, a propósito:**
+
+| Dato | Duración | Motivo |
+|---|---|---|
+| Sesión | 6 horas | Obliga a volver a entrar; es una decisión de seguridad |
+| Permisos en caché | 5 minutos | Si a alguien le cambian los permisos, su menú no debe tardar horas en reflejarlo |
+
+**Criterio de done:**
+- [ ] `PermisosProvider` carga los permisos una vez y los comparte por contexto
+- [ ] `PermissionProtector` lee del contexto en vez de llamar a la API
+- [ ] `AdminProtector` no repite la consulta que ya hizo el contexto
+- [ ] Los permisos se guardan en `sessionStorage` con vencimiento de 5 minutos
+- [ ] La sesión caduca a las 6 horas y redirige al login
+- [ ] Al asignar permisos, el caché del cliente se invalida sin esperar los 5 minutos
+- [ ] Navegar entre secciones del panel no dispara llamadas de verificación
+
+**Nota de seguridad:** el caché del cliente es solo para la experiencia de uso. El servidor sigue
+comprobando permisos en cada petición, así que manipular `sessionStorage` no concede acceso: como
+mucho muestra un botón que al pulsarlo devuelve 403.
+
+**Log de decisiones:**
+| Fecha | Decisión | Contexto |
+|---|---|---|
+| 2026-09-23 | Caché de permisos separado del de sesión | Duraciones distintas: la sesión es seguridad, los permisos son frescura de la interfaz |
 
 ---
 

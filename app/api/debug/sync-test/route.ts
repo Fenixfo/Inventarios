@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { exigirPermiso } from '@/lib/permisos'
 export async function POST(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'administrador')
+    if (sinPermiso) return sinPermiso
+
     const { userId, email } = await request.json()
 
     console.log(`\n🔍 DEBUG SYNC: userId=${userId}, email=${email}`)

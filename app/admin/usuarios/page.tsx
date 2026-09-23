@@ -1,316 +1,477 @@
 'use client'
 
 import { apiFetch } from '@/lib/api-client'
-
 import { useEffect, useState } from 'react'
 import { PermissionProtector } from '@/components/PermissionProtector'
+import Link from 'next/link'
 
-interface PermisoModulo {
-  id: string
-  nombre: string
-  icono?: string
-}
-
-interface RolPersonalizado {
-  id: string
-  nombre: string
-  descripcion?: string
-  permisos: Array<{ modulo: PermisoModulo }>
-  asignado: boolean
+interface AccesoTienda {
+  tiendaId: string
+  tiendaNombre: string
+  esOwner: boolean
+  esAdmin: boolean
+  permisos: string[]
 }
 
 interface Usuario {
   id: string
   email: string
-  createdAt: string
-  roles: Array<{ id: string; rol: string }>
-  rolesPersonalizados: Array<{
-    rol: {
-      id: string
-      nombre: string
-      descripcion?: string
-      permisos: Array<{ modulo: PermisoModulo }>
-    }
-  }>
-  tiendas: Array<{
-    tienda: { id: string; nombre: string }
-  }>
+  lastLogin: string | null
+  tiendas: AccesoTienda[]
+}
+
+interface Accion {
+  id: string
+  clave: string
+  accion: string
+  nombre: string
+}
+
+interface Modulo {
+  modulo: string
+  nombre: string
+  icono: string
+  acciones: Accion[]
+}
+
+interface Plantilla {
+  id: string
+  nombre: string
+  descripcion: string
+  icono: string
+  permisos: string[]
 }
 
 export default function UsuariosPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
-  const [rolesDisponibles, setRolesDisponibles] = useState<Record<string, RolPersonalizado[]>>({})
-  const [loading, setLoading] = useState(true)
+  const [modulos, setModulos] = useState<Modulo[]>([])
+  const [plantillas, setPlantillas] = useState<Plantilla[]>([])
+  const [soyOwner, setSoyOwner] = useState(false)
+
+  const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [procesando, setProcesando] = useState<string | null>(null)
-  const [expandido, setExpandido] = useState<string | null>(null)
+  const [exito, setExito] = useState<string | null>(null)
+
+  // Selección en curso: nada se guarda hasta confirmar.
+  const [usuariosSel, setUsuariosSel] = useState<Set<string>>(new Set())
+  const [permisosSel, setPermisosSel] = useState<Set<string>>(new Set())
+  const [nombrarAdmin, setNombrarAdmin] = useState(false)
+  const [confirmando, setConfirmando] = useState(false)
+  const [guardando, setGuardando] = useState(false)
 
   useEffect(() => {
-    cargarUsuarios()
+    cargar()
   }, [])
 
-  const cargarUsuarios = async () => {
+  const cargar = async () => {
+    setCargando(true)
+    setError(null)
+
     try {
-      const res = await apiFetch('/api/usuarios')
-      if (!res.ok) throw new Error('Error al cargar usuarios')
-      const data = await res.json()
-      setUsuarios(data)
-      setError(null)
+      const [usuariosRes, permisosRes, sesionRes] = await Promise.all([
+        apiFetch('/api/usuarios'),
+        apiFetch('/api/permisos'),
+        apiFetch('/api/debug/usuario-actual'),
+      ])
+
+      if (!usuariosRes.ok) throw new Error('No se pudieron cargar los usuarios')
+      if (!permisosRes.ok) throw new Error('No se pudieron cargar los permisos')
+
+      const [datosUsuarios, datosPermisos, sesion] = await Promise.all([
+        usuariosRes.json(),
+        permisosRes.json(),
+        sesionRes.ok ? sesionRes.json() : Promise.resolve({ esOwner: false }),
+      ])
+
+      setUsuarios(datosUsuarios)
+      setModulos(datosPermisos.modulos || [])
+      setPlantillas(datosPermisos.plantillas || [])
+      setSoyOwner(Boolean(sesion.esOwner))
     } catch (err: any) {
       setError(err.message)
     } finally {
-      setLoading(false)
+      setCargando(false)
     }
   }
 
-  const cargarRolesDisponibles = async (usuarioId: string) => {
-    try {
-      const res = await apiFetch(`/api/usuarios/${usuarioId}/roles-disponibles`)
-      if (!res.ok) throw new Error('Error al cargar roles disponibles')
-      const data = await res.json()
-      setRolesDisponibles(prev => ({ ...prev, [usuarioId]: data }))
-    } catch (err: any) {
-      setError(err.message)
-    }
+  const alternar = (conjunto: Set<string>, valor: string) => {
+    const copia = new Set(conjunto)
+    copia.has(valor) ? copia.delete(valor) : copia.add(valor)
+    return copia
   }
 
-  const asignarRolPersonalizado = async (usuarioId: string, rolId: string) => {
-    setProcesando(usuarioId)
+  const aplicarPlantilla = (p: Plantilla) => {
+    setPermisosSel(new Set(p.permisos))
+    setNombrarAdmin(p.id === 'administrador')
+    setExito(null)
+  }
+
+  const limpiar = () => {
+    setUsuariosSel(new Set())
+    setPermisosSel(new Set())
+    setNombrarAdmin(false)
+  }
+
+  const guardar = async () => {
+    setGuardando(true)
+    setError(null)
+
     try {
-      const res = await apiFetch(`/api/usuarios/${usuarioId}/roles`, {
+      const cuerpo: any = {
+        usuarioIds: [...usuariosSel],
+        permisos: [...permisosSel],
+        modo: 'agregar',
+      }
+      if (soyOwner && nombrarAdmin) cuerpo.esAdmin = true
+
+      const res = await apiFetch('/api/usuarios/permisos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rolId }),
+        body: JSON.stringify(cuerpo),
       })
 
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Error al asignar rol')
-      }
+      const datos = await res.json()
+      if (!res.ok) throw new Error(datos.error || 'No se pudieron asignar los permisos')
 
-      const usuarioActualizado = await res.json()
-      setUsuarios(usuarios.map(u => u.id === usuarioId ? usuarioActualizado : u))
-      await cargarRolesDisponibles(usuarioId)
-      setError(null)
+      setExito(
+        `Permisos asignados a ${datos.afectados.length} usuario${datos.afectados.length !== 1 ? 's' : ''}`
+      )
+      setConfirmando(false)
+      limpiar()
+      await cargar()
     } catch (err: any) {
       setError(err.message)
+      setConfirmando(false)
     } finally {
-      setProcesando(null)
+      setGuardando(false)
     }
   }
 
-  const removerRolPersonalizado = async (usuarioId: string, rolId: string) => {
-    setProcesando(usuarioId)
-    try {
-      const res = await apiFetch(`/api/usuarios/${usuarioId}/roles`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rolId }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Error al remover rol')
-      }
-
-      const usuarioActualizado = await res.json()
-      setUsuarios(usuarios.map(u => u.id === usuarioId ? usuarioActualizado : u))
-      await cargarRolesDisponibles(usuarioId)
-      setError(null)
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setProcesando(null)
-    }
+  const accesoDe = (u: Usuario) => u.tiendas[0]
+  const nivelDe = (u: Usuario) => {
+    const a = accesoDe(u)
+    if (a?.esOwner) return { texto: 'Dueño', color: '#7c3aed' }
+    if (a?.esAdmin) return { texto: 'Administrador', color: '#2563eb' }
+    return { texto: 'Usuario', color: '#6b7280' }
   }
 
-  const toggleExpandir = async (usuarioId: string) => {
-    if (expandido === usuarioId) {
-      setExpandido(null)
-    } else {
-      setExpandido(usuarioId)
-      if (!rolesDisponibles[usuarioId]) {
-        await cargarRolesDisponibles(usuarioId)
-      }
-    }
+  const seleccionables = usuarios.filter((u) => !accesoDe(u)?.esOwner)
+  const hayQueGuardar = usuariosSel.size > 0 && (permisosSel.size > 0 || nombrarAdmin)
+
+  const tarjeta = {
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    padding: '20px',
+    marginBottom: '20px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
   }
 
   return (
-    <PermissionProtector requiredPermission="usuarios">
-      <div>
-        <h1 className="text-3xl font-bold mb-8">Gestión de Usuarios</h1>
+    <PermissionProtector requiredPermission="usuarios.ver">
+      <div style={{ padding: '20px', maxWidth: '1100px' }}>
+        <div style={{ marginBottom: '20px' }}>
+          <Link href="/admin" style={{ color: '#2563eb', textDecoration: 'none' }}>
+            ← Volver al Dashboard
+          </Link>
+        </div>
+
+        <h1 style={{ marginBottom: '6px' }}>Gestión de Usuarios</h1>
+        <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '26px' }}>
+          Marca los usuarios y los permisos que quieras darles, y confirma al final.
+        </p>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+          <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '12px', borderRadius: '6px', marginBottom: '20px', fontSize: '14px' }}>
             {error}
           </div>
         )}
 
-        {loading ? (
-          <div className="text-center py-12">Cargando usuarios...</div>
-        ) : usuarios.length === 0 ? (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center text-gray-600">
-            No hay usuarios registrados
+        {exito && (
+          <div style={{ backgroundColor: '#d1fae5', color: '#065f46', padding: '12px', borderRadius: '6px', marginBottom: '20px', fontSize: '14px' }}>
+            ✅ {exito}
           </div>
+        )}
+
+        {cargando ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>Cargando...</div>
         ) : (
-          <div className="space-y-4">
-            {usuarios.map((usuario) => (
-              <div
-                key={usuario.id}
-                className="bg-white rounded-lg shadow border border-gray-200"
-              >
-                <div
-                  className="p-4 cursor-pointer hover:bg-gray-50 flex items-center justify-between"
-                  onClick={() => toggleExpandir(usuario.id)}
-                >
-                  <div className="flex-1">
-                    <div className="font-semibold text-gray-900">{usuario.email}</div>
-                    <div className="text-sm text-gray-600">
-                      {new Date(usuario.createdAt).toLocaleDateString('es-CO')}
-                    </div>
-                  </div>
+          <>
+            {/* Paso 1: usuarios */}
+            <div style={tarjeta}>
+              <h2 style={{ fontSize: '16px', marginTop: 0, marginBottom: '4px' }}>
+                1. ¿A quién?
+              </h2>
+              <p style={{ fontSize: '13px', color: '#6b7280', marginTop: 0, marginBottom: '16px' }}>
+                Puedes marcar varios y asignarles lo mismo de una vez.
+              </p>
 
-                  <div className="flex items-center gap-3">
-                    <div className="flex flex-wrap gap-2">
-                      {usuario.rolesPersonalizados.map((ur) => (
-                        <span
-                          key={ur.rol.id}
-                          className="inline-block px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-medium"
-                        >
-                          {ur.rol.nombre}
-                        </span>
-                      ))}
-                    </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
+                    <th style={{ padding: '10px', width: '40px' }}></th>
+                    <th style={{ padding: '10px', textAlign: 'left', fontSize: '12px' }}>Usuario</th>
+                    <th style={{ padding: '10px', textAlign: 'left', fontSize: '12px' }}>Nivel</th>
+                    <th style={{ padding: '10px', textAlign: 'left', fontSize: '12px' }}>Tienda</th>
+                    <th style={{ padding: '10px', textAlign: 'right', fontSize: '12px' }}>Permisos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usuarios.map((u) => {
+                    const acceso = accesoDe(u)
+                    const nivel = nivelDe(u)
+                    const esDueno = Boolean(acceso?.esOwner)
 
-                    <div className="text-gray-400">
-                      {expandido === usuario.id ? '▼' : '▶'}
-                    </div>
-                  </div>
-                </div>
+                    return (
+                      <tr
+                        key={u.id}
+                        style={{
+                          borderBottom: '1px solid #f3f4f6',
+                          backgroundColor: usuariosSel.has(u.id) ? '#eff6ff' : 'transparent',
+                          opacity: esDueno ? 0.6 : 1,
+                        }}
+                      >
+                        <td style={{ padding: '10px', textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={usuariosSel.has(u.id)}
+                            disabled={esDueno}
+                            onChange={() => setUsuariosSel(alternar(usuariosSel, u.id))}
+                            title={esDueno ? 'Al dueño no se le pueden cambiar los permisos' : ''}
+                            style={{ cursor: esDueno ? 'not-allowed' : 'pointer', width: '16px', height: '16px' }}
+                          />
+                        </td>
+                        <td style={{ padding: '10px', fontSize: '14px' }}>{u.email}</td>
+                        <td style={{ padding: '10px' }}>
+                          <span style={{ backgroundColor: nivel.color, color: 'white', padding: '2px 9px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>
+                            {nivel.texto}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px', fontSize: '13px', color: '#6b7280' }}>
+                          {acceso?.tiendaNombre || '—'}
+                        </td>
+                        <td style={{ padding: '10px', textAlign: 'right', fontSize: '13px', color: '#6b7280' }}>
+                          {esDueno || acceso?.esAdmin ? 'todos' : acceso?.permisos.length || 0}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
 
-                {expandido === usuario.id && (
-                  <div className="border-t border-gray-200 p-4 bg-gray-50">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      {/* Roles Actuales */}
-                      <div>
-                        <h3 className="font-semibold text-gray-900 mb-3">Roles Asignados</h3>
-                        <div className="space-y-2">
-                          {usuario.rolesPersonalizados.length > 0 ? (
-                            usuario.rolesPersonalizados.map((ur) => (
-                              <div
-                                key={ur.rol.id}
-                                className="bg-white p-3 rounded border border-gray-200"
-                              >
-                                <div className="flex items-start justify-between mb-2">
-                                  <div>
-                                    <div className="font-medium text-gray-900">
-                                      {ur.rol.nombre}
-                                    </div>
-                                    {ur.rol.descripcion && (
-                                      <div className="text-xs text-gray-600">
-                                        {ur.rol.descripcion}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <button
-                                    onClick={() => removerRolPersonalizado(usuario.id, ur.rol.id)}
-                                    disabled={procesando === usuario.id}
-                                    className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
-                                  >
-                                    Remover
-                                  </button>
-                                </div>
-                                <div className="flex flex-wrap gap-1">
-                                  {ur.rol.permisos.map(p => (
-                                    <span
-                                      key={p.modulo.id}
-                                      className="text-xs bg-red-50 text-red-700 px-1.5 py-0.5 rounded"
-                                    >
-                                      {p.modulo.icono} {p.modulo.nombre}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-sm text-gray-600">Sin roles asignados</p>
-                          )}
-                        </div>
-                      </div>
+              {seleccionables.length === 0 && (
+                <p style={{ fontSize: '13px', color: '#6b7280', marginTop: '14px' }}>
+                  No hay usuarios a los que asignar permisos.
+                </p>
+              )}
+            </div>
 
-                      {/* Roles Disponibles */}
-                      <div>
-                        <h3 className="font-semibold text-gray-900 mb-3">Agregar Rol</h3>
-                        <div className="space-y-2">
-                          {rolesDisponibles[usuario.id] ? (
-                            rolesDisponibles[usuario.id].filter(r => !r.asignado).length > 0 ? (
-                              rolesDisponibles[usuario.id]
-                                .filter(r => !r.asignado)
-                                .map((rol) => (
-                                  <button
-                                    key={rol.id}
-                                    onClick={() => asignarRolPersonalizado(usuario.id, rol.id)}
-                                    disabled={procesando === usuario.id}
-                                    className="w-full text-left p-3 bg-green-50 border border-green-200 rounded hover:bg-green-100 disabled:opacity-50"
-                                  >
-                                    <div className="font-medium text-green-900 mb-1">
-                                      + {rol.nombre}
-                                    </div>
-                                    {rol.descripcion && (
-                                      <div className="text-xs text-green-800 mb-2">
-                                        {rol.descripcion}
-                                      </div>
-                                    )}
-                                    <div className="flex flex-wrap gap-1">
-                                      {rol.permisos.map(p => (
-                                        <span
-                                          key={p.modulo.id}
-                                          className="text-xs bg-white text-green-700 px-1.5 py-0.5 rounded border border-green-200"
-                                        >
-                                          {p.modulo.icono}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </button>
-                                ))
-                            ) : (
-                              <p className="text-sm text-gray-600">
-                                El usuario ya tiene todos los roles disponibles
-                              </p>
-                            )
-                          ) : (
-                            <p className="text-sm text-gray-600">Cargando...</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+            {/* Paso 2: permisos */}
+            <div style={tarjeta}>
+              <h2 style={{ fontSize: '16px', marginTop: 0, marginBottom: '4px' }}>
+                2. ¿Qué puede hacer?
+              </h2>
+              <p style={{ fontSize: '13px', color: '#6b7280', marginTop: 0, marginBottom: '16px' }}>
+                Empieza con una plantilla y ajusta lo que necesites, o marca los permisos uno por uno.
+              </p>
 
-                    {/* Tiendas */}
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <h3 className="font-semibold text-gray-900 mb-3">Tiendas Asignadas</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {usuario.tiendas.length > 0 ? (
-                          usuario.tiendas.map((ut) => (
-                            <span
-                              key={ut.tienda.id}
-                              className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium"
-                            >
-                              {ut.tienda.nombre}
-                            </span>
-                          ))
-                        ) : (
-                          <p className="text-sm text-gray-600">Sin tiendas asignadas</p>
-                        )}
-                      </div>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '22px' }}>
+                {plantillas.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => aplicarPlantilla(p)}
+                    disabled={p.id === 'administrador' && !soyOwner}
+                    title={
+                      p.id === 'administrador' && !soyOwner
+                        ? 'Solo el dueño puede nombrar administradores'
+                        : p.descripcion
+                    }
+                    style={{
+                      padding: '10px 16px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      backgroundColor: 'white',
+                      cursor: p.id === 'administrador' && !soyOwner ? 'not-allowed' : 'pointer',
+                      opacity: p.id === 'administrador' && !soyOwner ? 0.5 : 1,
+                      fontSize: '13px',
+                      fontFamily: 'inherit',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <div style={{ fontWeight: 'bold' }}>
+                      {p.icono} {p.nombre}
                     </div>
-                  </div>
-                )}
+                    <div style={{ color: '#6b7280', fontSize: '11px', maxWidth: '230px' }}>
+                      {p.descripcion}
+                    </div>
+                  </button>
+                ))}
               </div>
-            ))}
+
+              {nombrarAdmin && (
+                <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '12px', marginBottom: '18px', fontSize: '13px' }}>
+                  👑 Se nombrará <strong>administrador</strong>, con acceso a todo dentro de la
+                  tienda. No podrá retirarte permisos a ti como dueño.
+                  <button
+                    onClick={() => setNombrarAdmin(false)}
+                    style={{ marginLeft: '10px', background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '12px' }}
+                  >
+                    quitar
+                  </button>
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
+                {modulos.map((m) => (
+                  <div key={m.modulo} style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '14px' }}>
+                    <p style={{ fontWeight: 'bold', fontSize: '13px', margin: '0 0 10px 0' }}>
+                      {m.icono} {m.nombre}
+                    </p>
+
+                    {m.acciones.map((a) => (
+                      <label
+                        key={a.clave}
+                        style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '7px', fontSize: '13px', cursor: 'pointer' }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={permisosSel.has(a.clave)}
+                          onChange={() => setPermisosSel(alternar(permisosSel, a.clave))}
+                          style={{ cursor: 'pointer', marginTop: '2px' }}
+                        />
+                        <span>{a.nombre}</span>
+                      </label>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Paso 3: confirmar */}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', paddingBottom: '40px' }}>
+              <button
+                onClick={() => setConfirmando(true)}
+                disabled={!hayQueGuardar}
+                style={{
+                  padding: '12px 26px',
+                  backgroundColor: hayQueGuardar ? '#10b981' : '#d1d5db',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: hayQueGuardar ? 'pointer' : 'not-allowed',
+                  fontWeight: 'bold',
+                  fontSize: '14px',
+                }}
+              >
+                Añadir permisos
+              </button>
+
+              {(usuariosSel.size > 0 || permisosSel.size > 0) && (
+                <>
+                  <button
+                    onClick={limpiar}
+                    style={{ padding: '12px 18px', backgroundColor: '#e5e7eb', color: '#374151', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}
+                  >
+                    Limpiar
+                  </button>
+                  <span style={{ fontSize: '13px', color: '#6b7280' }}>
+                    {usuariosSel.size} usuario{usuariosSel.size !== 1 ? 's' : ''} ·{' '}
+                    {permisosSel.size} permiso{permisosSel.size !== 1 ? 's' : ''}
+                  </span>
+                </>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Confirmación */}
+        {confirmando && (
+          <div
+            onClick={() => !guardando && setConfirmando(false)}
+            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 50 }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '560px', width: '100%', maxHeight: '85vh', overflow: 'auto', padding: '24px' }}
+            >
+              <h2 style={{ fontSize: '18px', marginTop: 0, marginBottom: '6px' }}>
+                Confirmar asignación
+              </h2>
+              <p style={{ fontSize: '13px', color: '#6b7280', marginTop: 0, marginBottom: '20px' }}>
+                Revisa antes de guardar. Nada se ha modificado todavía.
+              </p>
+
+              <div style={{ marginBottom: '18px' }}>
+                <p style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '8px' }}>
+                  Se asignará a {usuariosSel.size} usuario{usuariosSel.size !== 1 ? 's' : ''}:
+                </p>
+                <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '14px' }}>
+                  {usuarios
+                    .filter((u) => usuariosSel.has(u.id))
+                    .map((u) => (
+                      <li key={u.id} style={{ marginBottom: '3px' }}>
+                        {u.email}
+                      </li>
+                    ))}
+                </ul>
+              </div>
+
+              {nombrarAdmin && (
+                <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '12px', marginBottom: '18px', fontSize: '13px' }}>
+                  👑 Además {usuariosSel.size === 1 ? 'será nombrado' : 'serán nombrados'}{' '}
+                  <strong>administrador{usuariosSel.size !== 1 ? 'es'  : ''}</strong> de la tienda,
+                  con acceso a todo.
+                </div>
+              )}
+
+              {permisosSel.size > 0 && (
+                <div style={{ marginBottom: '22px' }}>
+                  <p style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '8px' }}>
+                    Estos {permisosSel.size} permiso{permisosSel.size !== 1 ? 's' : ''}:
+                  </p>
+
+                  {modulos
+                    .map((m) => ({
+                      ...m,
+                      marcadas: m.acciones.filter((a) => permisosSel.has(a.clave)),
+                    }))
+                    .filter((m) => m.marcadas.length > 0)
+                    .map((m) => (
+                      <div key={m.modulo} style={{ marginBottom: '8px', fontSize: '13px' }}>
+                        <span style={{ fontWeight: 'bold' }}>
+                          {m.icono} {m.nombre}:
+                        </span>{' '}
+                        <span style={{ color: '#4b5563' }}>
+                          {m.marcadas.map((a) => a.nombre).join(', ')}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              )}
+
+              <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '20px' }}>
+                Los permisos que ya tuvieran se conservan.
+              </p>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => setConfirmando(false)}
+                  disabled={guardando}
+                  style={{ flex: 1, padding: '11px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={guardar}
+                  disabled={guardando}
+                  style={{ flex: 1, padding: '11px', backgroundColor: guardando ? '#9ca3af' : '#10b981', color: 'white', border: 'none', borderRadius: '6px', cursor: guardando ? 'wait' : 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+                >
+                  {guardando ? 'Guardando...' : 'Confirmar'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
     </PermissionProtector>
   )
 }
-

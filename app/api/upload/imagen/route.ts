@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { usuarioDePeticion, puede } from '@/lib/permisos'
+import { usuarioDePeticion, puedeAlguno } from '@/lib/permisos'
 
 const BUCKET = 'productos'
 const TAMANO_MAXIMO = 2 * 1024 * 1024
 const TIPOS = ['image/webp', 'image/jpeg', 'image/png']
 
-// Cada carpeta exige el permiso del módulo al que pertenece.
-const PERMISO_POR_CARPETA: Record<string, string> = {
-  productos: 'productos',
-  logos: 'administrador',
+// Cada carpeta exige la acción correspondiente: subir la foto de un producto
+// es parte de crearlo o editarlo, y el logo es configuración de la tienda.
+const PERMISO_POR_CARPETA: Record<string, string[]> = {
+  productos: ['productos.crear', 'productos.editar'],
+  logos: ['configuracion.editar'],
 }
 
 export async function POST(request: NextRequest) {
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Destino no válido' }, { status: 400 })
     }
 
-    if (!puede(usuario, permisoNecesario)) {
+    if (!puedeAlguno(usuario, permisoNecesario)) {
       return NextResponse.json(
         { error: `No tienes permiso para subir imágenes de ${carpeta}` },
         { status: 403 }
@@ -102,7 +103,7 @@ export async function DELETE(request: NextRequest) {
     const carpeta = ruta.split('/')[0]
 
     const permisoNecesario = PERMISO_POR_CARPETA[carpeta]
-    if (!permisoNecesario || !puede(usuario, permisoNecesario)) {
+    if (!permisoNecesario || !puedeAlguno(usuario, permisoNecesario)) {
       return NextResponse.json({ error: 'No tienes permiso' }, { status: 403 })
     }
 

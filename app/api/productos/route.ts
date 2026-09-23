@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { exigirPermiso } from '@/lib/permisos'
 export async function GET(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, ['productos.ver', 'facturas.crear'])
+    if (sinPermiso) return sinPermiso
+
     const { searchParams } = new URL(request.url)
     const sku = searchParams.get('sku')
 
@@ -30,6 +34,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'productos.crear')
+    if (sinPermiso) return sinPermiso
+
     const data = await request.json()
     const producto = await prisma.producto.create({
       data: {
@@ -62,6 +69,9 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'productos.editar')
+    if (sinPermiso) return sinPermiso
+
     const data = await request.json()
     const { id } = data
 

@@ -9,15 +9,44 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 const BASE = process.env.TEST_BASE_URL || 'http://localhost:3000'
-const HEADERS = { 'Content-Type': 'application/json', Authorization: 'Bearer test-token' }
 const MARCA = `TEST-${new Date().toISOString().slice(0, 16)}`
 
 let productoId: string
+let HEADERS: Record<string, string>
+
+// Se inicia sesión de verdad: los endpoints resuelven al usuario desde el
+// token y comprueban sus permisos, así que un token inventado ya no sirve.
+async function iniciarSesion(): Promise<string> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const email = process.env.E2E_USER
+  const password = process.env.E2E_PASSWORD
+
+  if (!url || !anon || !email || !password) {
+    throw new Error('Faltan NEXT_PUBLIC_SUPABASE_URL, la clave anónima, E2E_USER o E2E_PASSWORD en .env')
+  }
+
+  const res = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: anon },
+    body: JSON.stringify({ email, password }),
+  })
+
+  const datos = await res.json()
+  if (!res.ok || !datos.access_token) {
+    throw new Error(`No se pudo iniciar sesión como ${email}: ${datos.error_description || res.status}`)
+  }
+
+  return datos.access_token
+}
 
 // Se crea un producto propio para las pruebas en vez de usar uno real:
 // así el resultado no depende del stock que haya en ese momento ni
 // altera los productos con los que se trabaja.
 beforeAll(async () => {
+  const token = await iniciarSesion()
+  HEADERS = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+
   const sufijo = Date.now().toString().slice(-8)
 
   const producto = await prisma.producto.create({
@@ -57,6 +86,22 @@ describe('autenticación de la API', () => {
   it('rechaza una ruta protegida sin token', async () => {
     const res = await fetch(`${BASE}/api/productos`)
     expect(res.status).toBe(401)
+  })
+
+  it('rechaza un token inventado', async () => {
+    // Antes bastaba con que la cabecera existiera: el middleware no
+    // comprobaba que el token fuera real ni a quién pertenecía.
+    const res = await fetch(`${BASE}/api/productos`, {
+      headers: { Authorization: 'Bearer token-que-no-existe' },
+    })
+    expect(res.status).toBe(401)
+  })
+
+  it('exige permiso, no solo sesión, para gestionar usuarios', async () => {
+    const res = await fetch(`${BASE}/api/usuarios`, {
+      headers: { Authorization: 'Bearer token-que-no-existe' },
+    })
+    expect([401, 403]).toContain(res.status)
   })
 
   it('permite el catálogo público sin token', async () => {
@@ -512,16 +557,21 @@ describe('GET /api/facturas/[id]/pdf', () => {
 })
 
 describe('GET/PUT /api/configuracion', () => {
-  it('niega el acceso sin email de administrador', async () => {
-    const { status } = await api('/api/configuracion?email=')
-    expect(status).toBe(403)
+  it('niega el acceso sin sesión', async () => {
+    const res = await fetch(`${BASE}/api/configuracion`)
+    expect(res.status).toBe(401)
   })
 
-  it('niega la escritura a un usuario inexistente', async () => {
-    const { status } = await api('/api/configuracion', {
-      method: 'PUT',
-      body: JSON.stringify({ nombre_empresa: 'No autorizado', email: 'nadie@ejemplo.com' }),
-    })
-    expect(status).toBe(403)
+  it('ignora el email que llegue en la petición: manda el del token', async () => {
+    // Antes el permiso se decidía con ?email= o con el email del cuerpo, así
+    // que bastaba con enviar el de un administrador para hacerse pasar por él.
+    const { status } = await api('/api/configuracion?email=nadie@ejemplo.com')
+    expect(status).toBe(200) // la sesión real sí tiene permiso
+  })
+
+  it('el administrador puede leer la configuración', async () => {
+    const { status, data } = await api('/api/configuracion')
+    expect(status).toBe(200)
+    expect(data).toHaveProperty('config')
   })
 })

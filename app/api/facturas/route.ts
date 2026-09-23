@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { exigirPermiso, veTodasLasFacturas } from '@/lib/permisos'
+
 function generateFacturaNumber(): string {
   const today = new Date()
   const year = today.getFullYear()
@@ -24,36 +26,16 @@ async function getNextSequence(datePrefix: string): Promise<number> {
 
 export async function GET(request: NextRequest) {
   try {
+    const { usuario, error: sinPermiso } = await exigirPermiso(request, 'facturas.ver')
+    if (sinPermiso) return sinPermiso
+
     const { searchParams } = new URL(request.url)
-    const usuarioId = searchParams.get('usuarioId')
-    const email = searchParams.get('email')
 
-    let filtro: any = {}
-
-    // Si se proporciona usuarioId o email, verificar permisos
-    if (usuarioId || email) {
-      const usuario = email
-        ? await prisma.usuario.findUnique({
-            where: { email },
-            include: { rolesPersonalizados: { include: { rol: { include: { permisos: { include: { modulo: true } } } } } } }
-          })
-        : await prisma.usuario.findUnique({
-            where: { id: usuarioId! },
-            include: { rolesPersonalizados: { include: { rol: { include: { permisos: { include: { modulo: true } } } } } } }
-          })
-
-      if (usuario) {
-        // Verificar si es Owner o tiene permiso "administrador"
-        const tienePermisoAdmin = usuario.rolesPersonalizados?.some((ur: any) =>
-          ur.rol.permisos.some((p: any) => p.modulo.modulo === 'administrador')
-        )
-
-        // Si NO tiene permiso admin, filtrar solo sus facturas
-        if (!tienePermisoAdmin) {
-          filtro.usuarioId = usuario.id
-        }
-      }
-    }
+    // Quien no tenga 'facturas.ver_todas' solo ve las que él creó. El
+    // alcance sale del token, no de un parámetro de la petición: antes el
+    // filtro dependía de que el cliente enviara ?email=, así que omitirlo
+    // mostraba las facturas de todos.
+    const filtro: any = veTodasLasFacturas(usuario) ? {} : { usuarioId: usuario.id }
 
     // El listado solo necesita la cabecera de cada factura. Traer los items
     // con su producto completo multiplicaba el tiempo de respuesta por tres
@@ -89,6 +71,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'facturas.crear')
+    if (sinPermiso) return sinPermiso
+
     const data = await request.json()
 
     const datePrefix = generateFacturaNumber()
@@ -222,6 +207,14 @@ export async function PUT(request: NextRequest) {
   try {
     const data = await request.json()
     const { id } = data
+
+    // Anular es una acción aparte: se puede facturar sin poder deshacer lo
+    // que ya se facturó.
+    const permisoNecesario =
+      data.estado === 'anulado' ? 'facturas.anular' : 'facturas.crear'
+
+    const { error: sinPermiso } = await exigirPermiso(request, permisoNecesario)
+    if (sinPermiso) return sinPermiso
 
     if (!id) {
       return NextResponse.json(

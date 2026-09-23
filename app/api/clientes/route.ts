@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-export async function GET() {
+import { exigirPermiso } from '@/lib/permisos'
+export async function GET(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, ['clientes.ver', 'facturas.crear'])
+    if (sinPermiso) return sinPermiso
+
     const clientes = await prisma.cliente.findMany({
       where: { activo: true },
       orderBy: { nombre: 'asc' },
@@ -17,6 +21,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, ['clientes.crear', 'facturas.crear'])
+    if (sinPermiso) return sinPermiso
+
     const data = await request.json()
     const cliente = await prisma.cliente.create({
       data: {
@@ -41,6 +48,9 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'clientes.editar')
+    if (sinPermiso) return sinPermiso
+
     const data = await request.json()
     const { id } = data
 

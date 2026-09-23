@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { exigirPermiso } from '@/lib/permisos'
 
 const TIPOS_VALIDOS = ['entrada', 'salida', 'ajuste'] as const
 
@@ -32,6 +33,9 @@ async function resolverUsuario(email: string | null | undefined) {
 
 export async function GET(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'inventario.ver')
+    if (sinPermiso) return sinPermiso
+
     const { searchParams } = new URL(request.url)
     const productoId = searchParams.get('productoId')
     const tipo = searchParams.get('tipo')
@@ -88,6 +92,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'inventario.movimientos')
+    if (sinPermiso) return sinPermiso
+
     const body = await request.json()
     const parsed = movimientoSchema.safeParse(body)
 

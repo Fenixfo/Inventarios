@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
 import { apiFetch } from '@/lib/api-client'
 import { ImageUploader } from '@/components/ImageUploader'
+import { PermissionProtector } from '@/components/PermissionProtector'
 
 interface Producto {
   id: string
@@ -149,265 +150,267 @@ export default function EditProductoPage() {
   if (!formData) return <div style={{ padding: '20px', color: 'red' }}>Producto no encontrado</div>
 
   return (
-    <div style={{ padding: '20px', maxWidth: '800px' }}>
-      <div style={{ marginBottom: '20px' }}>
-        <Link href="/admin/productos" style={{ color: '#2563eb', textDecoration: 'none' }}>
-          ← Volver a Productos
-        </Link>
-      </div>
-
-      <h1 style={{ marginBottom: '20px' }}>Editar Producto</h1>
-
-      {error && (
-        <div style={{ padding: '10px', marginBottom: '20px', backgroundColor: '#fee', color: '#c00', borderRadius: '4px' }}>
-          {error}
+    <PermissionProtector requiredPermission="productos">
+      <div style={{ padding: '20px', maxWidth: '800px' }}>
+        <div style={{ marginBottom: '20px' }}>
+          <Link href="/admin/productos" style={{ color: '#2563eb', textDecoration: 'none' }}>
+            ← Volver a Productos
+          </Link>
         </div>
-      )}
 
-      <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '15px' }}>
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>SKU *</label>
-          <input
-            type="text"
-            name="sku"
-            value={formData.sku}
-            onChange={handleChange}
-            onBlur={checkSkuExists}
-            required
-            style={{
-              width: '100%',
-              padding: '8px',
-              borderRadius: '4px',
-              border: skuError ? '2px solid #dc2626' : '1px solid #ddd',
-              boxSizing: 'border-box'
-            }}
-          />
-          {skuError && (
-            <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
-              {skuError}
+        <h1 style={{ marginBottom: '20px' }}>Editar Producto</h1>
+
+        {error && (
+          <div style={{ padding: '10px', marginBottom: '20px', backgroundColor: '#fee', color: '#c00', borderRadius: '4px' }}>
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '15px' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>SKU *</label>
+            <input
+              type="text"
+              name="sku"
+              value={formData.sku}
+              onChange={handleChange}
+              onBlur={checkSkuExists}
+              required
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: '4px',
+                border: skuError ? '2px solid #dc2626' : '1px solid #ddd',
+                boxSizing: 'border-box'
+              }}
+            />
+            {skuError && (
+              <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                {skuError}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Nombre *</label>
+            <input
+              type="text"
+              name="nombre"
+              value={formData.nombre}
+              onChange={handleChange}
+              required
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Categoría *</label>
+            <select
+              name="categoria"
+              value={formData.categoria}
+              onChange={handleChange}
+              required
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+            >
+              <option value="">Selecciona categoría</option>
+              <option value="baldosa">Baldosa</option>
+              <option value="ceramica">Cerámica</option>
+              <option value="porcelanato">Porcelanato</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Dimensiones</label>
+              <input
+                type="text"
+                name="dimensiones"
+                value={formData.dimensiones || ''}
+                onChange={handleChange}
+                placeholder="Ej: 60x60"
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+              />
             </div>
-          )}
-        </div>
 
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Nombre *</label>
-          <input
-            type="text"
-            name="nombre"
-            value={formData.nombre}
-            onChange={handleChange}
-            required
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-          />
-        </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Color</label>
+              <input
+                type="text"
+                name="color"
+                value={formData.color || ''}
+                onChange={handleChange}
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+              />
+            </div>
+          </div>
 
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Categoría *</label>
-          <select
-            name="categoria"
-            value={formData.categoria}
-            onChange={handleChange}
-            required
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-          >
-            <option value="">Selecciona categoría</option>
-            <option value="baldosa">Baldosa</option>
-            <option value="ceramica">Cerámica</option>
-            <option value="porcelanato">Porcelanato</option>
-          </select>
-        </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Acabado</label>
+              <input
+                type="text"
+                name="acabado"
+                value={formData.acabado || ''}
+                onChange={handleChange}
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+              />
+            </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Espesor (mm)</label>
+              <input
+                type="number"
+                name="espesorMm"
+                value={formData.espesorMm || ''}
+                onChange={handleChange}
+                onWheel={preventWheelChange}
+                step="0.01"
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+              />
+            </div>
+          </div>
+
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Dimensiones</label>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>m² por caja</label>
+            <input
+              type="number"
+              name="m2PorCaja"
+              value={formData.m2PorCaja || ''}
+              onChange={handleChange}
+              onWheel={preventWheelChange}
+              step="0.01"
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Precio Unitario *</label>
+              <input
+                type="number"
+                name="precioUnitario"
+                value={formData.precioUnitario}
+                onChange={handleChange}
+                onWheel={preventWheelChange}
+                step="0.01"
+                required
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Costo</label>
+              <input
+                type="number"
+                name="costo"
+                value={formData.costo || ''}
+                onChange={handleChange}
+                onWheel={preventWheelChange}
+                step="0.01"
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Stock Actual *</label>
+              <input
+                type="number"
+                name="stockActual"
+                value={formData.stockActual}
+                onChange={handleChange}
+                onWheel={preventWheelChange}
+                step="0.01"
+                required
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Stock Mínimo *</label>
+              <input
+                type="number"
+                name="stockMinimo"
+                value={formData.stockMinimo}
+                onChange={handleChange}
+                onWheel={preventWheelChange}
+                step="0.01"
+                required
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Proveedor</label>
             <input
               type="text"
-              name="dimensiones"
-              value={formData.dimensiones || ''}
-              onChange={handleChange}
-              placeholder="Ej: 60x60"
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Color</label>
-            <input
-              type="text"
-              name="color"
-              value={formData.color || ''}
-              onChange={handleChange}
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-            />
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Acabado</label>
-            <input
-              type="text"
-              name="acabado"
-              value={formData.acabado || ''}
+              name="proveedor"
+              value={formData.proveedor || ''}
               onChange={handleChange}
               style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Espesor (mm)</label>
-            <input
-              type="number"
-              name="espesorMm"
-              value={formData.espesorMm || ''}
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Descripción</label>
+            <textarea
+              name="descripcion"
+              value={formData.descripcion || ''}
               onChange={handleChange}
-              onWheel={preventWheelChange}
-              step="0.01"
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-            />
-          </div>
-        </div>
-
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>m² por caja</label>
-          <input
-            type="number"
-            name="m2PorCaja"
-            value={formData.m2PorCaja || ''}
-            onChange={handleChange}
-            onWheel={preventWheelChange}
-            step="0.01"
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-          />
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Precio Unitario *</label>
-            <input
-              type="number"
-              name="precioUnitario"
-              value={formData.precioUnitario}
-              onChange={handleChange}
-              onWheel={preventWheelChange}
-              step="0.01"
-              required
+              rows={4}
               style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
             />
           </div>
 
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Costo</label>
-            <input
-              type="number"
-              name="costo"
-              value={formData.costo || ''}
-              onChange={handleChange}
-              onWheel={preventWheelChange}
-              step="0.01"
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-            />
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Stock Actual *</label>
-            <input
-              type="number"
-              name="stockActual"
-              value={formData.stockActual}
-              onChange={handleChange}
-              onWheel={preventWheelChange}
-              step="0.01"
-              required
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+          <div style={{ marginBottom: '15px' }}>
+            <ImageUploader
+              etiqueta="Imagen del producto"
+              valor={formData.imagenUrl || ''}
+              onChange={(url) =>
+                setFormData((prev) => (prev ? { ...prev, imagenUrl: url } : prev))
+              }
+              carpeta="productos"
+              ayuda="Es lo que ven tus clientes en el catálogo. Se reduce y optimiza automáticamente."
             />
           </div>
 
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Stock Mínimo *</label>
-            <input
-              type="number"
-              name="stockMinimo"
-              value={formData.stockMinimo}
-              onChange={handleChange}
-              onWheel={preventWheelChange}
-              step="0.01"
-              required
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-            />
+          <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+            <button
+              type="submit"
+              disabled={saving || !!skuError}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: saving || skuError ? '#999' : '#2563eb',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: saving || skuError ? 'not-allowed' : 'pointer',
+                opacity: saving || skuError ? 0.6 : 1,
+              }}
+            >
+              {saving ? 'Guardando...' : 'Guardar Cambios'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={saving}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#dc2626',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+              }}
+            >
+              {saving ? 'Eliminando...' : 'Eliminar Producto'}
+            </button>
           </div>
-        </div>
-
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Proveedor</label>
-          <input
-            type="text"
-            name="proveedor"
-            value={formData.proveedor || ''}
-            onChange={handleChange}
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-          />
-        </div>
-
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Descripción</label>
-          <textarea
-            name="descripcion"
-            value={formData.descripcion || ''}
-            onChange={handleChange}
-            rows={4}
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '15px' }}>
-          <ImageUploader
-            etiqueta="Imagen del producto"
-            valor={formData.imagenUrl || ''}
-            onChange={(url) =>
-              setFormData((prev) => (prev ? { ...prev, imagenUrl: url } : prev))
-            }
-            carpeta="productos"
-            ayuda="Es lo que ven tus clientes en el catálogo. Se reduce y optimiza automáticamente."
-          />
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-          <button
-            type="submit"
-            disabled={saving || !!skuError}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: saving || skuError ? '#999' : '#2563eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: saving || skuError ? 'not-allowed' : 'pointer',
-              opacity: saving || skuError ? 0.6 : 1,
-            }}
-          >
-            {saving ? 'Guardando...' : 'Guardar Cambios'}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={saving}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#dc2626',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
-            {saving ? 'Eliminando...' : 'Eliminar Producto'}
-          </button>
-        </div>
-      </form>
-    </div>
+        </form>
+      </div>
+    </PermissionProtector>
   )
 }

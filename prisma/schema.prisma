@@ -21,7 +21,6 @@ model Usuario {
 
   // Relations
   roles     UsuarioRol[]
-  rolesDetallados UsuarioRolDetallado[] @relation("UsuarioRolDetallado")
   tiendas   UsuarioTienda[]
   solicitudesAcceso SolicitudAcceso[]
   productosCreados Producto[]
@@ -137,13 +136,22 @@ model UsuarioTienda {
   usuarioId String   @map("usuario_id") @db.Uuid
   tiendaId  String   @map("tienda_id") @db.Uuid
 
+  /// Quien creó la tienda. Puede todo y nadie se lo puede retirar.
+  esOwner   Boolean  @default(false) @map("es_owner")
+
+  /// Nombrado por el owner. Tiene los mismos permisos efectivos, pero no
+  /// puede tocar al owner y el owner sí puede retirarle el cargo.
+  esAdmin   Boolean  @default(false) @map("es_admin")
+
   // Relations
   usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   tienda    Tienda   @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+  permisos  PermisoAsignado[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   @@unique([usuarioId, tiendaId])
+  @@index([tiendaId])
   @@map("usuarios_tiendas")
 }
 
@@ -179,67 +187,42 @@ model SolicitudAcceso {
 // FUTURE: Sistema de Roles y Permisos (pendiente de implementación)
 // Estos modelos están listos para cuando se quiera implementar un sistema granular de permisos
 
-model Rol {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  nombre      String   @unique @db.VarChar(100)
-  descripcion String?  @db.Text
-  activo      Boolean  @default(true)
-
-  // Relaciones
-  permisos    RolPermiso[]
-  usuariosRol UsuarioRolDetallado[]
-
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
-
-  @@map("roles")
-}
-
+/// Catálogo de lo que se puede hacer, como par módulo + acción.
+/// El módulo por sí solo da "ver"; el resto de acciones se asignan aparte.
 model Permiso {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  nombre      String   @unique @db.VarChar(100)
+  modulo      String   @db.VarChar(50)   // productos, inventario, clientes, facturas...
+  accion      String   @db.VarChar(50)   // ver, crear, editar, anular, ver_todas...
+  nombre      String   @db.VarChar(120)  // etiqueta para la interfaz
   descripcion String?  @db.Text
-  recurso     String   @db.VarChar(50)  // facturas, clientes, productos, usuarios, etc.
-  accion      String   @db.VarChar(50)  // ver, crear, editar, eliminar, etc.
+  orden       Int      @default(0)
 
-  // Relaciones
-  roles       RolPermiso[]
+  asignaciones PermisoAsignado[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-  @@unique([recurso, accion])
+  @@unique([modulo, accion])
+  @@index([modulo])
   @@map("permisos")
 }
 
-model RolPermiso {
-  rolId      String @map("rol_id") @db.Uuid
-  permisoId  String @map("permiso_id") @db.Uuid
+/// Un permiso concedido a alguien dentro de una tienda concreta. Cuelga de
+/// la relación usuario–tienda, no del usuario: la misma persona puede ser
+/// administradora en una tienda y vendedora en otra.
+model PermisoAsignado {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioTiendaId String   @map("usuario_tienda_id") @db.Uuid
+  permisoId       String   @map("permiso_id") @db.Uuid
 
-  // Relaciones
-  rol        Rol    @relation(fields: [rolId], references: [id], onDelete: Cascade)
-  permiso    Permiso @relation(fields: [permisoId], references: [id], onDelete: Cascade)
+  usuarioTienda   UsuarioTienda @relation(fields: [usuarioTiendaId], references: [id], onDelete: Cascade)
+  permiso         Permiso       @relation(fields: [permisoId], references: [id], onDelete: Cascade)
 
-  @@id([rolId, permisoId])
-  @@map("roles_permisos")
-}
+  asignadoPor String?  @map("asignado_por") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-model UsuarioRolDetallado {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  usuarioId String   @map("usuario_id") @db.Uuid
-  rolId     String   @map("rol_id") @db.Uuid
-
-  // Relaciones
-  usuario   Usuario  @relation("UsuarioRolDetallado", fields: [usuarioId], references: [id], onDelete: Cascade)
-  rol       Rol      @relation(fields: [rolId], references: [id], onDelete: Cascade)
-
-  asignadoPor String? @map("asignado_por") @db.Uuid
-  razon       String? @db.Text
-
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
-
-  @@unique([usuarioId, rolId])
-  @@map("usuarios_roles_detallado")
+  @@unique([usuarioTiendaId, permisoId])
+  @@index([usuarioTiendaId])
+  @@map("permisos_asignados")
 }
 
 model Producto {

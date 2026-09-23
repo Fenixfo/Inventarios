@@ -1,11 +1,15 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { exigirPermiso } from '@/lib/permisos'
 // GET: Obtener roles disponibles para asignar a un usuario
 export async function GET(
-  _request: any,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'usuarios.ver')
+    if (sinPermiso) return sinPermiso
+
     const { id } = await context.params
 
     // Obtener usuario con sus roles actuales

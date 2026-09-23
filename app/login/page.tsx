@@ -42,15 +42,13 @@ export default function LoginPage() {
       }
 
       const syncData = await syncRes.json()
-      const isOwner = syncData.usuario.rolesPersonalizados.includes('Owner')
-      const hasRoles = syncData.usuario.rolesPersonalizados.length > 0 || syncData.usuario.roles.includes('admin')
-      const hasTiendas = syncData.usuario.tiendas.length > 0
 
-      if (isOwner || (hasRoles && hasTiendas)) {
-        router.push('/admin')
-      } else {
-        router.push('/request-access')
-      }
+      // Tener acceso a una tienda es lo que habilita el panel. El nivel
+      // (dueño, administrador o usuario con permisos) ya no se decide aquí:
+      // cada pantalla comprueba el permiso que le corresponde.
+      const tieneAcceso = (syncData.usuario?.tiendas?.length || 0) > 0
+
+      router.push(tieneAcceso ? '/admin' : '/request-access')
     } catch (err: any) {
       setError(err.message || 'Error al iniciar sesión')
     } finally {

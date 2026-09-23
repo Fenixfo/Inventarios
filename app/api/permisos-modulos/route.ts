@@ -1,8 +1,12 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { exigirPermiso } from '@/lib/permisos'
 // GET: Obtener todos los módulos de permisos
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'usuarios.ver')
+    if (sinPermiso) return sinPermiso
+
     const modulos = await prisma.permisoModulo.findMany({
       where: {
         modulo: {

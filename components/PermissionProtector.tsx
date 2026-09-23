@@ -1,96 +1,44 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase-client'
-import { apiFetch } from '@/lib/api-client'
+import { usePermisos } from '@/components/PermisosProvider'
 
-interface PermissionProtectorProps {
-  requiredPermission: string
+interface Props {
   children: React.ReactNode
+  requiredPermission: string
 }
 
-export function PermissionProtector({ requiredPermission, children }: PermissionProtectorProps) {
+/**
+ * Deja pasar solo a quien tenga el permiso indicado.
+ *
+ * Lee del contexto, que ya cargó los permisos al entrar al panel: antes cada
+ * pantalla hacía su propia consulta y la navegación esperaba a la red.
+ */
+export function PermissionProtector({ children, requiredPermission }: Props) {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [hasPermission, setHasPermission] = useState(false)
+  const { datos, cargando, puede } = usePermisos()
+
+  const autorizado = puede(requiredPermission)
 
   useEffect(() => {
-    const checkPermission = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-
-        if (!session) {
-          router.replace('/login')
-          return
-        }
-
-        // Sincronizar usuario y obtener permisos
-        const res = await apiFetch('/api/auth/sync-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: session.user.id,
-            email: session.user.email,
-          }),
-        })
-
-        if (!res.ok) {
-          router.replace('/login')
-          return
-        }
-
-        // Obtener permisos del usuario
-        const usuarioRes = await apiFetch('/api/debug/usuario-actual?email=' + encodeURIComponent(session.user.email!))
-        if (!usuarioRes.ok) {
-          router.replace('/admin')
-          return
-        }
-
-        const usuario = await usuarioRes.json()
-
-        console.log('=== PermissionProtector Debug ===')
-        console.log('Usuario:', usuario.email)
-        console.log('Permiso requerido:', requiredPermission)
-        console.log('Roles personalizados:', usuario.rolesPersonalizados)
-        console.log('Permisos del usuario:', usuario.rolesPersonalizados?.flatMap((ur: any) =>
-          ur.rol.permisos.map((p: any) => p.modulo.modulo)
-        ))
-
-        // Verificar si tiene el permiso requerido (whitelist estricto)
-        const tienePermiso = usuario.rolesPersonalizados?.some((ur: any) =>
-          ur.rol.permisos.some((p: any) => p.modulo.modulo === requiredPermission)
-        )
-
-        console.log('¿Tiene permiso?', tienePermiso)
-
-        if (tienePermiso) {
-          setHasPermission(true)
-        } else {
-          console.log('Acceso denegado. Redirigiendo a /admin')
-          router.replace('/admin')
-        }
-      } catch (error) {
-        console.error('Error checking permission:', error)
-        router.replace('/admin')
-      } finally {
-        setLoading(false)
-      }
+    // Solo se decide cuando los permisos ya están cargados; si no, se
+    // expulsaría a todos durante el primer instante.
+    if (!cargando && datos && !autorizado) {
+      router.replace('/admin')
     }
+  }, [cargando, datos, autorizado, router])
 
-    checkPermission()
-  }, [requiredPermission, router])
-
-  if (loading) {
-    return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        Verificando permisos...
-      </div>
-    )
+  if (cargando) {
+    return <div style={{ padding: '20px', color: '#666' }}>Verificando permisos...</div>
   }
 
-  if (!hasPermission) {
-    return null
+  if (!autorizado) {
+    return (
+      <div style={{ padding: '20px', color: '#666' }}>
+        No tienes permiso para ver esta sección.
+      </div>
+    )
   }
 
   return <>{children}</>

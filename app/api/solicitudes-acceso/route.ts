@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { exigirSesion, exigirPermiso } from '@/lib/permisos'
+
 // POST: Crear nueva solicitud de acceso
 export async function POST(request: NextRequest) {
   try {
+    // Aquí solo se exige sesión: quien pide acceso todavía no tiene permisos,
+    // que es justamente el motivo de la solicitud.
+    const { error: sinSesion } = await exigirSesion(request)
+    if (sinSesion) return sinSesion
+
     const { usuarioId, tiendaId, email, razon } = await request.json()
 
     if (!usuarioId || !tiendaId || !email) {
@@ -67,6 +74,10 @@ export async function POST(request: NextRequest) {
 // GET: Obtener solicitudes (filtradas por tienda si se pasa como query)
 export async function GET(request: NextRequest) {
   try {
+    // Ver las solicitudes de otros sí requiere el permiso del módulo.
+    const { error: sinPermiso } = await exigirPermiso(request, 'solicitudes-acceso')
+    if (sinPermiso) return sinPermiso
+
     const tiendaId = request.nextUrl.searchParams.get('tiendaId')
     const estado = request.nextUrl.searchParams.get('estado') || 'pendiente'
 

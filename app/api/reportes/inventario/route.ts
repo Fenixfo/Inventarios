@@ -1,33 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { exigirPermiso } from '@/lib/permisos'
+
 export async function GET(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'reportes.ver')
+    if (sinPermiso) return sinPermiso
+
     const { searchParams } = new URL(request.url)
-    const email = searchParams.get('email')
     const estadosParam = searchParams.get('estados')
-
-    // Verificar permisos si se proporciona email
-    if (email) {
-      const usuario = await prisma.usuario.findUnique({
-        where: { email },
-        include: { rolesPersonalizados: { include: { rol: { include: { permisos: { include: { modulo: true } } } } } } }
-      })
-
-      if (usuario) {
-        // Verificar si tiene permiso "reportes"
-        const tienePermisoReportes = usuario.rolesPersonalizados?.some((ur: any) =>
-          ur.rol.permisos.some((p: any) => p.modulo.modulo === 'reportes')
-        )
-
-        // Si no tiene permiso, bloquear acceso
-        if (!tienePermisoReportes) {
-          return NextResponse.json(
-            { error: 'No tienes permiso para ver reportes' },
-            { status: 403 }
-          )
-        }
-      }
-    }
 
     const hace30Dias = new Date()
     hace30Dias.setDate(hace30Dias.getDate() - 30)

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { exigirPermiso } from '@/lib/permisos'
 export async function GET(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'auditoria.ver')
+    if (sinPermiso) return sinPermiso
+
     const { searchParams } = new URL(request.url)
     const tabla = searchParams.get('tabla')
     const registroId = searchParams.get('registroId')
@@ -65,6 +69,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'auditoria.ver')
+    if (sinPermiso) return sinPermiso
+
     const body = await request.json()
     const {
       usuarioId,

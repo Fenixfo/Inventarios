@@ -37,16 +37,15 @@ export default function AdminDashboard() {
 
         // Obtener permisos del usuario
         if (session?.user) {
-          const res = await apiFetch(`/api/debug/usuario-actual?email=${encodeURIComponent(session.user.email || '')}`)
+          const res = await apiFetch('/api/debug/usuario-actual')
           if (res.ok) {
             const usuario = await res.json()
-            const permisosUnicos = new Set<string>()
-            usuario.rolesPersonalizados?.forEach((ur: any) => {
-              ur.rol.permisos.forEach((p: any) => {
-                permisosUnicos.add(p.modulo.modulo)
-              })
-            })
-            setPermisos(Array.from(permisosUnicos))
+            // Owner y administrador ven los accesos rápidos completos.
+            setPermisos(
+              usuario.administraTienda
+                ? ['productos.ver', 'clientes.ver', 'facturas.ver', 'reportes.ver']
+                : usuario.permisos || []
+            )
           }
         }
 
@@ -134,7 +133,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Alertas de stock bajo */}
-      {productosAlerta.length > 0 && permisos.includes('productos') && (
+      {productosAlerta.length > 0 && permisos.includes('productos.ver') && (
         <div className="bg-white rounded-lg shadow mb-8 overflow-hidden border-l-4 border-red-500">
           <div className="flex items-center justify-between px-6 py-4 bg-red-50">
             <h2 className="text-lg font-bold text-red-800">
@@ -210,7 +209,7 @@ export default function AdminDashboard() {
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-xl font-bold mb-4">Acciones Rápidas</h2>
           <div className="space-y-2">
-            {permisos.includes('productos') && (
+            {permisos.includes('productos.ver') && (
               <a
                 href="/admin/productos/nuevo"
                 className="block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -218,7 +217,7 @@ export default function AdminDashboard() {
                 Nuevo Producto
               </a>
             )}
-            {permisos.includes('clientes') && (
+            {permisos.includes('clientes.ver') && (
               <a
                 href="/admin/clientes/nuevo"
                 className="block px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
@@ -226,7 +225,7 @@ export default function AdminDashboard() {
                 Nuevo Cliente
               </a>
             )}
-            {permisos.includes('facturas') && (
+            {permisos.includes('facturas.ver') && (
               <a
                 href="/admin/facturas/nueva"
                 className="block px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"

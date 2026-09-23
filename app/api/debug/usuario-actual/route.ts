@@ -1,47 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { exigirSesion } from '@/lib/permisos'
+
+/**
+ * Datos de sesión de quien pregunta: sus tiendas, su nivel y sus permisos.
+ *
+ * Lo consultan el verificador de permisos, el menú lateral, el tablero y la
+ * pantalla de solicitud de acceso. Solo exige sesión —exigirle un permiso
+ * crearía un círculo, porque es la fuente que dice qué permisos hay— y
+ * nunca devuelve datos de otro usuario: el email sale del token.
+ */
 export async function GET(request: NextRequest) {
   try {
-    const email = request.nextUrl.searchParams.get('email')
+    const { usuario, error } = await exigirSesion(request)
+    if (error) return error
 
-    if (!email) {
-      return NextResponse.json(
-        { error: 'Email es requerido' },
-        { status: 400 }
-      )
-    }
+    return NextResponse.json({
+      id: usuario.id,
+      email: usuario.email,
+      tiendas: usuario.tiendas,
+      tienda: usuario.tienda,
 
-    const usuario = await prisma.usuario.findUnique({
-      where: { email },
-      include: {
-        roles: true,
-        rolesPersonalizados: {
-          include: {
-            rol: {
-              include: {
-                permisos: {
-                  include: { modulo: true }
-                }
-              }
-            }
-          }
-        },
-        tiendas: { include: { tienda: true } }
-      }
+      // Atajo con los permisos de la tienda activa, que es lo que la
+      // interfaz necesita en la mayoría de los casos.
+      permisos: usuario.tienda?.permisos || [],
+      esOwner: usuario.tienda?.esOwner || false,
+      esAdmin: usuario.tienda?.esAdmin || false,
+      administraTienda: Boolean(usuario.tienda?.esOwner || usuario.tienda?.esAdmin),
     })
-
-    if (!usuario) {
-      return NextResponse.json(
-        { error: 'Usuario no encontrado' },
-        { status: 404 }
-      )
-    }
-
-    return NextResponse.json(usuario)
   } catch (error: any) {
-    console.error('Error:', error)
+    console.error('Error obteniendo la sesión:', error)
     return NextResponse.json(
-      { error: error.message || 'Error al obtener usuario' },
+      { error: 'Error al obtener los datos de sesión' },
       { status: 500 }
     )
   }

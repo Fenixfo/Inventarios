@@ -1,36 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { exigirPermiso } from '@/lib/permisos'
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Antes la comprobación solo ocurría si el cliente enviaba ?email=,
+    // así que omitirlo bastaba para saltársela.
+    const { error: sinPermiso } = await exigirPermiso(request, [
+      'productos.ver',
+      'facturas.crear',
+    ])
+    if (sinPermiso) return sinPermiso
+
     const { id } = await context.params
-    const { searchParams } = new URL(request.url)
-    const email = searchParams.get('email')
-
-    // Verificar permisos si se proporciona email
-    if (email) {
-      const usuario = await prisma.usuario.findUnique({
-        where: { email },
-        include: { rolesPersonalizados: { include: { rol: { include: { permisos: { include: { modulo: true } } } } } } }
-      })
-
-      if (usuario) {
-        // Verificar si tiene permiso "productos"
-        const tienePermisoProductos = usuario.rolesPersonalizados?.some((ur: any) =>
-          ur.rol.permisos.some((p: any) => p.modulo.modulo === 'productos')
-        )
-
-        // Si no tiene permiso, bloquear acceso
-        if (!tienePermisoProductos) {
-          return NextResponse.json(
-            { error: 'No tienes permiso para ver productos' },
-            { status: 403 }
-          )
-        }
-      }
-    }
 
     const producto = await prisma.producto.findUnique({
       where: { id },
@@ -57,6 +42,9 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { error: sinPermiso } = await exigirPermiso(request, 'productos.editar')
+    if (sinPermiso) return sinPermiso
+
     const { id } = await context.params
 
     await prisma.producto.update({
