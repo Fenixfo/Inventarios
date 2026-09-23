@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
@@ -59,6 +59,10 @@ export default function FacturaPage() {
   const [mostrarConfirmacionAbono, setMostrarConfirmacionAbono] = useState(false)
   const [montoAbonoConfirmacion, setMontoAbonoConfirmacion] = useState(0)
 
+  // Marca que el saldo se está cerrando desde el botón de "pagado", para
+  // que el efecto que vigila el saldo no dispare el mismo cambio a la vez.
+  const saldandoRef = useRef(false)
+
   useEffect(() => {
     const fetchFactura = async () => {
       try {
@@ -106,6 +110,10 @@ export default function FacturaPage() {
   useEffect(() => {
     if (!factura || !abonoCargado) return
 
+    // Mientras el botón de "pagado" hace su trabajo, este efecto se queda
+    // quieto: si no, los dos mandarían el cambio de estado a la vez.
+    if (saldandoRef.current) return
+
     const adelanto = Number(factura.anticipo || 0)
     const totalAbonosRegistrados = abonos.reduce((sum, abono) => sum + Number(abono.monto), 0)
     const totalAbonado = adelanto + totalAbonosRegistrados
@@ -115,6 +123,51 @@ export default function FacturaPage() {
       handleStatusChange('pagado')
     }
   }, [abonos, abonoCargado, factura?.total, factura?.anticipo])
+
+  /**
+   * Marcar la factura como pagada salda lo que falte.
+   *
+   * Antes el estado pasaba a "pagado" pero el saldo seguía mostrando deuda:
+   * la factura se daba por cobrada sin que ese dinero apareciera en ningún
+   * abono, así que los totales de caja no cuadraban con los estados.
+   */
+  const handleMarcarPagado = async () => {
+    if (!factura) return
+
+    if (saldoPendiente <= 0) {
+      await handleStatusChange('pagado')
+      return
+    }
+
+    saldandoRef.current = true
+    setSaving(true)
+    setError(null)
+
+    try {
+      const res = await apiFetch('/api/abonos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ facturaId: factura.id, monto: saldoPendiente }),
+      })
+
+      if (!res.ok) throw new Error('No se pudo registrar el abono del saldo pendiente')
+
+      const abonoDelSaldo = await res.json()
+      setAbonos([
+        ...abonos,
+        { monto: Number(abonoDelSaldo.monto), fecha: abonoDelSaldo.fecha },
+      ])
+    } catch (err: any) {
+      setError(err.message)
+      setSaving(false)
+      saldandoRef.current = false
+      return
+    }
+
+    setSaving(false)
+    await handleStatusChange('pagado')
+    saldandoRef.current = false
+  }
 
   const handleStatusChange = async (newStatus: string) => {
     if (!factura) return
@@ -480,8 +533,13 @@ export default function FacturaPage() {
           {factura.estado === 'pendiente' && (
             <>
               <button
-                onClick={() => handleStatusChange('pagado')}
+                onClick={handleMarcarPagado}
                 disabled={saving}
+                title={
+                  saldoPendiente > 0
+                    ? `Se registrará un abono de ${formatearDinero(saldoPendiente)} para dejar el saldo en cero`
+                    : 'La factura ya está saldada'
+                }
                 style={{
                   padding: '10px 20px',
                   backgroundColor: '#10b981',
@@ -491,7 +549,11 @@ export default function FacturaPage() {
                   cursor: 'pointer',
                 }}
               >
-                {saving ? 'Procesando...' : 'Marcar como Pagado'}
+                {saving
+                  ? 'Procesando...'
+                  : saldoPendiente > 0
+                    ? `Marcar como Pagado (abona ${formatearDinero(saldoPendiente)})`
+                    : 'Marcar como Pagado'}
               </button>
 
               <button
