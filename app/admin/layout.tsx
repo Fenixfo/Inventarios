@@ -3,7 +3,8 @@
 import { AdminProtector } from '@/components/AdminProtector'
 import { PermisosProvider, usePermisos, invalidarPermisos } from '@/components/PermisosProvider'
 import { Header } from '@/components/Layout/Header'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase-client'
 
 interface MenuItem {
@@ -25,6 +26,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
 function PanelAdmin({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const pathname = usePathname()
+
+  // En móvil la barra lateral no cabe al lado del contenido, así que se
+  // convierte en un cajón que se abre desde el botón de la cabecera.
+  const [menuAbierto, setMenuAbierto] = useState(false)
+
+  // Al cambiar de sección el cajón se cierra solo: si no, taparía la
+  // pantalla a la que se acaba de entrar.
+  useEffect(() => {
+    setMenuAbierto(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!menuAbierto) return
+
+    const alPulsarEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuAbierto(false)
+    }
+
+    document.addEventListener('keydown', alPulsarEscape)
+    return () => document.removeEventListener('keydown', alPulsarEscape)
+  }, [menuAbierto])
 
   const menuItems: MenuItem[] = [
     { label: 'Dashboard', href: '/admin', icono: '📊' }, // Visible para todos
@@ -46,6 +69,16 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
   const esAdmin = Boolean(datos?.administraTienda)
   const userEmail = datos?.email || null
 
+  const visibles = menuItems.filter(
+    (item) => !item.permiso || esAdmin || permisos.includes(item.permiso)
+  )
+
+  const seccionActual =
+    [...visibles]
+      .sort((a, b) => b.href.length - a.href.length)
+      .find((item) => pathname === item.href || pathname.startsWith(item.href + '/'))?.label ||
+    'Panel'
+
   const handleLogout = async () => {
     invalidarPermisos()
     await supabase.auth.signOut()
@@ -55,76 +88,92 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
   return (
     <AdminProtector>
       <Header />
-      <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f3f4f6' }}>
-        <aside style={{ width: '250px', background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)', color: 'white', padding: '20px', boxShadow: '2px 0 10px rgba(0,0,0,0.1)' }}>
-          <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', marginBottom: '30px', padding: '10px', borderRadius: '8px', transition: 'all 0.3s', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-            <div style={{ backgroundColor: 'white', padding: '6px 10px', borderRadius: '6px', fontSize: '18px' }}>🏠</div>
-            <span style={{ fontWeight: 'bold', fontSize: '16px' }}>Home</span>
-          </a>
 
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {menuItems.map((item) => {
-              // Mostrar item si: no requiere permiso específico O el usuario es admin O tiene el permiso
-              const debeVisualizar = !item.permiso || esAdmin || permisos.includes(item.permiso)
+      {/* Barra de navegación del panel, solo en móvil */}
+      <div className="md:hidden sticky top-0 z-30 flex items-center gap-3 bg-gray-900 px-4 py-3 text-white shadow-lg">
+        <button
+          onClick={() => setMenuAbierto(true)}
+          aria-label="Abrir menú"
+          aria-expanded={menuAbierto}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10 text-xl active:bg-white/20"
+        >
+          ☰
+        </button>
+        <span className="truncate font-semibold">{seccionActual}</span>
+      </div>
 
-              return debeVisualizar ? (
+      <div className="flex min-h-screen bg-gray-100">
+        {/* Fondo oscuro al abrir el cajón */}
+        {menuAbierto && (
+          <div
+            onClick={() => setMenuAbierto(false)}
+            className="fixed inset-0 z-40 bg-black/60 md:hidden"
+          />
+        )}
+
+        <aside
+          className={`
+            fixed inset-y-0 left-0 z-50 w-[270px] max-w-[85vw] overflow-y-auto p-5 text-white
+            shadow-[2px_0_10px_rgba(0,0,0,0.1)] transition-transform duration-300
+            md:static md:z-auto md:w-[250px] md:max-w-none md:translate-x-0
+            ${menuAbierto ? 'translate-x-0' : '-translate-x-full'}
+          `}
+          style={{ background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)' }}
+        >
+          <div className="mb-6 flex items-center justify-between gap-2">
+            <a
+              href="/"
+              className="flex items-center gap-2 rounded-lg p-2 no-underline transition hover:bg-white/10"
+            >
+              <span className="rounded-md bg-white px-2 py-1 text-lg">🏠</span>
+              <span className="text-base font-bold text-white">Home</span>
+            </a>
+
+            <button
+              onClick={() => setMenuAbierto(false)}
+              aria-label="Cerrar menú"
+              className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-2xl leading-none text-white md:hidden"
+            >
+              ×
+            </button>
+          </div>
+
+          <nav className="flex flex-col gap-2">
+            {visibles.map((item) => {
+              const activo =
+                pathname === item.href ||
+                (item.href !== '/admin' && pathname.startsWith(item.href + '/'))
+
+              return (
                 <a
                   key={item.href}
                   href={item.href}
-                  style={{
-                    padding: '12px 16px',
-                    borderRadius: '6px',
-                    textDecoration: 'none',
-                    color: 'white',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    transition: 'all 0.3s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    backgroundColor: 'transparent'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.2)'
-                    e.currentTarget.style.transform = 'translateX(4px)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent'
-                    e.currentTarget.style.transform = 'translateX(0)'
-                  }}
+                  className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium text-white no-underline transition hover:bg-blue-500/20 md:hover:translate-x-1 ${
+                    activo ? 'bg-blue-500/25' : ''
+                  }`}
                 >
                   <span>{item.icono || '📌'}</span>
                   {item.label}
                 </a>
-              ) : null
+              )
             })}
-            <hr style={{ margin: '20px 0', borderColor: '#374151' }} />
-            <div style={{ fontSize: '11px', color: '#9ca3af', padding: '10px 16px', textAlign: 'center', wordBreak: 'break-word' }}>
+
+            <hr className="my-5 border-gray-700" />
+
+            <div className="break-words px-4 py-2 text-center text-[11px] text-gray-400">
               👤 {userEmail}
             </div>
+
             <button
               onClick={handleLogout}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                backgroundColor: '#ef4444',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                transition: 'all 0.3s',
-                marginTop: '10px'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#dc2626'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ef4444'}
+              className="mt-2 w-full rounded-md bg-red-500 px-4 py-3 text-sm font-medium text-white transition hover:bg-red-600"
             >
               🚪 Cerrar Sesión
             </button>
           </nav>
         </aside>
-        <main style={{ flex: 1, backgroundColor: '#f9fafb', padding: '20px' }}>
+
+        <main className="admin-main min-w-0 flex-1 bg-gray-50 p-5">
           {children}
         </main>
       </div>

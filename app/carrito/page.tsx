@@ -10,7 +10,7 @@ export default function CarritoPage() {
   return (
     <>
       <Header compact={true} showLogo={false} />
-      <main className="min-h-screen bg-gray-50 py-12">
+      <main className="min-h-screen bg-gray-50 py-6 sm:py-12">
         <div className="max-w-2xl mx-auto px-4">
           <Cart
             carrito={carrito}

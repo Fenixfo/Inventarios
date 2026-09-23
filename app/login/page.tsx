@@ -66,12 +66,13 @@ export default function LoginPage() {
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: '#f3f4f6',
+          padding: '16px',
       }}
     >
       <div
         style={{
           backgroundColor: 'white',
-          padding: '40px',
+          padding: 'clamp(20px, 6vw, 40px)',
           borderRadius: '8px',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
           width: '100%',

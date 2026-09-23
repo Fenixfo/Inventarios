@@ -114,7 +114,8 @@ export function SelectorProducto({
   }
 
   return (
-    <div ref={contenedor} style={{ position: 'relative', width: ancho }}>
+    // maxWidth evita que el ancho fijo desborde en una pantalla estrecha.
+    <div ref={contenedor} style={{ position: 'relative', width: ancho, maxWidth: '100%' }}>
       <input
         type="text"
         role="combobox"

@@ -146,10 +146,11 @@ export default function Catalogo() {
   return (
     <>
       <Header compact={true} showLogo={false} />
-      <main className="min-h-screen bg-gray-50 py-12">
+      <main className="min-h-screen bg-gray-50 py-6 sm:py-12">
         <div className="max-w-7xl mx-auto px-4">
-          {/* Botón del carrito */}
-          <div className="flex justify-end mb-6">
+          {/* Botón del carrito. En móvil queda fijo abajo a la derecha:
+              arriba obligaría a subir toda la lista para llegar a él. */}
+          <div className="hidden sm:flex justify-end mb-6">
             <Link
               href="/carrito"
               className="relative bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 font-medium transition flex items-center gap-2"
@@ -164,17 +165,17 @@ export default function Catalogo() {
           </div>
 
           {/* Encabezado */}
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-8 sm:mb-12">
+            <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2 sm:mb-4">
               Catálogo de Productos
             </h1>
-            <p className="text-xl text-gray-600">
+            <p className="text-base sm:text-xl text-gray-600">
               Baldosas, cerámicas y porcelanatos de alta calidad
             </p>
           </div>
 
           {/* Filtros */}
-          <div className="bg-white p-6 rounded-lg shadow mb-8">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow mb-6 sm:mb-8">
             <label htmlFor="buscar" className="block font-semibold text-gray-700 mb-2">
               Buscar por nombre:
             </label>
@@ -358,6 +359,20 @@ export default function Catalogo() {
           )}
         </div>
 
+        {/* Carrito flotante en móvil, siempre a mano */}
+        <Link
+          href="/carrito"
+          aria-label="Ver carrito"
+          className="sm:hidden fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-red-600 text-2xl text-white shadow-lg active:bg-red-700"
+        >
+          🛒
+          {carrito.totalCantidad > 0 && (
+            <span className="absolute -top-1 -right-1 flex h-6 min-w-6 items-center justify-center rounded-full bg-yellow-400 px-1 text-xs font-bold text-red-600">
+              {carrito.totalCantidad}
+            </span>
+          )}
+        </Link>
+
         {/* Ficha ampliada del producto */}
         {detalle && (
           <div
@@ -377,8 +392,10 @@ export default function Catalogo() {
                   {detalle.imagenUrl ? (
                     <img
                       src={detalle.imagenUrl}
+                      // En móvil la ficha se apila: si la foto ocupa 60vh,
+                      // los datos quedan fuera de la pantalla.
+                      className="max-h-[40vh] md:max-h-[60vh] w-auto max-w-full object-contain rounded-lg"
                       alt={detalle.nombre}
-                      className="max-h-[60vh] w-auto max-w-full object-contain rounded-lg"
                     />
                   ) : (
                     <div className="py-20 text-center text-gray-400">
@@ -389,7 +406,7 @@ export default function Catalogo() {
                 </div>
 
                 {/* Datos */}
-                <div className="md:w-1/2 p-6 flex flex-col">
+                <div className="md:w-1/2 p-5 sm:p-6 flex flex-col">
                   <div className="flex items-start justify-between gap-4 mb-4">
                     <div className="flex gap-2 flex-wrap">
                       <span className="inline-block bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">

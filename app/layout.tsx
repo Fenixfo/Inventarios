@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { SITE_URL } from '@/lib/site'
 import './globals.css'
@@ -55,6 +55,17 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+}
+
+/**
+ * Sin esto el móvil dibuja la página como si midiera 980 px y luego la
+ * encoge: todo sale diminuto. `maximumScale` no se toca a propósito, para
+ * no impedir que alguien amplíe.
+ */
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#1d4ed8',
 }
 
 export default function RootLayout({

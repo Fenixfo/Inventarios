@@ -107,9 +107,11 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Dashboard</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      {/* Dos tarjetas por fila en móvil: una sola dejaría la pantalla en
+          blanco hasta el tercer scroll. */}
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
         <StatCard
           title="Productos"
           value={stats.totalProductos}
@@ -260,9 +262,9 @@ function StatCard({
   }
 
   return (
-    <div className={`${colorClasses[color]} border rounded-lg p-6`}>
-      <p className="text-sm font-semibold opacity-75">{title}</p>
-      <p className="text-3xl font-bold">{value}</p>
+    <div className={`${colorClasses[color]} border rounded-lg p-4 sm:p-6`}>
+      <p className="text-xs sm:text-sm font-semibold opacity-75">{title}</p>
+      <p className="text-2xl sm:text-3xl font-bold">{value}</p>
     </div>
   )
 }

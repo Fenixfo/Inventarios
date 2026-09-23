@@ -57,7 +57,7 @@ export function Header({ showNav = true, compact = false, showLogo = true }: Hea
   if (compact) {
     return (
       <header className="bg-gradient-to-r from-blue-600 to-blue-800 shadow-lg">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap justify-between items-center gap-3">
           {showLogo && (
             <Link href="/" className="flex items-center gap-1 group whitespace-nowrap">
               <span className="text-2xl group-hover:scale-110 transition-transform inline-block">🏠</span>
@@ -66,25 +66,27 @@ export function Header({ showNav = true, compact = false, showLogo = true }: Hea
           )}
           {!showLogo && <div />}
 
-          <nav className="flex items-center gap-6">
+          <nav className="flex items-center gap-2 sm:gap-6">
             {!loading && user && (
               <>
                 <Link
                   href="/admin"
-                  className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium transition-colors flex items-center gap-2"
+                  className="px-3 sm:px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium transition-colors flex items-center gap-2 text-sm sm:text-base whitespace-nowrap"
                 >
                   <span>✓</span>
-                  Panel de administración
+                  {/* En móvil no cabe el rótulo entero junto al resto. */}
+                  <span className="sm:hidden">Panel</span>
+                  <span className="hidden sm:inline">Panel de administración</span>
                 </Link>
-                <div className="flex items-center gap-3 border-l border-blue-500 pl-6">
-                  <span className="text-white text-sm">
+                <div className="flex items-center gap-3 sm:border-l sm:border-blue-500 sm:pl-6">
+                  <span className="hidden md:inline text-white text-sm">
                     {user.email}
                   </span>
                   <button
                     onClick={handleLogout}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors"
+                    className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm sm:text-base whitespace-nowrap"
                   >
-                    Cerrar sesión
+                    Salir<span className="hidden sm:inline"> de sesión</span>
                   </button>
                 </div>
               </>
@@ -108,7 +110,7 @@ export function Header({ showNav = true, compact = false, showLogo = true }: Hea
 
   return (
     <header className="bg-gradient-to-r from-blue-600 to-blue-800 shadow-lg">
-      <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap justify-between items-center gap-3">
         {showLogo && (
           <Link href="/" className="flex items-center gap-1 group whitespace-nowrap">
             <span className="text-2xl group-hover:scale-110 transition-transform inline-block">🏠</span>
@@ -117,17 +119,18 @@ export function Header({ showNav = true, compact = false, showLogo = true }: Hea
         )}
         {!showLogo && <div />}
 
-        <nav className="flex items-center gap-8">
+        <nav className="flex items-center gap-4 sm:gap-8">
           {!loading && user && (
-            <div className="flex items-center gap-3 border-l border-blue-500 pl-8">
-              <span className="text-white text-sm">
+            <div className="flex items-center gap-3 sm:border-l sm:border-blue-500 sm:pl-8">
+              {/* El correo se esconde en móvil: empuja el botón fuera. */}
+              <span className="hidden md:inline text-white text-sm">
                 {user.email}
               </span>
               <button
                 onClick={handleLogout}
-                className="px-5 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors"
+                className="px-4 sm:px-5 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm sm:text-base whitespace-nowrap"
               >
-                Cerrar sesión
+                Salir<span className="hidden sm:inline"> de sesión</span>
               </button>
             </div>
           )}

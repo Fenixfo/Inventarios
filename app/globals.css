@@ -14,3 +14,64 @@
 .popup-in {
   animation: popup-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* ---------------------------------------------------------------------------
+   Ajustes para móvil
+   ---------------------------------------------------------------------------
+   El panel de administración está escrito con estilos en línea, y un estilo
+   en línea no entiende de media queries. En vez de reescribir veinte
+   pantallas, aquí se corrigen desde CSS los tres patrones que se repiten y
+   que rompen en una pantalla estrecha. Necesitan !important porque compiten
+   contra el atributo style, que gana por especificidad.
+   --------------------------------------------------------------------------- */
+
+@media (max-width: 767px) {
+  /* Las rejillas de formulario (1fr 1fr, 1fr 1fr 1fr...) pasan a una sola
+     columna: dos campos de texto en 360 px no caben. */
+  [style*='grid-template-columns'] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Las barras de "título a la izquierda, botón a la derecha" se apilan en
+     lugar de aplastarse. Cuando el contenido cabe, wrap no cambia nada. */
+  [style*='justify-content: space-between'] {
+    flex-wrap: wrap;
+  }
+
+  /* El panel deja de reservar el margen pensado para pantalla grande. */
+  .admin-main {
+    padding: 14px !important;
+  }
+
+  .admin-main > div {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
+/* Las tablas del panel se desplazan de lado en vez de desbordar la página.
+   display:block es lo que permite que la propia tabla tenga scroll sin
+   envolverla en otro div en cada pantalla. */
+@media (max-width: 900px) {
+  .admin-main table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  /* El motivo y otros textos largos sí pueden partirse. */
+  .admin-main table td {
+    white-space: normal;
+    min-width: 90px;
+  }
+}
+
+/* Los campos por debajo de 16 px hacen que iOS acerque el zoom al escribir. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
