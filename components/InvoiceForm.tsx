@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
 import { apiFetch } from '@/lib/api-client'
+import { precioAplicable, tienePrecioBodega } from '@/lib/precios'
 
 interface Producto {
   id: string
@@ -182,14 +183,9 @@ export default function InvoiceForm() {
     setMostrarSugerenciasProductos(false)
   }
 
-  /**
-   * Precio que corresponde al producto según la lista activa.
-   *
-   * Un producto sin precio de bodega se cobra al precio del público: es
-   * preferible a facturarlo en cero por un dato que falta.
-   */
+  /** Precio que corresponde al producto según la lista activa. */
   const precioDe = (producto: Producto, bodega = esBodega): number =>
-    bodega && producto.precioBodega ? Number(producto.precioBodega) : Number(producto.precioUnitario)
+    precioAplicable(producto, bodega)
 
   /** Cambia la lista de precios y, si el usuario quiere, recalcula lo ya añadido. */
   const cambiarListaPrecios = (bodega: boolean, recalcular: boolean) => {
@@ -651,7 +647,7 @@ export default function InvoiceForm() {
                   <div style={{ fontSize: '12px', color: '#666' }}>
                     SKU: {producto.sku} | Stock: {producto.stockActual}m² |{' '}
                     {formatearDinero(precioDe(producto))}
-                    {esBodega && !producto.precioBodega && ' (sin precio de bodega)'}
+                    {esBodega && !tienePrecioBodega(producto) && ' (sin precio de bodega)'}
                   </div>
                 </div>
               ))}

@@ -4,9 +4,9 @@ El proyecto tiene tres niveles de pruebas. Solo el primero corre automáticament
 
 | Nivel | Cantidad | Necesita | Comando |
 |---|---:|---|---|
-| Unitarias | 62 | nada | `npm test` |
-| Integración | 27 | servidor + base de datos | `npm run test:integration` |
-| End-to-end | 29 | servidor + navegador | `npm run test:e2e` |
+| Unitarias | 135 | nada | `npm test` |
+| Integración | 58 | servidor + base de datos | `npm run test:integration` |
+| End-to-end | 35 | servidor + navegador | `npm run test:e2e` |
 
 `npm run test:all` corre los tres contra tu entorno local.
 
@@ -14,11 +14,21 @@ El proyecto tiene tres niveles de pruebas. Solo el primero corre automáticament
 
 ## Qué cubre cada nivel
 
-**Unitarias** (`tests/unit/`) — lógica del carrito, render del componente `Cart`, validaciones de teléfono y movimientos, y las fórmulas de stock y de totales de factura. No tocan red ni base de datos: tardan segundos.
+**Unitarias** (`tests/unit/`) — lógica del carrito, render del componente `Cart`, validaciones de teléfono y movimientos, las fórmulas de stock y de totales de factura, la elección de precio según la lista activa y el límite de peticiones por IP. No tocan red ni base de datos: tardan segundos.
+
+Una de ellas no prueba lógica sino el propio código: `endpoints-protegidos.test.ts` recorre todos los `route.ts` de `app/api` y falla si alguno exporta un handler sin comprobar permisos. Las rutas que sí son públicas están declaradas una a una con su motivo, así que añadir una nueva obliga a justificarla. Nació de un problema real: durante un tiempo la API entera respondía a cualquiera que trajera un token, y se descubrió a mano.
 
 **Integración** (`tests/integration/`) — llama a los endpoints reales y comprueba el efecto en la base de datos: que una factura descuente stock, que un ajuste fije el inventario, que el catálogo público no exponga costos, que los permisos devuelvan 403.
 
-**End-to-end** (`e2e/`) — maneja un navegador de verdad. Cubre el flujo del cliente (catálogo → pop-up de metros → carrito → WhatsApp) y el del administrador (login → producto → inventario → factura → PDF).
+**End-to-end** (`e2e/`) — maneja un navegador de verdad. Cubre el flujo del cliente (catálogo → buscador → ficha ampliada → pop-up de metros → carrito → WhatsApp) y el del administrador (login → producto → inventario → factura → PDF), incluida la casilla de precio de bodega y su diálogo.
+
+---
+
+## Qué comprueba el límite de peticiones
+
+El middleware corta por IP: 5 registros por minuto, 30 inicios de sesión, 60 llamadas a rutas públicas y 180 al resto. Las unitarias comprueban la lógica (ventanas, grupos separados, extracción de la IP) y la de integración que el servidor devuelve 429 con cabecera `retry-after`.
+
+Esa prueba de integración va **al final del archivo a propósito**: al agotar el cupo, esa IP queda frenada un minuto para el grupo del registro. El inicio de sesión va en un grupo aparte justamente para que esto no deje a nadie fuera del panel.
 
 ---
 
@@ -36,10 +46,15 @@ Mientras la base no sea productiva esto es cómodo. Cuando lo sea, hay que apunt
 
 1. `npm ci`
 2. `npx prisma generate`
-3. `npm run test:unit`
-4. `npm run build` — el mismo comando que ejecuta Vercel
+3. `npm run test:unit` — incluye la revisión de que ningún endpoint quedó sin permisos
+4. `npx tsc --noEmit`
+5. `npm run build` — el mismo comando que ejecuta Vercel
 
-El paso 4 es el que más atrapa: el type-check completo. Ya evitó un deploy roto por un error de tipos en la configuración de Vitest.
+El paso 5 es el que más atrapa: el type-check completo. Ya evitó un deploy roto por un error de tipos en la configuración de Vitest.
+
+Integración y e2e **no** corren en CI: necesitan la base real y las credenciales de una cuenta con permisos. Se lanzan a mano contra el servidor de desarrollo.
+
+Las acciones van en `@v5` porque GitHub retiró Node 20 de los runners y las `@v4` avisaban de obsolescencia en cada ejecución.
 
 **El CI no corre integración ni E2E**, porque escribirían en la base real en cada push.
 

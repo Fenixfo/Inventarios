@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test'
+import { test, expect, Page, Locator } from '@playwright/test'
 
 // Flujo del administrador: login -> producto -> factura -> PDF.
 // Las credenciales viven en .env (ignorado por git), no en el código.
@@ -101,25 +101,30 @@ test.describe('Inventario', () => {
     await expect(page.getByRole('heading', { name: /movimientos de inventario/i })).toBeVisible()
   })
 
-  test('registra una entrada y actualiza el stock', async ({ page }) => {
-    // Los productos se cargan por separado; sin ellos el selector va vacío.
-    await expect
-      .poll(async () => page.locator('select').first().locator('option').count(), {
-        timeout: 30000,
-      })
-      .toBeGreaterThan(1)
+  // El producto ya no se elige con un <select> sino escribiendo. Se busca
+  // por el placeholder porque un <select> normal también tiene el rol
+  // combobox, y el del tipo de movimiento sigue siendo un select.
+  function buscadorDe(ambito: Locator) {
+    return ambito.getByPlaceholder('Selecciona...')
+  }
 
+  async function elegirPrimerProducto(ambito: Locator) {
+    await buscadorDe(ambito).click()
+
+    const opciones = ambito.getByRole('listbox').getByRole('option')
+    await expect.poll(async () => opciones.count(), { timeout: 30000 }).toBeGreaterThan(1)
+
+    // La primera opción es "Selecciona...", que no es un producto.
+    await opciones.nth(1).click()
+  }
+
+  test('registra una entrada y actualiza el stock', async ({ page }) => {
     await page.getByRole('button', { name: /registrar movimiento/i }).click()
 
     const formulario = page.locator('div').filter({ hasText: /^Nuevo Movimiento/ }).last()
-    const selectorProducto = formulario.locator('select').first()
 
-    await expect
-      .poll(async () => selectorProducto.locator('option').count(), { timeout: 30000 })
-      .toBeGreaterThan(1)
-
-    await selectorProducto.selectOption({ index: 1 })
-    await formulario.locator('select').nth(1).selectOption('entrada')
+    await elegirPrimerProducto(formulario)
+    await formulario.locator('select').first().selectOption('entrada')
     await formulario.locator('input[type="number"]').fill('12')
     await formulario.getByPlaceholder(/compra a proveedor/i).fill(`${MARCA} entrada e2e`)
 
@@ -131,12 +136,33 @@ test.describe('Inventario', () => {
   test('rechaza un movimiento sin motivo', async ({ page }) => {
     await page.getByRole('button', { name: /registrar movimiento/i }).click()
 
-    await page.locator('select').first().selectOption({ index: 1 })
-    await page.locator('input[type="number"]').fill('5')
+    const formulario = page.locator('div').filter({ hasText: /^Nuevo Movimiento/ }).last()
+
+    await elegirPrimerProducto(formulario)
+    await formulario.locator('input[type="number"]').fill('5')
 
     await page.getByRole('button', { name: /^registrar$/i }).click()
 
     await expect(page.getByText(/motivo/i).last()).toBeVisible()
+  })
+
+  test('el buscador de productos filtra escribiendo', async ({ page }) => {
+    await page.getByRole('button', { name: /registrar movimiento/i }).click()
+
+    const formulario = page.locator('div').filter({ hasText: /^Nuevo Movimiento/ }).last()
+    const buscador = buscadorDe(formulario)
+    const opciones = formulario.getByRole('listbox').getByRole('option')
+
+    await buscador.click()
+    await expect.poll(async () => opciones.count(), { timeout: 30000 }).toBeGreaterThan(1)
+
+    const todas = await opciones.count()
+
+    await buscador.fill('zzzzzz-no-existe')
+    await expect(formulario.getByText(/ningún producto coincide/i)).toBeVisible()
+
+    await buscador.fill('')
+    await expect.poll(async () => opciones.count()).toBe(todas)
   })
 })
 
@@ -162,6 +188,49 @@ test.describe('Facturación', () => {
     // El formulario debe ofrecer buscar cliente y productos.
     const inputs = page.locator('input')
     expect(await inputs.count()).toBeGreaterThan(0)
+  })
+
+  test('marcar bodega sin productos no pregunta nada', async ({ page }) => {
+    await page.goto('/admin/facturas/nueva')
+    await page.waitForLoadState('networkidle')
+
+    await page.getByRole('checkbox').first().check()
+
+    // Sin líneas añadidas no hay precios que recalcular, así que se aplica
+    // directamente y solo queda el aviso de la lista activa.
+    await expect(page.getByText(/esta factura usa los precios de bodega/i)).toBeVisible()
+    await expect(page.getByRole('button', { name: /actualizar precios/i })).toHaveCount(0)
+  })
+
+  test('cambiar a bodega con productos pregunta qué hacer con los precios', async ({ page }) => {
+    await page.goto('/admin/facturas/nueva')
+    await page.waitForLoadState('networkidle')
+
+    // Se añade una línea con el buscador de productos del formulario.
+    const buscador = page.getByPlaceholder(/SKU o nombre del producto/i)
+    await buscador.fill('a')
+
+    const sugerencia = page.locator('div').filter({ hasText: /^SKU: / }).first()
+    if (!(await sugerencia.isVisible().catch(() => false))) {
+      test.skip(true, 'No hay productos con los que armar la línea')
+    }
+
+    await sugerencia.click()
+    await page.locator('input[type="number"]').first().fill('2')
+    await page.getByRole('button', { name: /^agregar$|añadir producto/i }).first().click()
+
+    // Se usa click y no check: con productos añadidos la casilla no cambia
+    // de estado hasta que se responde el diálogo, que es justo lo que se
+    // está comprobando aquí.
+    await page.getByRole('checkbox').first().click()
+
+    const dialogo = page.getByText(/cambiar a precio de bodega/i)
+    await expect(dialogo).toBeVisible()
+
+    // Mantener los actuales deja la factura marcada pero no toca la línea.
+    await page.getByRole('button', { name: /mantener los actuales/i }).click()
+    await expect(dialogo).not.toBeVisible()
+    await expect(page.getByText(/esta factura usa los precios de bodega/i)).toBeVisible()
   })
 
   test('descargar PDF abre una sola pestaña con la factura', async ({ page, context }) => {

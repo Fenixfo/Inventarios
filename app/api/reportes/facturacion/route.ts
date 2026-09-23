@@ -10,7 +10,6 @@ export async function GET(request: NextRequest) {
     const periodo = searchParams.get('periodo') || 'mes' // hoy, semana, mes, personalizado
     const fechaInicio = searchParams.get('fechaInicio')
     const fechaFin = searchParams.get('fechaFin')
-    const email = searchParams.get('email')
 
     let desde: Date
     let hasta: Date = new Date()
@@ -43,7 +42,6 @@ export async function GET(request: NextRequest) {
         desde.setMonth(hasta.getMonth() - 1)
     }
 
-    // Verificar permisos si se proporciona email
     // A diferencia del listado de facturas, los reportes no distinguen autoría:
     // quien tiene el permiso ve las cifras de toda la tienda.
 

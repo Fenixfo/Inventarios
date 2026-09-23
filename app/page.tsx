@@ -194,7 +194,10 @@ export default function Catalogo() {
               {busqueda && (
                 <button
                   onClick={() => setBusqueda('')}
-                  aria-label="Borrar búsqueda"
+                  // Nombre distinto al del botón del mensaje "sin
+                  // resultados": dos controles con el mismo nombre se
+                  // anuncian igual y no hay forma de distinguirlos.
+                  aria-label="Limpiar el campo de búsqueda"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-xl leading-none"
                 >
                   ×

@@ -57,13 +57,10 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // 3. Asignar rol por defecto (user)
-      await prisma.usuarioRol.create({
-        data: {
-          usuarioId: usuario.id,
-          rol: 'user',
-        },
-      })
+      // Quien se registra no recibe ningún permiso: entra sin acceso a
+      // ninguna tienda y tiene que pedirlo desde /request-access. Antes se
+      // le insertaba un rol 'user' en una tabla del modelo antiguo que ya
+      // nadie consulta.
 
       return NextResponse.json(
         {

@@ -1,212 +1,86 @@
 import { PrismaClient } from '@prisma/client'
 
+/**
+ * Catálogo de permisos de la tienda.
+ *
+ * Es la lista de lo que se puede conceder a alguien, no quién lo tiene:
+ * las concesiones viven en `permisos_asignados` y son por tienda.
+ *
+ * El script es idempotente —hace upsert por módulo+acción—, así que se
+ * puede volver a correr para añadir un permiso nuevo sin tocar los que ya
+ * están asignados.
+ *
+ *   npm run seed
+ */
+
 const prisma = new PrismaClient()
 
+/** `orden` deja hueco entre módulos para poder intercalar sin renumerar. */
+const PERMISOS = [
+  { orden: 10, modulo: 'productos', accion: 'ver', nombre: 'Ver productos' },
+  { orden: 11, modulo: 'productos', accion: 'crear', nombre: 'Crear productos' },
+  { orden: 12, modulo: 'productos', accion: 'editar', nombre: 'Editar productos' },
+
+  { orden: 20, modulo: 'inventario', accion: 'ver', nombre: 'Ver inventario' },
+  { orden: 21, modulo: 'inventario', accion: 'movimientos', nombre: 'Registrar movimientos' },
+  { orden: 22, modulo: 'inventario', accion: 'editar', nombre: 'Editar movimientos' },
+
+  { orden: 30, modulo: 'clientes', accion: 'ver', nombre: 'Ver clientes' },
+  { orden: 31, modulo: 'clientes', accion: 'crear', nombre: 'Crear clientes' },
+  { orden: 32, modulo: 'clientes', accion: 'editar', nombre: 'Editar clientes' },
+
+  // Facturas es el único módulo donde el alcance se distingue: por defecto
+  // cada quien ve lo suyo, y ver_todas abre la tienda entera.
+  { orden: 40, modulo: 'facturas', accion: 'ver', nombre: 'Ver sus propias facturas' },
+  { orden: 41, modulo: 'facturas', accion: 'ver_todas', nombre: 'Ver las facturas de toda la tienda' },
+  { orden: 42, modulo: 'facturas', accion: 'crear', nombre: 'Crear facturas' },
+  { orden: 43, modulo: 'facturas', accion: 'anular', nombre: 'Anular facturas' },
+
+  // Reportes no distingue autoría: quien lo tiene ve las cifras completas.
+  { orden: 50, modulo: 'reportes', accion: 'ver', nombre: 'Ver reportes de la tienda' },
+
+  { orden: 60, modulo: 'auditoria', accion: 'ver', nombre: 'Ver auditoría' },
+
+  { orden: 70, modulo: 'usuarios', accion: 'ver', nombre: 'Ver usuarios' },
+  { orden: 71, modulo: 'usuarios', accion: 'gestionar', nombre: 'Crear y editar usuarios' },
+
+  { orden: 80, modulo: 'configuracion', accion: 'ver', nombre: 'Ver configuración' },
+  { orden: 81, modulo: 'configuracion', accion: 'editar', nombre: 'Editar configuración' },
+
+  { orden: 90, modulo: 'solicitudes-acceso', accion: 'ver', nombre: 'Ver solicitudes de acceso' },
+  { orden: 91, modulo: 'solicitudes-acceso', accion: 'gestionar', nombre: 'Aprobar o rechazar solicitudes' },
+]
+
 async function main() {
-  try {
-    console.log('\n📋 Creando módulos de permisos...\n')
+  console.log(`\nSincronizando ${PERMISOS.length} permisos...\n`)
 
-    const modulos = [
-      { modulo: 'productos', nombre: 'Productos', icono: '📦' },
-      { modulo: 'clientes', nombre: 'Clientes', icono: '👥' },
-      { modulo: 'facturas', nombre: 'Facturas', icono: '📄' },
-      { modulo: 'reportes', nombre: 'Reportes', icono: '📈' },
-      { modulo: 'auditoria', nombre: 'Auditorías', icono: '🔍' },
-      { modulo: 'administrador', nombre: 'Administrador', icono: '⚙️' },
-      { modulo: 'roles', nombre: 'Gestión de Roles', icono: '🎭' },
-      { modulo: 'usuarios', nombre: 'Gestión de Usuarios', icono: '👨‍💼' },
-      { modulo: 'solicitudes-acceso', nombre: 'Solicitudes de Acceso', icono: '✋' },
-    ]
-
-    for (const mod of modulos) {
-      const existe = await prisma.permisoModulo.findUnique({
-        where: { modulo: mod.modulo }
-      })
-
-      if (!existe) {
-        await prisma.permisoModulo.create({
-          data: mod
-        })
-        console.log(`✅ ${mod.icono} ${mod.nombre}`)
-      }
-    }
-
-    console.log('\n👤 Creando roles predeterminados...\n')
-
-    // Rol Owner (Admin Principal)
-    const rolOwner = await prisma.rolPersonalizado.upsert({
-      where: { nombre: 'Owner' },
-      update: {},
-      create: {
-        nombre: 'Owner',
-        descripcion: 'Dueño/Administrador Principal - Acceso total',
-        esAdmin: true,
-        activo: true,
-      }
+  for (const permiso of PERMISOS) {
+    await prisma.permiso.upsert({
+      where: { modulo_accion: { modulo: permiso.modulo, accion: permiso.accion } },
+      create: permiso,
+      update: { nombre: permiso.nombre, orden: permiso.orden },
     })
-    console.log('✅ Owner (Admin Principal)')
+  }
 
-    // Rol Admin
-    const rolAdmin = await prisma.rolPersonalizado.upsert({
-      where: { nombre: 'Admin' },
-      update: {},
-      create: {
-        nombre: 'Admin',
-        descripcion: 'Administrador - Acceso a la mayoría de funciones',
-        esAdmin: true,
-        activo: true,
-      }
-    })
-    console.log('✅ Admin (Administrador)')
+  const total = await prisma.permiso.count()
+  console.log(`Catálogo con ${total} permisos.`)
 
-    // Rol User
-    const rolUser = await prisma.rolPersonalizado.upsert({
-      where: { nombre: 'User' },
-      update: {},
-      create: {
-        nombre: 'User',
-        descripcion: 'Usuario - Acceso limitado',
-        esAdmin: false,
-        activo: true,
-      }
-    })
-    console.log('✅ User (Usuario)')
+  // Un permiso que esté en la base y no aquí quedó huérfano: el script no
+  // lo borra por su cuenta, porque puede haber gente con él asignado.
+  const enBase = await prisma.permiso.findMany({ select: { modulo: true, accion: true } })
+  const declarados = new Set(PERMISOS.map((p) => `${p.modulo}.${p.accion}`))
+  const sobrantes = enBase
+    .map((p) => `${p.modulo}.${p.accion}`)
+    .filter((clave) => !declarados.has(clave))
 
-    // Asignar todos los módulos a Owner
-    console.log('\n🔐 Asignando permisos al rol Owner...\n')
-
-    const todosModulos = await prisma.permisoModulo.findMany()
-
-    for (const modulo of todosModulos) {
-      const existe = await prisma.permisoRolPersonalizado.findFirst({
-        where: {
-          rolId: rolOwner.id,
-          moduloId: modulo.id
-        }
-      })
-
-      if (!existe) {
-        await prisma.permisoRolPersonalizado.create({
-          data: {
-            rolId: rolOwner.id,
-            moduloId: modulo.id
-          }
-        })
-      }
-    }
-
-    console.log(`✅ Owner tiene acceso a todos los ${todosModulos.length} módulos`)
-
-    // Asignar módulos a Admin (todos excepto administrador)
-    console.log('\n🔐 Asignando permisos al rol Admin...\n')
-
-    const modulosAdmin = todosModulos.filter(m => m.modulo !== 'administrador')
-
-    for (const modulo of modulosAdmin) {
-      const existe = await prisma.permisoRolPersonalizado.findFirst({
-        where: {
-          rolId: rolAdmin.id,
-          moduloId: modulo.id
-        }
-      })
-
-      if (!existe) {
-        await prisma.permisoRolPersonalizado.create({
-          data: {
-            rolId: rolAdmin.id,
-            moduloId: modulo.id
-          }
-        })
-      }
-    }
-
-    console.log(`✅ Admin tiene acceso a ${modulosAdmin.length} módulos`)
-
-    // Asignar módulos básicos a User
-    console.log('\n🔐 Asignando permisos al rol User...\n')
-
-    const modulosUser = todosModulos.filter(m =>
-      ['dashboard', 'productos', 'clientes', 'facturas'].includes(m.modulo)
-    )
-
-    for (const modulo of modulosUser) {
-      const existe = await prisma.permisoRolPersonalizado.findFirst({
-        where: {
-          rolId: rolUser.id,
-          moduloId: modulo.id
-        }
-      })
-
-      if (!existe) {
-        await prisma.permisoRolPersonalizado.create({
-          data: {
-            rolId: rolUser.id,
-            moduloId: modulo.id
-          }
-        })
-      }
-    }
-
-    console.log(`✅ User tiene acceso a ${modulosUser.length} módulos`)
-
-    // Crear/Actualizar usuario admin@beraca.com como Owner
-    console.log('\n👤 Configurando usuario admin@beraca.com como Owner...\n')
-
-    let usuario = await prisma.usuario.findUnique({
-      where: { email: 'admin@beraca.com' },
-      include: { rolesPersonalizados: true }
-    })
-
-    if (!usuario) {
-      usuario = await prisma.usuario.create({
-        data: {
-          email: 'admin@beraca.com',
-        },
-        include: { rolesPersonalizados: true }
-      })
-    }
-
-    // Verificar si ya tiene el rol Owner
-    const tieneRolOwner = usuario.rolesPersonalizados.some(r => r.rolId === rolOwner.id)
-
-    if (!tieneRolOwner) {
-      await prisma.usuarioRolPersonalizado.create({
-        data: {
-          usuarioId: usuario.id,
-          rolId: rolOwner.id
-        }
-      })
-      console.log(`✅ admin@beraca.com asignado como Owner`)
-    }
-
-    // También crear el rol antiguo para compatibilidad
-    console.log('\n🔄 Creando rol "admin" para compatibilidad...\n')
-
-    const tieneRolAdmin = await prisma.usuarioRol.findFirst({
-      where: {
-        usuarioId: usuario.id,
-        rol: 'admin'
-      }
-    })
-
-    if (!tieneRolAdmin) {
-      await prisma.usuarioRol.create({
-        data: {
-          usuarioId: usuario.id,
-          rol: 'admin'
-        }
-      })
-    }
-
-    console.log(`✅ Rol "admin" (legacy) asignado\n`)
-
-    console.log('✅ Configuración de permisos completada')
-  } catch (error) {
-    console.error('❌ Error:', error)
-    throw error
-  } finally {
-    await prisma.$disconnect()
+  if (sobrantes.length) {
+    console.log(`\nEn la base pero no en este archivo: ${sobrantes.join(', ')}`)
   }
 }
 
 main()
+  .catch((error) => {
+    console.error('Error sembrando permisos:', error)
+    process.exitCode = 1
+  })
+  .finally(() => prisma.$disconnect())

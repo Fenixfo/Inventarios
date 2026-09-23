@@ -3,11 +3,9 @@ import { prisma } from '@/lib/prisma'
 import { exigirPermiso } from '@/lib/permisos'
 export async function POST(request: NextRequest) {
   try {
-    const { error: sinPermiso } = await exigirPermiso(request, 'facturas.crear')
+    const { usuario, error: sinPermiso } = await exigirPermiso(request, 'facturas.crear')
     if (sinPermiso) return sinPermiso
 
-    const { searchParams } = new URL(request.url)
-    const email = searchParams.get('email')
     const { facturaId, monto } = await request.json()
 
     if (!facturaId || !monto || monto <= 0) {
@@ -17,14 +15,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Obtener usuarioId del email
-    let usuarioId = null
-    if (email) {
-      const usuario = await prisma.usuario.findUnique({
-        where: { email },
-      })
-      usuarioId = usuario?.id || null
-    }
+    // El abono se registra a nombre de quien lo hace, que sale del token.
+    // Antes venía en ?email=, así que cualquiera podía apuntarle un cobro a
+    // otra persona con solo cambiar la URL.
+    const usuarioId = usuario.id
 
     const factura = await prisma.factura.findUnique({
       where: { id: facturaId },

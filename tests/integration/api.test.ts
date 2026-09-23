@@ -575,3 +575,300 @@ describe('GET/PUT /api/configuracion', () => {
     expect(data).toHaveProperty('config')
   })
 })
+
+describe('precios de bodega', () => {
+  it('el catálogo público no expone el precio de bodega ni el costo', async () => {
+    // Es el precio al que se le vende a otro negocio: si sale en el
+    // catálogo, cualquier cliente lo pide.
+    const { data } = await api('/api/productos/catalogo')
+
+    if (data.length > 0) {
+      expect(data[0]).not.toHaveProperty('precioBodega')
+      expect(data[0]).not.toHaveProperty('costo')
+    }
+  })
+
+  it('guarda la marca de bodega en la factura', async () => {
+    const { status, data } = await api('/api/facturas', {
+      method: 'POST',
+      body: JSON.stringify({
+        clienteId: null,
+        esBodega: true,
+        subtotal: 31000,
+        total: 31000,
+        impuesto: 0,
+        observaciones: `${MARCA} factura a precio de bodega`,
+        items: [
+          {
+            productoId,
+            productoNombre: 'Venta a bodega',
+            cantidadM2: 1,
+            precioUnitario: 31000,
+            subtotal: 31000,
+          },
+        ],
+      }),
+    })
+
+    expect(status).toBe(201)
+
+    const enBD = await prisma.factura.findUnique({
+      where: { id: data.id },
+      select: { esBodega: true, items: { select: { precioUnitario: true } } },
+    })
+
+    expect(enBD!.esBodega).toBe(true)
+    // El precio queda congelado en la línea: cambiar el del producto después
+    // no puede reescribir lo ya facturado.
+    expect(Number(enBD!.items[0].precioUnitario)).toBe(31000)
+  })
+
+  it('una factura normal no queda marcada como bodega', async () => {
+    const { status, data } = await api('/api/facturas', {
+      method: 'POST',
+      body: JSON.stringify({
+        clienteId: null,
+        subtotal: 36000,
+        total: 36000,
+        impuesto: 0,
+        observaciones: `${MARCA} factura a precio de público`,
+        items: [
+          {
+            productoId: null,
+            productoNombre: 'Venta normal',
+            cantidadM2: 1,
+            precioUnitario: 36000,
+            subtotal: 36000,
+          },
+        ],
+      }),
+    })
+
+    expect(status).toBe(201)
+
+    const enBD = await prisma.factura.findUnique({
+      where: { id: data.id },
+      select: { esBodega: true },
+    })
+    expect(enBD!.esBodega).toBe(false)
+  })
+
+  it('el PDF avisa cuando la factura es de bodega', async () => {
+    const factura = await prisma.factura.findFirst({
+      where: { esBodega: true },
+      select: { id: true },
+      orderBy: { fecha: 'desc' },
+    })
+
+    if (!factura) return
+
+    const { status, data } = await api(`/api/facturas/${factura.id}/pdf`)
+    expect(status).toBe(200)
+    expect(data).toMatch(/Precio de bodega/i)
+  })
+
+  it('crea un producto con sus tres precios', async () => {
+    const sufijo = Date.now().toString().slice(-8)
+
+    const { status, data } = await api('/api/productos', {
+      method: 'POST',
+      body: JSON.stringify({
+        sku: `TEST-P${sufijo}`,
+        nombre: `${MARCA} producto con tres precios`,
+        categoria: 'ceramica',
+        precioUnitario: 36000,
+        precioBodega: 31000,
+        costo: 29000,
+        stockActual: 10,
+        stockMinimo: 5,
+      }),
+    })
+
+    expect(status).toBe(201)
+    expect(Number(data.precioUnitario)).toBe(36000)
+    expect(Number(data.precioBodega)).toBe(31000)
+    expect(Number(data.costo)).toBe(29000)
+    expect(data.precioBodegaUpdatedAt).not.toBeNull()
+  })
+
+  it('acepta un producto sin precio de bodega', async () => {
+    const sufijo = Date.now().toString().slice(-8)
+
+    const { status, data } = await api('/api/productos', {
+      method: 'POST',
+      body: JSON.stringify({
+        sku: `TEST-S${sufijo}`,
+        nombre: `${MARCA} producto sin precio de bodega`,
+        categoria: 'ceramica',
+        precioUnitario: 36000,
+        stockActual: 10,
+      }),
+    })
+
+    expect(status).toBe(201)
+    expect(data.precioBodega).toBeNull()
+  })
+})
+
+describe('asignar y quitar permisos', () => {
+  let usuarioPruebaId: string
+
+  // Se trabaja sobre un usuario creado para esto: quitarle los permisos a
+  // alguien real dejaría a una persona sin poder trabajar.
+  beforeAll(async () => {
+    const usuario = await prisma.usuario.create({
+      data: { email: `test-permisos-${Date.now()}@integracion.local` },
+      select: { id: true },
+    })
+    usuarioPruebaId = usuario.id
+  })
+
+  it('asigna permisos a un usuario', async () => {
+    const { status, data } = await api('/api/usuarios/permisos', {
+      method: 'POST',
+      body: JSON.stringify({
+        usuarioIds: [usuarioPruebaId],
+        permisos: ['productos.ver', 'facturas.ver'],
+        modo: 'agregar',
+      }),
+    })
+
+    expect(status).toBe(200)
+    expect(data.afectados[0].permisos).toBe(2)
+  })
+
+  it('quita todos los permisos de una vez', async () => {
+    const { status, data } = await api('/api/usuarios/permisos', {
+      method: 'DELETE',
+      body: JSON.stringify({ usuarioIds: [usuarioPruebaId], todos: true }),
+    })
+
+    expect(status).toBe(200)
+    expect(data.afectados[0].quitados).toBe(2)
+
+    const relacion = await prisma.usuarioTienda.findFirst({
+      where: { usuarioId: usuarioPruebaId },
+      include: { permisos: true },
+    })
+    // Conserva el acceso a la tienda: se queda sin permisos, no expulsado.
+    expect(relacion).not.toBeNull()
+    expect(relacion!.permisos).toHaveLength(0)
+  })
+
+  it('exige decir qué permisos quitar si no se piden todos', async () => {
+    const { status } = await api('/api/usuarios/permisos', {
+      method: 'DELETE',
+      body: JSON.stringify({ usuarioIds: [usuarioPruebaId], permisos: [] }),
+    })
+
+    expect(status).toBe(400)
+  })
+
+  it('no permite tocar al dueño de la tienda', async () => {
+    const dueno = await prisma.usuarioTienda.findFirst({
+      where: { esOwner: true },
+      select: { usuarioId: true },
+    })
+
+    if (!dueno) return
+
+    const { status } = await api('/api/usuarios/permisos', {
+      method: 'DELETE',
+      body: JSON.stringify({ usuarioIds: [dueno.usuarioId], todos: true }),
+    })
+
+    expect(status).toBe(403)
+  })
+
+  it('rechaza permisos que no existen', async () => {
+    const { status } = await api('/api/usuarios/permisos', {
+      method: 'POST',
+      body: JSON.stringify({
+        usuarioIds: [usuarioPruebaId],
+        permisos: ['inventado.total'],
+      }),
+    })
+
+    expect(status).toBe(400)
+  })
+})
+
+describe('endpoints sin sesión', () => {
+  // Barrido de todo lo que debe responder 401 sin token. Si mañana alguien
+  // crea un endpoint y olvida la comprobación, aquí se ve.
+  const protegidos = [
+    '/api/productos',
+    '/api/clientes',
+    '/api/facturas',
+    '/api/usuarios',
+    '/api/permisos',
+    '/api/auditoria',
+    '/api/configuracion',
+    '/api/inventario/movimientos',
+    '/api/reportes/inventario',
+    '/api/reportes/facturacion',
+    '/api/solicitudes-acceso',
+    '/api/tiendas',
+    '/api/debug/usuario-actual',
+  ]
+
+  it.each(protegidos)('%s responde 401 sin token', async (ruta) => {
+    const res = await fetch(`${BASE}${ruta}`)
+    expect(res.status).toBe(401)
+  })
+
+  it('los endpoints del modelo de roles antiguo ya no existen', async () => {
+    const retiradas = [
+      '/api/roles-personalizados',
+      '/api/permisos-modulos',
+      '/api/admin/assign-role',
+      '/api/setup/create-admin',
+    ]
+
+    for (const ruta of retiradas) {
+      const res = await fetch(`${BASE}${ruta}`, {
+        headers: { Authorization: 'Bearer lo-que-sea' },
+      })
+      expect(res.status).toBe(404)
+    }
+  })
+
+  it('sync-user ya no acepta el correo que le manden', async () => {
+    // Antes creaba usuarios sin sesión con el email del cuerpo, y podía
+    // reapuntar la fila de otro correo a la cuenta de quien llamara.
+    const res = await fetch(`${BASE}/api/auth/sync-user`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: '00000000-0000-0000-0000-000000000000',
+        email: 'admin@beraca.com',
+      }),
+    })
+
+    expect(res.status).toBe(401)
+  })
+})
+
+// Va al final a propósito: al agotar el límite, esa IP queda frenada un
+// minuto para ese grupo de rutas.
+describe('límite de peticiones', () => {
+  it('corta el registro tras varios intentos seguidos', async () => {
+    let ultimo = 0
+
+    for (let i = 0; i < 12; i++) {
+      const res = await fetch(`${BASE}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}), // sin datos: falla antes de tocar Supabase
+      })
+      ultimo = res.status
+
+      if (res.status === 429) {
+        expect(res.headers.get('retry-after')).toBeTruthy()
+        return
+      }
+    }
+
+    throw new Error(`No se activó el límite; la última respuesta fue ${ultimo}`)
+  })
+})

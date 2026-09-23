@@ -1472,7 +1472,7 @@ La asignación no se guarda permiso por permiso, sino en un solo paso confirmado
 - **Cubre:** RNF-2 (rendimiento percibido), seguridad de sesión
 - **Componente:** PermisosProvider, AdminProtector, PermissionProtector
 - **Tipo:** feature
-- **Estado:** pendiente
+- **Estado:** completada
 
 **Descripción:**
 Hoy cada pantalla del panel vuelve a preguntar los permisos: el `AdminProtector` del layout consulta
@@ -1507,6 +1507,99 @@ mucho muestra un botón que al pulsarlo devuelve 403.
 | Fecha | Decisión | Contexto |
 |---|---|---|
 | 2026-09-23 | Caché de permisos separado del de sesión | Duraciones distintas: la sesión es seguridad, los permisos son frescura de la interfaz |
+
+---
+
+### TASK-41: Catálogo en móvil y ficha ampliada del producto
+
+- **Cubre:** RF-2 (catálogo público), usabilidad en celular
+- **Componente:** app/page.tsx, components/Cart.tsx, components/Layout/Header.tsx, app/admin/layout.tsx, app/globals.css
+- **Tipo:** feature
+- **Estado:** completada
+
+**Descripción:**
+La interfaz estaba pensada para pantalla de computador. En el celular la barra lateral del panel
+se comía el ancho, las tablas desbordaban y los formularios de dos columnas quedaban ilegibles.
+
+El panel está escrito con estilos en línea, que no admiten media queries, así que los tres patrones
+que se repiten se corrigen desde CSS con `!important` en vez de reescribir veinte pantallas.
+
+**Criterio de done:**
+- [x] Barra lateral convertida en cajón deslizante en móvil, con botón ☰ y cierre por Escape
+- [x] Rejillas de formulario a una columna y tablas con desplazamiento lateral
+- [x] Campos a 16 px en móvil, para que iOS no haga zoom al escribir
+- [x] `viewport` declarado en el layout raíz
+- [x] Ficha ampliada del producto al pulsar la tarjeta, con imagen sin recortar
+- [x] Buscador por nombre en el catálogo, sin tildes y por palabras sueltas
+- [x] Carrito flotante en móvil
+- [x] Botones del carrito a 40 px con nombre accesible propio
+
+---
+
+### TASK-42: Tres precios por producto y facturación a bodega
+
+- **Cubre:** RF-4 (productos), RF-7 (facturación)
+- **Componente:** prisma/schema.prisma, lib/precios.ts, components/InvoiceForm.tsx, app/api/facturas, app/api/productos
+- **Tipo:** feature
+- **Estado:** completada
+
+**Descripción:**
+Lo que se cargó del Excel como `precio_unitario` era en realidad el precio de bodega (la columna
+"Depósito $"). Se separan los tres precios: costo de compra, bodega/mayorista y público.
+
+**Decisiones:**
+- `precio_bodega` anulable: sin él se cobra el precio al público, nunca cero.
+- La factura guarda `es_bodega`, para poder explicar después por qué dos facturas del mismo
+  producto tienen precios distintos.
+- El precio queda congelado en la línea de la factura: cambiar el del producto no reescribe lo
+  ya facturado.
+- El inventario pasa a valorarse **al costo**, no a precio de venta.
+- Los +5.000 del arranque son un valor de relleno, no una regla: cada precio se edita aparte.
+
+**Criterio de done:**
+- [x] Migración SQL en `docs/sql/precio_bodega.sql`, idempotente y con marcha atrás
+- [x] Tres campos en la ficha del producto, con su explicación
+- [x] Casilla de bodega en la factura, con diálogo de qué hacer con las líneas ya añadidas
+- [x] Vista previa del cambio de precio línea por línea antes de aplicarlo
+- [x] Etiqueta de bodega en el detalle de la factura y en el PDF
+- [x] El catálogo público no expone el precio de bodega ni el costo
+
+---
+
+### TASK-43: Cierre de endpoints y límite de peticiones
+
+- **Cubre:** RNF-3 (seguridad), RNF-2 (disponibilidad)
+- **Componente:** middleware.ts, lib/rate-limit.ts, app/api/auth/sync-user, app/api/abonos
+- **Tipo:** seguridad
+- **Estado:** completada
+
+**Descripción:**
+Repaso de los endpoints buscando lo que hubiera quedado suelto, y protección contra el uso abusivo
+de la API: cada llamada es una consulta a una base que está en otra región y se paga por uso.
+
+**Lo que se encontró:**
+
+| Problema | Riesgo | Solución |
+|---|---|---|
+| `sync-user` sin sesión, con el correo en el cuerpo | Crear usuarios a voluntad; reapuntar la fila de otro correo | El correo sale del token; sin token, 401 |
+| `abonos` tomaba el autor de `?email=` | Apuntarle un cobro a otra persona | El autor sale del token |
+| Sin límite de peticiones | Un bucle satura la base y dispara la factura | Límite por IP en el middleware |
+| `admin/assign-role`, `setup/create-admin` | Escribían en tablas del modelo viejo | Eliminados |
+| `roles-personalizados`, `permisos-modulos`, `usuarios/[id]/roles` | Modelo de roles anterior | Eliminados |
+| `reportes/facturacion` leía un `email` sin usar | Resto del modelo anterior | Eliminado |
+
+**Límites por IP y minuto:** registro 5 · inicio de sesión 30 · rutas públicas 60 · resto 180.
+El inicio de sesión va aparte del registro porque toda la tienda puede salir por una sola IP.
+
+**Criterio de done:**
+- [x] Ningún endpoint resuelve al usuario desde un parámetro de la petición
+- [x] Test automático que recorre las rutas y falla si alguna no comprueba permisos
+- [x] Las rutas públicas están declaradas una a una, con su motivo
+- [x] Límite de peticiones con cabecera `retry-after`
+- [x] Barrido de integración: 13 endpoints responden 401 sin token
+
+**Pendiente:** borrar las tablas del modelo viejo (`roles_personalizados`, `permisos_modulos`,
+`usuarios_roles` y sus dos puentes). El SQL está en `docs/sql/limpiar_modelo_roles.sql`.
 
 ---
 

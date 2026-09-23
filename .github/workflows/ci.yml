@@ -11,11 +11,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      # v5: GitHub retiró Node 20 de los runners y las v4 salían con aviso
+      # de obsolescencia en cada ejecución.
+      - uses: actions/checkout@v5
 
       # jsdom depende de undici@8, que necesita webidl.util.markAsUncloneable,
       # disponible desde Node 22. Con Node 20 los tests ni siquiera arrancan.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -26,8 +28,14 @@ jobs:
       - name: Generar cliente de Prisma
         run: npx prisma generate
 
+      # Incluye la comprobación de que ningún endpoint quedó sin permisos.
+      # Es estática: no necesita servidor ni base de datos, así que corre
+      # en cada push sin secretos.
       - name: Tests unitarios
         run: npm run test:unit
+
+      - name: Revisar tipos
+        run: npx tsc --noEmit
 
       # Compila igual que Vercel: si el type-check falla aquí, el deploy
       # también habría fallado. Las claves son de relleno porque las
@@ -39,3 +47,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
           DATABASE_URL: postgresql://user:pass@localhost:5432/placeholder
           DIRECT_URL: postgresql://user:pass@localhost:5432/placeholder
+
+  # Integración y e2e no corren aquí: necesitan la base real y credenciales
+  # de una cuenta con permisos. Se lanzan a mano con `npm run test:integration`
+  # y `npm run test:e2e` contra el servidor de desarrollo.

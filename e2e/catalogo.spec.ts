@@ -54,6 +54,63 @@ test.describe('Catálogo público', () => {
     const enlace = page.getByRole('link', { name: /carrito/i })
     await expect(enlace).toBeVisible()
   })
+
+  test('el buscador filtra por nombre sin tildes', async ({ page }) => {
+    const tarjetas = page.locator('main .grid > div')
+    await expect(tarjetas.first()).toBeVisible()
+
+    const nombre = await tarjetas.first().getByRole('heading').textContent()
+    const primeraPalabra = (nombre || '').trim().split(/\s+/)[0]
+
+    // Se busca sin tildes a propósito: "cafe" tiene que encontrar "Café".
+    const sinTildes = primeraPalabra.normalize('NFD').replace(/[̀-ͯ]/g, '')
+
+    await page.getByLabel(/buscar por nombre/i).fill(sinTildes)
+    await expect(tarjetas.first()).toBeVisible()
+
+    const resultados = await tarjetas.count()
+    expect(resultados).toBeGreaterThan(0)
+
+    await page.getByLabel(/buscar por nombre/i).fill('zzzz-no-existe-zzzz')
+    await expect(page.getByText(/ningún producto coincide/i)).toBeVisible()
+
+    // Hay dos formas de limpiar: la × del campo y el botón del mensaje.
+    // Aquí se usa el del mensaje, que es el que ve quien no encontró nada.
+    await page.getByRole('button', { name: 'Borrar búsqueda', exact: true }).click()
+    await expect(tarjetas.first()).toBeVisible()
+    await expect(page.getByLabel(/buscar por nombre/i)).toHaveValue('')
+  })
+
+  test('al pulsar la tarjeta se abre la ficha ampliada', async ({ page }) => {
+    const tarjetas = page.locator('main .grid > div')
+    await expect(tarjetas.first()).toBeVisible()
+
+    const nombre = (await tarjetas.first().getByRole('heading').textContent())?.trim() || ''
+
+    await tarjetas.first().getByRole('button', { name: /ver detalles/i }).click()
+
+    const ficha = page.getByRole('dialog')
+    await expect(ficha).toBeVisible()
+    await expect(ficha.getByRole('heading', { name: nombre })).toBeVisible()
+    await expect(ficha.getByText(/precio/i).first()).toBeVisible()
+
+    // Escape la cierra sin añadir nada al carrito.
+    await page.keyboard.press('Escape')
+    await expect(ficha).not.toBeVisible()
+  })
+
+  test('desde la ficha se pasa al pop-up de cantidad', async ({ page }) => {
+    const tarjetas = page.locator('main .grid > div')
+    await expect(tarjetas.first()).toBeVisible()
+
+    await tarjetas.first().getByRole('button', { name: /ver detalles/i }).click()
+
+    const ficha = page.getByRole('dialog')
+    await ficha.getByRole('button', { name: /agregar al carrito/i }).click()
+
+    await expect(ficha).not.toBeVisible()
+    await expect(page.locator('.popup-in').getByRole('spinbutton')).toBeVisible()
+  })
 })
 
 test.describe('Agregar al carrito', () => {
@@ -145,7 +202,9 @@ test.describe('Carrito', () => {
   })
 
   test('quitar el producto deja el carrito vacío', async ({ page }) => {
-    await page.getByRole('button', { name: '✕' }).click()
+    // El botón se nombra por su aria-label: un "✕" a secas no le dice nada
+    // a quien navega con lector de pantalla.
+    await page.getByRole('button', { name: /quitar .* del carrito/i }).click()
     await expect(page.getByText(/el carrito está vacío/i)).toBeVisible()
   })
 })
