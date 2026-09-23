@@ -56,7 +56,8 @@ export default function UsuariosPage() {
   const [usuariosSel, setUsuariosSel] = useState<Set<string>>(new Set())
   const [permisosSel, setPermisosSel] = useState<Set<string>>(new Set())
   const [nombrarAdmin, setNombrarAdmin] = useState(false)
-  const [confirmando, setConfirmando] = useState(false)
+  // Qué se está confirmando: añadir permisos o quitárselos todos.
+  const [confirmando, setConfirmando] = useState<'agregar' | 'quitar' | null>(null)
   const [guardando, setGuardando] = useState(false)
 
   useEffect(() => {
@@ -136,12 +137,46 @@ export default function UsuariosPage() {
       setExito(
         `Permisos asignados a ${datos.afectados.length} usuario${datos.afectados.length !== 1 ? 's' : ''}`
       )
-      setConfirmando(false)
+      setConfirmando(null)
       limpiar()
       await cargar()
     } catch (err: any) {
       setError(err.message)
-      setConfirmando(false)
+      setConfirmando(null)
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  /** Deja al usuario sin ningún permiso en la tienda. */
+  const quitarTodos = async () => {
+    setGuardando(true)
+    setError(null)
+
+    try {
+      const res = await apiFetch('/api/usuarios/permisos', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuarioIds: [...usuariosSel], todos: true }),
+      })
+
+      const datos = await res.json()
+      if (!res.ok) throw new Error(datos.error || 'No se pudieron quitar los permisos')
+
+      const total = datos.afectados.reduce((s: number, a: any) => s + a.quitados, 0)
+      const degradados = datos.afectados.filter((a: any) => a.eraAdmin).length
+
+      setExito(
+        `Se quitaron ${total} permiso${total !== 1 ? 's' : ''} a ${datos.afectados.length} usuario` +
+        `${datos.afectados.length !== 1 ? 's' : ''}` +
+        (degradados ? ` · ${degradados} dejó de ser administrador` : '')
+      )
+      setConfirmando(null)
+      limpiar()
+      await cargar()
+    } catch (err: any) {
+      setError(err.message)
+      setConfirmando(null)
     } finally {
       setGuardando(false)
     }
@@ -157,6 +192,15 @@ export default function UsuariosPage() {
 
   const seleccionables = usuarios.filter((u) => !accesoDe(u)?.esOwner)
   const hayQueGuardar = usuariosSel.size > 0 && (permisosSel.size > 0 || nombrarAdmin)
+
+  const marcados = usuarios.filter((u) => usuariosSel.has(u.id))
+  // Solo tiene sentido quitar permisos a quien tiene algo que quitar: o
+  // permisos sueltos, o el cargo de administrador.
+  const conAlgoQueQuitar = marcados.filter(
+    (u) => (accesoDe(u)?.permisos.length || 0) > 0 || accesoDe(u)?.esAdmin
+  )
+  const adminsMarcados = marcados.filter((u) => accesoDe(u)?.esAdmin)
+  const puedeQuitar = conAlgoQueQuitar.length > 0 && (adminsMarcados.length === 0 || soyOwner)
 
   const tarjeta = {
     backgroundColor: 'white',
@@ -177,7 +221,8 @@ export default function UsuariosPage() {
 
         <h1 style={{ marginBottom: '6px' }}>Gestión de Usuarios</h1>
         <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '26px' }}>
-          Marca los usuarios y los permisos que quieras darles, y confirma al final.
+          Marca los usuarios y los permisos que quieras darles, y confirma al final. Marcando
+          solo usuarios puedes dejarlos sin ningún permiso.
         </p>
 
         {error && (
@@ -349,7 +394,7 @@ export default function UsuariosPage() {
             {/* Paso 3: confirmar */}
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', paddingBottom: '40px' }}>
               <button
-                onClick={() => setConfirmando(true)}
+                onClick={() => setConfirmando('agregar')}
                 disabled={!hayQueGuardar}
                 style={{
                   padding: '12px 26px',
@@ -364,6 +409,32 @@ export default function UsuariosPage() {
               >
                 Añadir permisos
               </button>
+
+              {usuariosSel.size > 0 && (
+                <button
+                  onClick={() => setConfirmando('quitar')}
+                  disabled={!puedeQuitar}
+                  title={
+                    !puedeQuitar && adminsMarcados.length > 0 && !soyOwner
+                      ? 'Solo el dueño puede retirarle el cargo a un administrador'
+                      : !puedeQuitar
+                        ? 'Los usuarios marcados no tienen permisos que quitar'
+                        : 'Deja sin ningún permiso a los usuarios marcados'
+                  }
+                  style={{
+                    padding: '12px 26px',
+                    backgroundColor: puedeQuitar ? '#ef4444' : '#d1d5db',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: puedeQuitar ? 'pointer' : 'not-allowed',
+                    fontWeight: 'bold',
+                    fontSize: '14px',
+                  }}
+                >
+                  Quitar permisos
+                </button>
+              )}
 
               {(usuariosSel.size > 0 || permisosSel.size > 0) && (
                 <>
@@ -383,10 +454,10 @@ export default function UsuariosPage() {
           </>
         )}
 
-        {/* Confirmación */}
-        {confirmando && (
+        {/* Confirmación de asignación */}
+        {confirmando === 'agregar' && (
           <div
-            onClick={() => !guardando && setConfirmando(false)}
+            onClick={() => !guardando && setConfirmando(null)}
             style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 50 }}
           >
             <div
@@ -454,7 +525,7 @@ export default function UsuariosPage() {
 
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
-                  onClick={() => setConfirmando(false)}
+                  onClick={() => setConfirmando(null)}
                   disabled={guardando}
                   style={{ flex: 1, padding: '11px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px' }}
                 >
@@ -466,6 +537,85 @@ export default function UsuariosPage() {
                   style={{ flex: 1, padding: '11px', backgroundColor: guardando ? '#9ca3af' : '#10b981', color: 'white', border: 'none', borderRadius: '6px', cursor: guardando ? 'wait' : 'pointer', fontWeight: 'bold', fontSize: '14px' }}
                 >
                   {guardando ? 'Guardando...' : 'Confirmar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Confirmación de retirada */}
+        {confirmando === 'quitar' && (
+          <div
+            onClick={() => !guardando && setConfirmando(null)}
+            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 50 }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '560px', width: '100%', maxHeight: '85vh', overflow: 'auto', padding: '24px' }}
+            >
+              <h2 style={{ fontSize: '18px', marginTop: 0, marginBottom: '6px' }}>
+                Quitar todos los permisos
+              </h2>
+              <p style={{ fontSize: '13px', color: '#6b7280', marginTop: 0, marginBottom: '20px' }}>
+                Revisa antes de guardar. Nada se ha modificado todavía.
+              </p>
+
+              <div style={{ marginBottom: '18px' }}>
+                <p style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '8px' }}>
+                  {conAlgoQueQuitar.length} usuario{conAlgoQueQuitar.length !== 1 ? 's' : ''} quedará
+                  {conAlgoQueQuitar.length !== 1 ? 'n' : ''} sin ningún permiso:
+                </p>
+                <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '14px' }}>
+                  {conAlgoQueQuitar.map((u) => {
+                    const acceso = accesoDe(u)
+                    return (
+                      <li key={u.id} style={{ marginBottom: '4px' }}>
+                        {u.email}{' '}
+                        <span style={{ color: '#6b7280', fontSize: '13px' }}>
+                          ({acceso?.esAdmin
+                            ? 'administrador'
+                            : `${acceso?.permisos.length || 0} permiso${acceso?.permisos.length !== 1 ? 's' : ''}`})
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+
+              {marcados.length > conAlgoQueQuitar.length && (
+                <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '18px' }}>
+                  Los otros {marcados.length - conAlgoQueQuitar.length} marcados ya no tenían
+                  permisos, así que no cambian.
+                </p>
+              )}
+
+              {adminsMarcados.length > 0 && (
+                <div style={{ backgroundColor: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '6px', padding: '12px', marginBottom: '18px', fontSize: '13px' }}>
+                  ⚠️ {adminsMarcados.length === 1 ? 'Uno de ellos es' : `${adminsMarcados.length} de ellos son`}{' '}
+                  <strong>administrador</strong>: también se le retira el cargo, porque si no
+                  seguiría teniendo acceso a todo.
+                </div>
+              )}
+
+              <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fecaca', borderRadius: '6px', padding: '12px', marginBottom: '22px', fontSize: '13px', color: '#991b1b' }}>
+                Conservan el acceso a la tienda, pero sin permisos no podrán abrir ninguna
+                sección del panel. Para devolvérselos habrá que asignarlos de nuevo.
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => setConfirmando(null)}
+                  disabled={guardando}
+                  style={{ flex: 1, padding: '11px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={quitarTodos}
+                  disabled={guardando}
+                  style={{ flex: 1, padding: '11px', backgroundColor: guardando ? '#9ca3af' : '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: guardando ? 'wait' : 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+                >
+                  {guardando ? 'Quitando...' : 'Sí, quitar todos'}
                 </button>
               </div>
             </div>

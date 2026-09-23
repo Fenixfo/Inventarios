@@ -10,6 +10,8 @@ const asignacionSchema = z.object({
   modo: z.enum(['agregar', 'reemplazar']).default('agregar'),
   /** Nombrar o retirar administradores. Solo lo puede hacer el dueño. */
   esAdmin: z.boolean().optional(),
+  /** Al borrar: quita todos los permisos del usuario, sin listarlos uno a uno. */
+  todos: z.boolean().optional(),
   tiendaId: z.string().uuid().optional(),
 })
 
@@ -127,7 +129,15 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/** Quita permisos concretos a varios usuarios. */
+/**
+ * Quita permisos a varios usuarios: los que se indiquen, o todos con
+ * `todos: true`.
+ *
+ * Ser administrador no es un permiso de la lista, así que al vaciarle los
+ * permisos a un administrador también se le retira el cargo; de lo contrario
+ * seguiría pudiéndolo todo y la pantalla mentiría. Eso solo lo puede hacer
+ * el dueño, que es el único que nombra y degrada administradores.
+ */
 export async function DELETE(request: NextRequest) {
   try {
     const { usuario: solicitante, error } = await exigirPermiso(request, 'usuarios.gestionar')
@@ -138,16 +148,25 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 })
     }
 
-    const { usuarioIds, permisos } = parsed.data
+    const { usuarioIds, permisos, todos } = parsed.data
     const tiendaId = parsed.data.tiendaId || solicitante.tienda?.tiendaId
     if (!tiendaId) {
       return NextResponse.json({ error: 'No hay tienda seleccionada' }, { status: 400 })
+    }
+
+    if (!todos && permisos.length === 0) {
+      return NextResponse.json(
+        { error: 'Indica qué permisos quitar, o envía todos: true' },
+        { status: 400 }
+      )
     }
 
     const catalogo = await prisma.permiso.findMany()
     const ids = permisos
       .map((clave) => catalogo.find((p) => `${p.modulo}.${p.accion}` === clave)?.id)
       .filter(Boolean) as string[]
+
+    const afectados: { email: string; quitados: number; eraAdmin: boolean }[] = []
 
     for (const usuarioId of usuarioIds) {
       const relacion = await prisma.usuarioTienda.findUnique({
@@ -163,14 +182,53 @@ export async function DELETE(request: NextRequest) {
         )
       }
 
-      await prisma.permisoAsignado.deleteMany({
-        where: { usuarioTiendaId: relacion.id, permisoId: { in: ids } },
+      if (todos && relacion.esAdmin && !esOwner(solicitante, tiendaId)) {
+        return NextResponse.json(
+          {
+            error: `${relacion.usuario.email} es administrador: solo el dueño de la tienda puede retirarle el cargo`,
+          },
+          { status: 403 }
+        )
+      }
+
+      const { count } = await prisma.permisoAsignado.deleteMany({
+        where: todos
+          ? { usuarioTiendaId: relacion.id }
+          : { usuarioTiendaId: relacion.id, permisoId: { in: ids } },
       })
 
+      const eraAdmin = Boolean(todos && relacion.esAdmin)
+      if (eraAdmin) {
+        await prisma.usuarioTienda.update({
+          where: { id: relacion.id },
+          data: { esAdmin: false },
+        })
+      }
+
+      afectados.push({ email: relacion.usuario.email, quitados: count, eraAdmin })
       olvidarCache(relacion.usuario.email)
+
+      try {
+        await prisma.auditoria.create({
+          data: {
+            usuarioId: solicitante.id,
+            tablaAfectada: 'permisos_asignados',
+            registroId: relacion.id,
+            accion: 'DELETE',
+            datosDespues: {
+              usuario: relacion.usuario.email,
+              permisos: todos ? 'todos' : permisos,
+              quitados: count,
+              adminRetirado: eraAdmin,
+            },
+          },
+        })
+      } catch (auditError) {
+        console.error('Error registrando auditoría:', auditError)
+      }
     }
 
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true, afectados })
   } catch (error: any) {
     console.error('Error quitando permisos:', error)
     return NextResponse.json({ error: 'Error al quitar permisos' }, { status: 500 })
