@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { exigirTienda } from '@/lib/permisos'
 export async function POST(request: NextRequest) {
   try {
-    const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, 'facturas.crear')
+    const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, 'facturas.abonar')
     if (sinPermiso) return sinPermiso
 
     const { facturaId, monto } = await request.json()

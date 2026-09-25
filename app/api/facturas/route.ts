@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { exigirTienda, veTodasLasFacturas } from '@/lib/permisos'
+import { exigirTienda, veTodasLasFacturas, puede } from '@/lib/permisos'
 
 function generateFacturaNumber(): string {
   const today = new Date()
@@ -86,6 +86,17 @@ export async function POST(request: NextRequest) {
     if (sinPermiso) return sinPermiso
 
     const data = await request.json()
+
+    // La factura nace sin abono: registrar un anticipo al crearla es, en el
+    // fondo, lo mismo que abonarla, así que exige el mismo permiso. Sin él,
+    // el vendedor sigue pudiendo facturar, solo que queda pendiente.
+    const anticipoSolicitado = data.anticipo ? parseFloat(data.anticipo) : 0
+    if (anticipoSolicitado > 0 && !puede(usuario, 'facturas.abonar', tiendaId)) {
+      return NextResponse.json(
+        { error: 'No tienes permiso para registrar un anticipo' },
+        { status: 403 }
+      )
+    }
 
     const datePrefix = generateFacturaNumber()
     const sequence = await getNextSequence(datePrefix, tiendaId)
@@ -226,11 +237,16 @@ export async function PUT(request: NextRequest) {
     const { id } = data
 
     // Anular es una acción aparte: se puede facturar sin poder deshacer lo
-    // que ya se facturó.
+    // que ya se facturó. Pagada y entregada son decisiones de dinero: quien
+    // factura no necesariamente puede decir que se cobró.
     const permisoNecesario =
-      data.estado === 'anulado' ? 'facturas.anular' : 'facturas.crear'
+      data.estado === 'anulado'
+        ? 'facturas.anular'
+        : data.estado === 'pagado' || data.estado === 'entregado'
+          ? 'facturas.abonar'
+          : 'facturas.crear'
 
-    const { tiendaId, error: sinPermiso } = await exigirTienda(request, permisoNecesario)
+    const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, permisoNecesario)
     if (sinPermiso) return sinPermiso
 
     if (!id) {
@@ -247,6 +263,16 @@ export async function PUT(request: NextRequest) {
 
     if (!facturaBefore) {
       return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 })
+    }
+
+    // Subir el anticipo desde aquí es lo mismo que abonar: exige el mismo
+    // permiso, aunque el estado que se esté pidiendo sea 'pendiente'.
+    const anticipoNuevo = data.anticipo ? parseFloat(data.anticipo) : 0
+    if (anticipoNuevo > Number(facturaBefore.anticipo) && !puede(usuario, 'facturas.abonar', tiendaId)) {
+      return NextResponse.json(
+        { error: 'No tienes permiso para registrar un anticipo' },
+        { status: 403 }
+      )
     }
 
     const updateData: any = {

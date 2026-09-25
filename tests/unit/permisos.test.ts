@@ -165,6 +165,32 @@ describe('puedeAlguno', () => {
   })
 })
 
+// TASK-58. Facturar y abonar quedan separados: un vendedor puede crear la
+// factura sin poder decir que se cobró.
+describe('facturas.abonar', () => {
+  it('quien solo puede crear facturas no puede abonar ni cambiar el estado', () => {
+    const vendedor = usuario(acceso(TIENDA_A, ['facturas.ver', 'facturas.crear']))
+    expect(puede(vendedor, 'facturas.abonar')).toBe(false)
+  })
+
+  it('con el permiso nuevo sí puede', () => {
+    const cajero = usuario(acceso(TIENDA_A, ['facturas.crear', 'facturas.abonar']))
+    expect(puede(cajero, 'facturas.abonar')).toBe(true)
+  })
+
+  it('owner y administrador pasan sin el permiso suelto', () => {
+    const owner = usuario(acceso(TIENDA_A, [], { esOwner: true }))
+    const admin = usuario(acceso(TIENDA_A, [], { esAdmin: true }))
+    expect(puede(owner, 'facturas.abonar')).toBe(true)
+    expect(puede(admin, 'facturas.abonar')).toBe(true)
+  })
+
+  it('abonar no da por sí solo permiso para anular', () => {
+    const cajero = usuario(acceso(TIENDA_A, ['facturas.crear', 'facturas.abonar']))
+    expect(puede(cajero, 'facturas.anular')).toBe(false)
+  })
+})
+
 describe('reglas de subida de imágenes', () => {
   it('quien crea productos puede subir su imagen', () => {
     const bodega = usuario(acceso(TIENDA_A, ['productos.ver', 'productos.crear']))

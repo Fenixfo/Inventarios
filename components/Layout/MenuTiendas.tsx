@@ -11,6 +11,7 @@ interface Tienda {
   esOwner: boolean
   esAdmin: boolean
   codigo?: string | null
+  activa?: boolean
 }
 
 interface Props {
@@ -48,9 +49,17 @@ export function MenuTiendas({ email, onCerrarSesion }: Props) {
         const datos: Tienda[] = await res.json()
         setTiendas(datos)
 
-        // Sin preferencia guardada, la activa es la primera, que es la
-        // misma que elige el servidor cuando no recibe la cabecera.
-        setActiva(tiendaActiva() || datos[0]?.id || null)
+        // La activa es la que dice el servidor, no la primera de la lista:
+        // sin preferencia guardada, el servidor entra a la tienda donde la
+        // persona puede hacer más (la suya propia antes que una donde es
+        // vendedora). Suponer la primera mostraba el nombre de una tienda
+        // mientras las pantallas trabajaban en otra.
+        const delServidor = datos.find((t) => t.activa)?.id || datos[0]?.id || null
+        setActiva(delServidor)
+
+        // Se deja fijada para que todas las peticiones manden la cabecera y
+        // la tienda no pueda cambiar por su cuenta si cambian los permisos.
+        if (delServidor && tiendaActiva() !== delServidor) fijarTiendaActiva(delServidor)
       } catch {
         // Sin el listado el menú no se muestra; el panel sigue funcionando.
       }

@@ -2045,9 +2045,9 @@ Pruebas: `tests/unit/numero-a-palabras.test.ts` (8, en verde).
 ### TASK-58: Permiso para abonar y para cambiar el estado de una factura
 
 - **Cubre:** RNF-3 (seguridad), RF-7
-- **Componente:** app/api/abonos, app/api/facturas, app/admin/facturas/[id]
+- **Componente:** app/api/abonos, app/api/facturas, app/admin/facturas/[id], components/InvoiceForm
 - **Tipo:** seguridad
-- **Estado:** pendiente
+- **Estado:** completada (2026-09-25)
 
 **Descripción:**
 Hoy quien puede crear facturas puede además registrar abonos y marcarlas como pagadas,
@@ -2057,11 +2057,36 @@ se pagó debería ser otro.
 El vendedor sigue pudiendo facturar; la factura nace sin abono y en estado pendiente.
 
 **Criterio de done:**
-- [ ] Permiso nuevo `facturas.abonar`
-- [ ] Registrar un abono lo exige; el anticipo al crear la factura, también
-- [ ] Marcar pagada o entregada lo exige; anular sigue con `facturas.anular`
-- [ ] Owner y administrador pasan, como siempre
-- [ ] La pantalla esconde lo que la persona no puede hacer, y el servidor lo rechaza igual
+- [x] Permiso nuevo `facturas.abonar`
+- [x] Registrar un abono lo exige; el anticipo al crear la factura, también
+- [x] Marcar pagada o entregada lo exige; anular sigue con `facturas.anular`
+- [x] Owner y administrador pasan, como siempre
+- [x] La pantalla esconde lo que la persona no puede hacer, y el servidor lo rechaza igual
+
+**Cómo quedó:**
+`docs/sql/permiso_abonar.sql` (pendiente de ejecutar en Supabase) inserta el permiso en la
+tabla `permisos`; `prisma/seed-permisos.ts` queda igual para instalaciones nuevas. Del lado
+del servidor:
+- `POST /api/facturas`: exige `facturas.crear`, y si `anticipo > 0` exige también
+  `facturas.abonar` (403 si no).
+- `PUT /api/facturas`: el permiso depende del `estado` pedido — `anulado` → `facturas.anular`,
+  `pagado`/`entregado` → `facturas.abonar`, cualquier otro → `facturas.crear`. Subir el
+  anticipo de una factura existente exige `facturas.abonar` aunque el estado pedido sea
+  "pendiente".
+- `DELETE /api/facturas/[id]` (anular) sigue con `facturas.anular`, sin cambios.
+- `POST /api/abonos` pasó de exigir `facturas.crear` a exigir `facturas.abonar`.
+
+Del lado de la pantalla: `InvoiceForm` esconde el campo de abono inicial sin el permiso, y
+`app/admin/facturas/[id]` esconde "Marcar como Pagado", "Marcar como Entregado" y el
+formulario de nuevo abono (el efecto que auto-cierra el saldo en cero también respeta el
+permiso, para no disparar una llamada que el servidor va a rechazar).
+
+Pruebas: `tests/unit/permisos.test.ts` (4 nuevas, sobre `puede('facturas.abonar')`) y
+`tests/unit/endpoints-protegidos.test.ts` (guardián estático de que ninguna ruta quedó sin
+permiso), ambas en verde. `tsc --noEmit` limpio.
+
+**Pendiente de tu parte:** ejecutar `docs/sql/permiso_abonar.sql` en Supabase para que el
+permiso aparezca en /admin/usuarios.
 
 ---
 
@@ -2070,16 +2095,26 @@ El vendedor sigue pudiendo facturar; la factura nace sin abono y en estado pendi
 - **Cubre:** RF-10 (acceso a tiendas)
 - **Componente:** app/api/solicitudes-acceso
 - **Tipo:** corrección
-- **Estado:** pendiente
+- **Estado:** completada (2026-09-25)
 
 **Descripción:**
 Tras un rechazo, volver a pedir acceso responde que ya hay una solicitud en curso. La persona
 queda sin forma de insistir, aunque el rechazo fuera un error o las condiciones cambiaran.
 
 **Criterio de done:**
-- [ ] Con una solicitud rechazada se puede volver a pedir
-- [ ] Una pendiente sigue bloqueando, para no llenar la bandeja del dueño
-- [ ] Quien ya tiene acceso sigue recibiendo el aviso de que lo tiene
+- [x] Con una solicitud rechazada se puede volver a pedir
+- [x] Una pendiente sigue bloqueando, para no llenar la bandeja del dueño
+- [x] Quien ya tiene acceso sigue recibiendo el aviso de que lo tiene
+
+**Cómo quedó:**
+La tabla admite una sola solicitud por persona y tienda (`@@unique([usuarioId, tiendaId])`),
+así que en vez de crear otra se **reabre** la existente: vuelve a `pendiente`, se limpian
+`respondidoPor`, `respondidoEn` y `comentarioAdmin`, y `createdAt` toma la fecha nueva para
+que aparezca arriba en la bandeja. Aplica a las rechazadas y también a las aprobadas cuya
+persona ya no está en la tienda (la sacaron o se salió), que antes recibían un falso
+"ya tienes acceso". La aprobación ya usaba `upsert`, así que no cambió. Sin SQL.
+Prueba: `tests/integration/api.test.ts` → "una solicitud rechazada se puede volver a pedir;
+una pendiente no", en verde.
 
 ---
 

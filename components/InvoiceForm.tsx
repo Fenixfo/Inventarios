@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase-client'
 import { apiFetch } from '@/lib/api-client'
 import { precioAplicable, tienePrecioBodega } from '@/lib/precios'
+import { usePermisos } from '@/components/PermisosProvider'
 
 interface Producto {
   id: string
@@ -37,6 +38,10 @@ interface FacturaItem {
 
 export default function InvoiceForm() {
   const router = useRouter()
+  const { puede } = usePermisos()
+  // Sin este permiso la factura nace sin abono: el campo ni se muestra, y
+  // el servidor rechaza igual si alguien lo manda por fuera de la pantalla.
+  const puedeAbonar = puede('facturas.abonar')
   const [productos, setProductos] = useState<Producto[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
@@ -851,41 +856,43 @@ export default function InvoiceForm() {
             <span>{formatearDinero(total)}</span>
           </div>
 
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Abono Inicial ($)</label>
-            <input
-              type="number"
-              value={abono || ''}
-              onChange={(e) => {
-                let valor = parseFloat(e.target.value) || 0
-                const montoMaximo = total + 10000
-                if (valor > montoMaximo) {
-                  valor = montoMaximo
-                }
-                setAbono(valor)
-              }}
-              onWheel={preventWheelChange}
-              step="100"
-              min="0"
-              max={total + 10000}
-              placeholder="0.00"
-              title={`Máximo permitido: ${formatearDinero(total + 10000)}`}
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box', fontFamily: 'monospace' }}
-            />
-            {abono > 0 && (
-              <div style={{ marginTop: '8px', padding: '10px', backgroundColor: '#f0f9ff', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace' }}>
-                <div>Abono: {formatearDinero(abono)}</div>
-                <div style={{ color: abono > total ? '#dc2626' : '#10b981', fontWeight: 'bold' }}>
-                  Saldo pendiente: {formatearDinero(Math.max(0, total - abono))}
-                </div>
-                {abono > total && (
-                  <div style={{ color: '#f59e0b', marginTop: '5px', fontSize: '11px' }}>
-                    ⚠️ Pagando ${((abono - total) / 1000).toFixed(1)}k de más
+          {puedeAbonar && (
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Abono Inicial ($)</label>
+              <input
+                type="number"
+                value={abono || ''}
+                onChange={(e) => {
+                  let valor = parseFloat(e.target.value) || 0
+                  const montoMaximo = total + 10000
+                  if (valor > montoMaximo) {
+                    valor = montoMaximo
+                  }
+                  setAbono(valor)
+                }}
+                onWheel={preventWheelChange}
+                step="100"
+                min="0"
+                max={total + 10000}
+                placeholder="0.00"
+                title={`Máximo permitido: ${formatearDinero(total + 10000)}`}
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box', fontFamily: 'monospace' }}
+              />
+              {abono > 0 && (
+                <div style={{ marginTop: '8px', padding: '10px', backgroundColor: '#f0f9ff', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace' }}>
+                  <div>Abono: {formatearDinero(abono)}</div>
+                  <div style={{ color: abono > total ? '#dc2626' : '#10b981', fontWeight: 'bold' }}>
+                    Saldo pendiente: {formatearDinero(Math.max(0, total - abono))}
                   </div>
-                )}
-              </div>
-            )}
-          </div>
+                  {abono > total && (
+                    <div style={{ color: '#f59e0b', marginTop: '5px', fontSize: '11px' }}>
+                      ⚠️ Pagando ${((abono - total) / 1000).toFixed(1)}k de más
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div>

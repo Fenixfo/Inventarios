@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
 import { apiFetch } from '@/lib/api-client'
 import { PermissionProtector } from '@/components/PermissionProtector'
+import { usePermisos } from '@/components/PermisosProvider'
 
 interface FacturaItem {
   id: string
@@ -50,6 +51,10 @@ export default function FacturaPage() {
   const router = useRouter()
   const params = useParams()
   const id = params.id as string
+  const { puede } = usePermisos()
+  // Sin este permiso se ve la factura pero no se puede abonar ni cambiar el
+  // estado a pagada/entregada; anular sigue aparte, con facturas.anular.
+  const puedeAbonar = puede('facturas.abonar')
 
   const [factura, setFactura] = useState<Factura | null>(null)
   const [loading, setLoading] = useState(true)
@@ -129,10 +134,10 @@ export default function FacturaPage() {
     const totalAbonado = adelanto + totalAbonosRegistrados
     const saldoPendienteCalculado = Number(factura.total) - totalAbonado
 
-    if (saldoPendienteCalculado <= 0 && factura.estado === 'pendiente' && !saving) {
+    if (saldoPendienteCalculado <= 0 && factura.estado === 'pendiente' && !saving && puedeAbonar) {
       handleStatusChange('pagado')
     }
-  }, [abonos, abonoCargado, factura?.total, factura?.anticipo])
+  }, [abonos, abonoCargado, factura?.total, factura?.anticipo, puedeAbonar])
 
   /**
    * Marcar la factura como pagada salda lo que falte.
@@ -566,7 +571,7 @@ export default function FacturaPage() {
             </div>
           </div>
 
-          {factura.estado === 'pendiente' && saldoPendiente > 0 && (
+          {factura.estado === 'pendiente' && saldoPendiente > 0 && puedeAbonar && (
             <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #0ea5e9' }}>
               <p style={{ margin: '0 0 10px 0', fontSize: '12px', fontWeight: 'bold', color: '#0369a1' }}>Agregar Nuevo Abono:</p>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
@@ -615,29 +620,31 @@ export default function FacturaPage() {
         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
           {factura.estado === 'pendiente' && (
             <>
-              <button
-                onClick={handleMarcarPagado}
-                disabled={saving}
-                title={
-                  saldoPendiente > 0
-                    ? `Se registrará un abono de ${formatearDinero(saldoPendiente)} para dejar el saldo en cero`
-                    : 'La factura ya está saldada'
-                }
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                }}
-              >
-                {saving
-                  ? 'Procesando...'
-                  : saldoPendiente > 0
-                    ? `Marcar como Pagado (abona ${formatearDinero(saldoPendiente)})`
-                    : 'Marcar como Pagado'}
-              </button>
+              {puedeAbonar && (
+                <button
+                  onClick={handleMarcarPagado}
+                  disabled={saving}
+                  title={
+                    saldoPendiente > 0
+                      ? `Se registrará un abono de ${formatearDinero(saldoPendiente)} para dejar el saldo en cero`
+                      : 'La factura ya está saldada'
+                  }
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#10b981',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {saving
+                    ? 'Procesando...'
+                    : saldoPendiente > 0
+                      ? `Marcar como Pagado (abona ${formatearDinero(saldoPendiente)})`
+                      : 'Marcar como Pagado'}
+                </button>
+              )}
 
               <button
                 onClick={handleAnular}
@@ -656,7 +663,7 @@ export default function FacturaPage() {
             </>
           )}
 
-          {factura.estado === 'pagado' && (
+          {factura.estado === 'pagado' && puedeAbonar && (
             <button
               onClick={() => handleStatusChange('entregado')}
               disabled={saving}

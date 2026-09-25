@@ -35,6 +35,7 @@ const PERMISOS = [
   { orden: 41, modulo: 'facturas', accion: 'ver_todas', nombre: 'Ver las facturas de toda la tienda' },
   { orden: 42, modulo: 'facturas', accion: 'crear', nombre: 'Crear facturas' },
   { orden: 43, modulo: 'facturas', accion: 'anular', nombre: 'Anular facturas' },
+  { orden: 44, modulo: 'facturas', accion: 'abonar', nombre: 'Abonar y cambiar estado (pagada/entregada)' },
 
   // Reportes no distingue autoría: quien lo tiene ve las cifras completas.
   { orden: 50, modulo: 'reportes', accion: 'ver', nombre: 'Ver reportes de la tienda' },

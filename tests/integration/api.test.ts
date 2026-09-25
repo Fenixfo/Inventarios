@@ -1438,6 +1438,50 @@ describe('código de tienda', () => {
       expect(solicitud!.tiendaId).toBe(ajena.id)
     }
   })
+
+  // TASK-59. Antes, tras un rechazo, volver a pedir respondía "ya existe una
+  // solicitud" y la persona no tenía forma de insistir.
+  it('una solicitud rechazada se puede volver a pedir; una pendiente no', async () => {
+    const ajena = await prisma.tienda.findFirst({
+      where: { nombre: 'TEST tienda ajena (aislamiento)' },
+      select: { codigo: true, id: true },
+    })
+
+    if (!ajena) return
+
+    const yo = await prisma.usuario.findUnique({
+      where: { email: process.env.E2E_USER! },
+      select: { id: true },
+    })
+
+    const pedir = () =>
+      api('/api/solicitudes-acceso', {
+        method: 'POST',
+        body: JSON.stringify({ codigo: ajena.codigo, razon: `${MARCA} reintento` }),
+      })
+
+    // Deja una solicitud rechazada, venga o no de una corrida anterior.
+    await pedir()
+    await prisma.solicitudAcceso.update({
+      where: { usuarioId_tiendaId: { usuarioId: yo!.id, tiendaId: ajena.id } },
+      data: { estado: 'rechazado', respondidoEn: new Date(), comentarioAdmin: 'no' },
+    })
+
+    const reintento = await pedir()
+    expect(reintento.status).toBe(201)
+
+    const reabierta = await prisma.solicitudAcceso.findUnique({
+      where: { usuarioId_tiendaId: { usuarioId: yo!.id, tiendaId: ajena.id } },
+    })
+    expect(reabierta!.estado).toBe('pendiente')
+    expect(reabierta!.respondidoEn).toBeNull()
+    expect(reabierta!.comentarioAdmin).toBeNull()
+
+    // Pendiente otra vez: repetirla sí se bloquea.
+    const repetida = await pedir()
+    expect(repetida.status).toBe(400)
+    expect(String(repetida.data.error)).toMatch(/pendiente/i)
+  })
 })
 
 describe('crear tienda', () => {

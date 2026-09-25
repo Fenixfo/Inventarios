@@ -37,6 +37,9 @@ export async function GET(request: NextRequest) {
         esOwner: a.esOwner,
         esAdmin: a.esAdmin,
         codigo: a.esOwner || a.esAdmin ? a.tienda.codigo : null,
+        // La que el servidor está usando de verdad. El menú la necesita para
+        // no mostrar el nombre de una tienda mientras se trabaja en otra.
+        activa: a.tienda.id === usuario.tienda?.tiendaId,
       }))
     )
   } catch (error: any) {

@@ -232,7 +232,10 @@ model Producto {
   facturasItems FacturaItem[]
   movimientosInventario InventarioMovimiento[]
 
-  @@unique([tiendaId, sku], map: "productos_tienda_sku_key")
+  // El SKU es único por tienda solo entre los productos activos: un producto
+  // borrado (activo = false) libera su SKU. Prisma no sabe declarar índices
+  // parciales, así que vive en docs/sql/sku_solo_activos.sql
+  // (productos_tienda_sku_activo_key). No usar `prisma db push`: lo borraría.
   @@index([sku])
   @@index([stockActual])
   @@index([activo])

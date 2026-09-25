@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verificar si ya existe una solicitud
+    // La tabla guarda una sola solicitud por persona y tienda.
     const solicitudExistente = await prisma.solicitudAcceso.findFirst({
       where: {
         usuarioId,
@@ -70,26 +70,42 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    if (solicitudExistente) {
-      if (solicitudExistente.estado === 'pendiente') {
-        return NextResponse.json(
-          { error: 'Ya existe una solicitud pendiente para esta tienda' },
-          { status: 400 }
-        )
-      } else if (solicitudExistente.estado === 'aprobado') {
-        return NextResponse.json(
-          { error: 'Ya tienes acceso a esta tienda' },
-          { status: 400 }
-        )
-      } else {
-        return NextResponse.json(
-          { error: 'Ya existe una solicitud anterior para esta tienda' },
-          { status: 400 }
-        )
-      }
+    // Una pendiente sí bloquea: repetirla solo llenaría la bandeja del dueño.
+    if (solicitudExistente?.estado === 'pendiente') {
+      return NextResponse.json(
+        { error: 'Ya existe una solicitud pendiente para esta tienda' },
+        { status: 400 }
+      )
     }
 
-    // Crear solicitud
+    // Rechazada, o aprobada pero ya sin acceso (lo sacaron o se salió):
+    // se reabre la misma solicitud. Antes cualquier solicitud anterior
+    // bloqueaba para siempre, y tras un rechazo no había forma de insistir.
+    // El acceso vigente ya se descartó más arriba, así que "aprobado" aquí
+    // no significa que la persona siga dentro.
+    if (solicitudExistente) {
+      const reabierta = await prisma.solicitudAcceso.update({
+        where: { id: solicitudExistente.id },
+        data: {
+          email,
+          razon: razon || null,
+          estado: 'pendiente',
+          respondidoPor: null,
+          respondidoEn: null,
+          comentarioAdmin: null,
+          // La fecha de la nueva petición: la bandeja ordena por esta
+          // fecha, y con la vieja quedaría enterrada al fondo.
+          createdAt: new Date(),
+        },
+        include: {
+          usuario: true,
+          tienda: true,
+        },
+      })
+
+      return NextResponse.json(reabierta, { status: 201 })
+    }
+
     const solicitud = await prisma.solicitudAcceso.create({
       data: {
         usuarioId,
