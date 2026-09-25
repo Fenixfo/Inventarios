@@ -1908,6 +1908,154 @@ elección no cambie entre peticiones. La cabecera sigue mandando cuando viene.
 
 ---
 
+## 🧾 Fase 14 — Ajustes del catálogo, facturación y accesos (TASK-53 a 59)
+
+Lote pedido el 2026-09-25. Se hacen de una en una, con pruebas solo de lo que cada una toca.
+
+---
+
+### TASK-53: Tope de 9 productos y "Ver más"
+
+- **Cubre:** RF-2 (catálogo), RNF-2 (rendimiento)
+- **Componente:** app/page.tsx, app/api/productos/catalogo
+- **Tipo:** feature
+- **Estado:** completada (2026-09-25)
+
+**Descripción:**
+Al filtrar por tienda o categoría se traía todo lo que cumpliera. Con una tienda de 10.000
+productos, eso son 10.000 productos por el cable y en memoria del navegador.
+
+Pasa a traer 9 y un botón "Ver más" que suma 3 cada vez.
+
+**Criterio de done:**
+- [x] El endpoint acepta cuántos productos traer y cuántos saltar
+- [x] La respuesta dice cuántos hay en total, para saber si queda algo por ver
+- [x] El botón desaparece cuando ya no hay más
+- [x] Cambiar de filtro vuelve a empezar en 9
+- [x] Tope de 60 por petición, para que una URL a mano no pida el catálogo entero
+
+---
+
+### TASK-54: Filtros que se acotan entre sí
+
+- **Cubre:** RF-2 (catálogo), usabilidad
+- **Componente:** app/api/productos/catalogo/filtros, app/page.tsx
+- **Tipo:** mejora
+- **Estado:** pendiente
+
+**Descripción:**
+Hoy los dos desplegables muestran siempre todo. Si se elige Beraca, siguen apareciendo
+categorías que Beraca no tiene, y elegirlas lleva a una pantalla vacía.
+
+Al elegir una tienda, las categorías se reducen a las de esa tienda. Al elegir una categoría,
+las tiendas se reducen a las que la tienen.
+
+**Criterio de done:**
+- [ ] Los filtros se recalculan según lo que ya esté elegido
+- [ ] Ninguna combinación ofrecida lleva a cero resultados
+- [ ] Si la elección actual deja de ser válida, se limpia sola
+
+---
+
+### TASK-55: La búsqueda por nombre incluye productos sin foto
+
+- **Cubre:** RF-2 (catálogo)
+- **Componente:** app/api/productos/catalogo, app/page.tsx
+- **Tipo:** feature
+- **Estado:** pendiente
+
+**Descripción:**
+El catálogo solo muestra productos con imagen, porque es una vitrina. Pero quien busca un
+producto por su nombre ya sabe qué quiere: ahí sí deben salir, con foto o sin ella.
+
+La búsqueda pasa a hacerse en el servidor —hoy filtra sobre lo ya cargado— con el mismo tope
+de 9 y su "Ver más".
+
+**Criterio de done:**
+- [ ] Buscando por nombre aparecen también los productos sin imagen
+- [ ] Sin búsqueda, el catálogo sigue mostrando solo los que tienen foto
+- [ ] La búsqueda respeta el tope y el "Ver más"
+- [ ] Sigue encontrando sin tildes
+
+---
+
+### TASK-56: Horas en la de Colombia
+
+- **Cubre:** RNF (coherencia de datos)
+- **Componente:** lib/fechas.ts
+- **Tipo:** corrección
+- **Estado:** pendiente
+
+**Descripción:**
+Las fechas se muestran con la zona horaria del dispositivo. Un celular mal configurado, o
+alguien mirando desde otro país, ve horas que no son las del negocio. Las facturas se fechan
+en la hora de Colombia, así que deben mostrarse en esa.
+
+**Criterio de done:**
+- [ ] Todas las fechas se muestran en UTC-5, sin depender del dispositivo
+- [ ] El PDF y el mensaje de WhatsApp también
+
+---
+
+### TASK-57: El total en palabras en la factura
+
+- **Cubre:** RF-7 (facturación)
+- **Componente:** lib/numero-a-palabras.ts, lib/factura-pdf.ts, PDF en HTML
+- **Tipo:** feature
+- **Estado:** pendiente
+
+**Descripción:**
+Una factura lleva el valor en letras, tanto por costumbre comercial como para que no se pueda
+alterar la cifra. Aparece en el PDF y en la versión para imprimir.
+
+**Criterio de done:**
+- [ ] El total se escribe en palabras, en español
+- [ ] Sale en el PDF y en el HTML de imprimir
+- [ ] Maneja los casos raros del español: uno/un, veintiuno, cien/ciento, quinientos
+
+---
+
+### TASK-58: Permiso para abonar y para cambiar el estado de una factura
+
+- **Cubre:** RNF-3 (seguridad), RF-7
+- **Componente:** app/api/abonos, app/api/facturas, app/admin/facturas/[id]
+- **Tipo:** seguridad
+- **Estado:** pendiente
+
+**Descripción:**
+Hoy quien puede crear facturas puede además registrar abonos y marcarlas como pagadas,
+entregadas o anuladas. Son decisiones de dinero: un vendedor factura, pero quien dice que algo
+se pagó debería ser otro.
+
+El vendedor sigue pudiendo facturar; la factura nace sin abono y en estado pendiente.
+
+**Criterio de done:**
+- [ ] Permiso nuevo `facturas.abonar`
+- [ ] Registrar un abono lo exige; el anticipo al crear la factura, también
+- [ ] Marcar pagada o entregada lo exige; anular sigue con `facturas.anular`
+- [ ] Owner y administrador pasan, como siempre
+- [ ] La pantalla esconde lo que la persona no puede hacer, y el servidor lo rechaza igual
+
+---
+
+### TASK-59: Una solicitud rechazada no debe bloquear la siguiente
+
+- **Cubre:** RF-10 (acceso a tiendas)
+- **Componente:** app/api/solicitudes-acceso
+- **Tipo:** corrección
+- **Estado:** pendiente
+
+**Descripción:**
+Tras un rechazo, volver a pedir acceso responde que ya hay una solicitud en curso. La persona
+queda sin forma de insistir, aunque el rechazo fuera un error o las condiciones cambiaran.
+
+**Criterio de done:**
+- [ ] Con una solicitud rechazada se puede volver a pedir
+- [ ] Una pendiente sigue bloqueando, para no llenar la bandeja del dueño
+- [ ] Quien ya tiene acceso sigue recibiendo el aviso de que lo tiene
+
+---
+
 ---
 
 ## 📊 Resumen de Fases

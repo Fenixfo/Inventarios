@@ -61,6 +61,32 @@ test.describe('Catálogo público', () => {
     expect(await insignias.count()).toBe(await tarjetas.count())
   })
 
+  test('al filtrar trae un tope y el resto llega con "Ver más"', async ({ page }) => {
+    const tarjetas = page.getByTestId('productos').locator('> div')
+    await expect(tarjetas.first()).toBeVisible()
+
+    // Se filtra por tienda para tener un listado largo detrás.
+    const selectorTienda = page.getByLabel('Tienda', { exact: true })
+    if (!(await selectorTienda.isVisible().catch(() => false))) return
+
+    const tienda = (await selectorTienda.locator('option').nth(1).getAttribute('value'))!
+    await selectorTienda.selectOption(tienda)
+    await expect(tarjetas.first()).toBeVisible()
+
+    const primeras = await tarjetas.count()
+    expect(primeras).toBeLessThanOrEqual(9)
+
+    const verMas = page.getByRole('button', { name: /ver más/i })
+    if (!(await verMas.isVisible().catch(() => false))) return
+
+    await verMas.click()
+
+    // Cada "Ver más" añade la tanda siguiente a lo que ya se veía, sin
+    // recargar el listado desde cero.
+    await expect.poll(async () => tarjetas.count()).toBeGreaterThan(primeras)
+    expect(await tarjetas.count()).toBeLessThanOrEqual(primeras + 3)
+  })
+
   test('la portada muestra unos pocos por tienda, y los filtros abren el resto', async ({
     page,
   }) => {

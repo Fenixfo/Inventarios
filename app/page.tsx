@@ -34,6 +34,10 @@ interface TiendaCatalogo {
  */
 const POR_TIENDA_EN_PORTADA = 5
 
+/** Cuántos se traen al filtrar, y cuántos añade cada "Ver más". */
+const PRIMERA_TANDA = 9
+const TANDA_SIGUIENTE = 3
+
 /**
  * Pide el catálogo y reintenta una vez si falla.
  *
@@ -60,7 +64,11 @@ async function pedirCatalogo(params: URLSearchParams) {
 export default function Catalogo() {
   const { carrito, agregarAlCarrito, tiendaDelCarrito, esDeOtraTienda, vaciarCarrito } = useCart()
   const [productos, setProductos] = useState<Producto[]>([])
+  // Cuántos hay en total con los filtros puestos: es lo que dice si queda
+  // algo por ver detrás del botón.
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [cargandoMas, setCargandoMas] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('')
   const [categorias, setCategorias] = useState<string[]>([])
@@ -76,8 +84,10 @@ export default function Catalogo() {
   // pop-up de cantidad, que sigue saliendo desde el botón del carrito.
   const [detalle, setDetalle] = useState<Producto | null>(null)
 
+  // Al cambiar de filtro se vuelve a empezar desde la primera tanda: si no,
+  // se pediría la página 3 de un listado que ahora tiene dos.
   useEffect(() => {
-    cargarProductos()
+    cargarProductos({ reiniciar: true })
   }, [categoriaFiltro, tiendaFiltro])
 
   // Los filtros se piden una sola vez y aparte de los productos: la portada
@@ -100,9 +110,18 @@ export default function Catalogo() {
     cargarFiltros()
   }, [])
 
-  const cargarProductos = async () => {
-    setLoading(true)
+  /**
+   * Trae productos del servidor.
+   *
+   * Con `reiniciar` empieza de cero; sin él añade la tanda siguiente a lo
+   * que ya se está viendo, que es lo que hace el botón "Ver más".
+   */
+  const cargarProductos = async ({ reiniciar = false } = {}) => {
+    if (reiniciar) setLoading(true)
+    else setCargandoMas(true)
     setError(null)
+
+    const desde = reiniciar ? 0 : productos.length
 
     try {
       const params = new URLSearchParams()
@@ -110,18 +129,24 @@ export default function Catalogo() {
       if (tiendaFiltro) params.set('tienda', tiendaFiltro)
 
       // Sin filtros, la portada enseña una muestra de cada tienda en vez de
-      // volcar el inventario de todas. Al filtrar se ve todo lo que cumpla,
-      // que es lo que va buscando quien filtra.
+      // volcar el inventario de todas.
       if (!categoriaFiltro && !tiendaFiltro) {
         params.set('limitePorTienda', String(POR_TIENDA_EN_PORTADA))
+      } else {
+        params.set('limite', String(reiniciar ? PRIMERA_TANDA : TANDA_SIGUIENTE))
+        params.set('desde', String(desde))
       }
 
-      setProductos(await pedirCatalogo(params))
+      const datos = await pedirCatalogo(params)
+
+      setProductos(reiniciar ? datos.productos : [...productos, ...datos.productos])
+      setTotal(datos.total)
     } catch (err: any) {
       setError(err.message)
       console.error('Error:', err)
     } finally {
       setLoading(false)
+      setCargandoMas(false)
     }
   }
 
@@ -368,8 +393,11 @@ export default function Catalogo() {
           {!loading && !error && productos.length > 0 && (
             <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
               <p className="text-sm text-gray-600">
-                {productosFiltrados.length} de {productos.length} producto
-                {productos.length !== 1 ? 's' : ''}
+                {/* Sin filtros el total es la muestra misma, así que no
+                    aporta decir "de cuántos". */}
+                {esMuestra
+                  ? `${productosFiltrados.length} producto${productosFiltrados.length !== 1 ? 's' : ''}`
+                  : `${productosFiltrados.length} de ${total} producto${total !== 1 ? 's' : ''}`}
                 {busqueda && ` para “${busqueda}”`}
               </p>
 
@@ -474,6 +502,23 @@ export default function Catalogo() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Ver más: solo al filtrar, y solo si queda algo por traer. La
+              búsqueda por nombre trabaja sobre lo ya cargado, así que
+              mientras hay texto escrito no tiene sentido pedir más. */}
+          {!loading && !esMuestra && !busqueda && productos.length < total && (
+            <div className="mt-8 text-center">
+              <button
+                onClick={() => cargarProductos()}
+                disabled={cargandoMas}
+                className="px-8 py-3 bg-white border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 disabled:text-gray-400 transition"
+              >
+                {cargandoMas
+                  ? 'Cargando...'
+                  : `Ver más (quedan ${total - productos.length})`}
+              </button>
             </div>
           )}
 

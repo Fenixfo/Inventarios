@@ -106,6 +106,15 @@ async function api(ruta: string, init?: RequestInit) {
   return { status: res.status, data, headers: res.headers }
 }
 
+/**
+ * El catálogo responde { productos, total } desde que trae las cosas por
+ * tandas. Este atajo deja las pruebas legibles.
+ */
+async function catalogo(ruta = '/api/productos/catalogo') {
+  const { status, data } = await api(ruta)
+  return { status, productos: (data.productos || []) as any[], total: data.total as number }
+}
+
 describe('autenticación de la API', () => {
   it('rechaza una ruta protegida sin token', async () => {
     const res = await fetch(`${BASE}/api/productos`)
@@ -141,7 +150,7 @@ describe('autenticación de la API', () => {
 
 describe('GET /api/productos/catalogo', () => {
   it('devuelve solo productos activos con stock disponible', async () => {
-    const { status, data } = await api('/api/productos/catalogo')
+    const { status, productos: data } = await catalogo()
 
     expect(status).toBe(200)
     expect(Array.isArray(data)).toBe(true)
@@ -160,7 +169,7 @@ describe('GET /api/productos/catalogo', () => {
   })
 
   it('no expone costo ni stock al público', async () => {
-    const { data } = await api('/api/productos/catalogo')
+    const { productos: data } = await catalogo()
 
     if (data.length > 0) {
       expect(data[0]).not.toHaveProperty('costo')
@@ -173,7 +182,7 @@ describe('GET /api/productos/catalogo', () => {
   it('solo muestra productos con imagen', async () => {
     // Una vitrina de cuadros grises no vende nada. El producto sin foto
     // sigue existiendo para facturar, pero no se expone.
-    const { data } = await api('/api/productos/catalogo')
+    const { productos: data } = await catalogo()
 
     expect(data.length).toBeGreaterThan(0)
     data.forEach((p: any) => {
@@ -198,7 +207,7 @@ describe('GET /api/productos/catalogo', () => {
   it('con limitePorTienda trae como máximo esa cantidad de cada tienda', async () => {
     // Es lo que usa la portada: una muestra de cada negocio en vez del
     // inventario completo de todos.
-    const { status, data } = await api('/api/productos/catalogo?limitePorTienda=2')
+    const { status, productos: data } = await catalogo('/api/productos/catalogo?limitePorTienda=2')
 
     expect(status).toBe(200)
 
@@ -213,8 +222,8 @@ describe('GET /api/productos/catalogo', () => {
     }
 
     // Y sin límite se traen más, si hay más.
-    const { data: todos } = await api('/api/productos/catalogo')
-    expect(todos.length).toBeGreaterThanOrEqual(data.length)
+    const { total } = await catalogo()
+    expect(total).toBeGreaterThanOrEqual(data.length)
   })
 
   it('los filtros del catálogo no dependen de lo que quepa en la portada', async () => {
@@ -226,31 +235,71 @@ describe('GET /api/productos/catalogo', () => {
     expect(Array.isArray(data.categorias)).toBe(true)
     expect(Array.isArray(data.tiendas)).toBe(true)
 
-    const { data: muestra } = await api('/api/productos/catalogo?limitePorTienda=1')
+    const { productos: muestra } = await catalogo('/api/productos/catalogo?limitePorTienda=1')
     const enMuestra = new Set(muestra.map((p: any) => p.categoria))
 
     expect(data.categorias.length).toBeGreaterThanOrEqual(enMuestra.size)
   })
 
   it('filtra por tienda', async () => {
-    const { data: todos } = await api('/api/productos/catalogo')
+    const { productos: todos } = await catalogo()
     if (todos.length === 0) return
 
     const tienda = todos[0].tienda?.id
     if (!tienda) return
 
-    const { data: filtrados } = await api(`/api/productos/catalogo?tienda=${tienda}`)
+    const { productos: filtrados } = await catalogo(`/api/productos/catalogo?tienda=${tienda}`)
 
     expect(filtrados.length).toBeGreaterThan(0)
     filtrados.forEach((p: any) => expect(p.tienda.id).toBe(tienda))
   })
 
+  it('al filtrar trae 9 y dice cuántos hay en total', async () => {
+    // Antes devolvía todo lo que cumpliera el filtro: en una tienda con diez
+    // mil productos, diez mil por el cable.
+    const { productos: todos } = await catalogo()
+    const tienda = todos[0]?.tienda?.id
+    if (!tienda) return
+
+    const { productos, total } = await catalogo(
+      `/api/productos/catalogo?tienda=${tienda}`
+    )
+
+    expect(productos.length).toBeLessThanOrEqual(9)
+    expect(total).toBeGreaterThanOrEqual(productos.length)
+  })
+
+  it('la tanda siguiente no repite lo ya traído', async () => {
+    const { productos: todos } = await catalogo()
+    const tienda = todos[0]?.tienda?.id
+    if (!tienda) return
+
+    const base = `/api/productos/catalogo?tienda=${tienda}`
+    const primera = await catalogo(`${base}&limite=9&desde=0`)
+
+    if (primera.total <= 9) return
+
+    const segunda = await catalogo(`${base}&limite=3&desde=9`)
+
+    expect(segunda.productos.length).toBeGreaterThan(0)
+    expect(segunda.productos.length).toBeLessThanOrEqual(3)
+
+    const yaVistos = new Set(primera.productos.map((p) => p.id))
+    segunda.productos.forEach((p) => expect(yaVistos.has(p.id)).toBe(false))
+  })
+
+  it('no se puede pedir el catálogo entero con un límite grande', async () => {
+    // Una URL escrita a mano no debería poder vaciar la base de una vez.
+    const { productos } = await catalogo('/api/productos/catalogo?limite=99999')
+    expect(productos.length).toBeLessThanOrEqual(60)
+  })
+
   it('filtra por categoría', async () => {
-    const { data: todos } = await api('/api/productos/catalogo')
+    const { productos: todos } = await catalogo()
     if (todos.length === 0) return
 
     const categoria = todos[0].categoria
-    const { data: filtrados } = await api(
+    const { productos: filtrados } = await catalogo(
       `/api/productos/catalogo?categoria=${encodeURIComponent(categoria)}`
     )
 
@@ -754,7 +803,7 @@ describe('precios de bodega', () => {
   it('el catálogo público no expone el precio de bodega ni el costo', async () => {
     // Es el precio al que se le vende a otro negocio: si sale en el
     // catálogo, cualquier cliente lo pide.
-    const { data } = await api('/api/productos/catalogo')
+    const { productos: data } = await catalogo()
 
     if (data.length > 0) {
       expect(data[0]).not.toHaveProperty('precioBodega')

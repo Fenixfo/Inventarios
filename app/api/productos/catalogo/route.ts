@@ -41,12 +41,24 @@ function respuestaCacheable(datos: unknown) {
   })
 }
 
+/** Lee un número de la URL, con tope para que nadie pida el catálogo entero. */
+function entero(valor: string | null, porDefecto: number, maximo: number): number {
+  const n = parseInt(valor || '', 10)
+  if (!Number.isFinite(n) || n < 0) return porDefecto
+  return Math.min(n, maximo)
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const categoria = searchParams.get('categoria')
     const tienda = searchParams.get('tienda')
     const limitePorTienda = parseInt(searchParams.get('limitePorTienda') || '', 10)
+
+    // Cuántos traer y desde dónde. El tope de 60 es para que una URL a mano
+    // no pueda pedir diez mil productos de una vez.
+    const limite = entero(searchParams.get('limite'), 9, 60)
+    const desde = entero(searchParams.get('desde'), 0, 100_000)
 
     const where: any = {
       activo: true,
@@ -92,16 +104,26 @@ export async function GET(request: NextRequest) {
         return true
       })
 
-      return respuestaCacheable(muestra)
+      // En la portada no hay "ver más": el aviso invita a filtrar.
+      return respuestaCacheable({ productos: muestra, total: muestra.length })
     }
 
-    const productos = await prisma.producto.findMany({
-      where,
-      select: SELECCION,
-      orderBy: { nombre: 'asc' },
-    })
+    // Por páginas: se traen `limite` productos y se informa del total, que es
+    // lo que le dice a la pantalla si queda algo por mostrar. Antes se
+    // devolvía todo lo que cumpliera el filtro: en una tienda con diez mil
+    // productos, eso son diez mil por el cable y en memoria del navegador.
+    const [productos, total] = await Promise.all([
+      prisma.producto.findMany({
+        where,
+        select: SELECCION,
+        orderBy: { nombre: 'asc' },
+        take: limite,
+        skip: desde,
+      }),
+      prisma.producto.count({ where }),
+    ])
 
-    return respuestaCacheable(productos)
+    return respuestaCacheable({ productos, total })
   } catch (error) {
     console.error('Error fetching catálogo:', error)
     return NextResponse.json(
