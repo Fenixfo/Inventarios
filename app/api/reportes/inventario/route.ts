@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { exigirPermiso } from '@/lib/permisos'
+import { exigirTienda } from '@/lib/permisos'
 
 export async function GET(request: NextRequest) {
   try {
-    const { error: sinPermiso } = await exigirPermiso(request, 'reportes.ver')
+    const { tiendaId, error: sinPermiso } = await exigirTienda(request, 'reportes.ver')
     if (sinPermiso) return sinPermiso
 
     const { searchParams } = new URL(request.url)
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     // dos veces la ida y vuelta a la base de datos.
     const [productos, facturasRecientes] = await Promise.all([
       prisma.producto.findMany({
-        where: { activo: true },
+        where: { activo: true, tiendaId },
         select: {
           id: true,
           sku: true,
@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
       }),
       prisma.factura.findMany({
         where: {
+          tiendaId,
           fecha: { gte: hace30Dias },
           estado: { in: estadosFiltro },
         },

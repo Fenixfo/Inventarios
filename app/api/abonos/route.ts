@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { exigirPermiso } from '@/lib/permisos'
+import { exigirTienda } from '@/lib/permisos'
 export async function POST(request: NextRequest) {
   try {
-    const { usuario, error: sinPermiso } = await exigirPermiso(request, 'facturas.crear')
+    const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, 'facturas.crear')
     if (sinPermiso) return sinPermiso
 
     const { facturaId, monto } = await request.json()
@@ -20,8 +20,10 @@ export async function POST(request: NextRequest) {
     // otra persona con solo cambiar la URL.
     const usuarioId = usuario.id
 
-    const factura = await prisma.factura.findUnique({
-      where: { id: facturaId },
+    // La factura tiene que ser de esta tienda: si no, se podría abonar a
+    // la factura de otro negocio conociendo su identificador.
+    const factura = await prisma.factura.findFirst({
+      where: { id: facturaId, tiendaId },
     })
 
     if (!factura) {

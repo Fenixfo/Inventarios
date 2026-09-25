@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { exigirPermiso } from '@/lib/permisos'
+import { exigirTienda } from '@/lib/permisos'
 export async function GET(request: NextRequest) {
   try {
-    const { error: sinPermiso } = await exigirPermiso(request, 'auditoria.ver')
+    const { tiendaId, error: sinPermiso } = await exigirTienda(request, 'auditoria.ver')
     if (sinPermiso) return sinPermiso
 
     const { searchParams } = new URL(request.url)
@@ -13,8 +13,9 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '100')
     const offset = parseInt(searchParams.get('offset') || '0')
 
-    // Construir filtros
-    const where: any = {}
+    // Construir filtros. La tienda va siempre: la auditoría de un negocio
+    // no le incumbe a los demás.
+    const where: any = { tiendaId }
     if (tabla) where.tablaAfectada = tabla
     if (registroId) where.registroId = registroId
     if (accion) where.accion = accion
@@ -69,12 +70,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { error: sinPermiso } = await exigirPermiso(request, 'auditoria.ver')
+    const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, 'auditoria.ver')
     if (sinPermiso) return sinPermiso
 
     const body = await request.json()
     const {
-      usuarioId,
       tablaAfectada,
       registroId,
       accion,
@@ -100,7 +100,11 @@ export async function POST(request: NextRequest) {
 
     const registro = await prisma.auditoria.create({
       data: {
-        usuarioId: usuarioId || null,
+        // Autor y tienda salen de la sesión, no del cuerpo: un registro de
+        // auditoría que se puede firmar con el nombre de otro no sirve
+        // para auditar nada.
+        usuarioId: usuario.id,
+        tiendaId,
         tablaAfectada,
         registroId,
         accion,

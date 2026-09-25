@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { exigirPermiso, esOwner, olvidarCache } from '@/lib/permisos'
+import { exigirTienda, esOwner, olvidarCache } from '@/lib/permisos'
 import { z } from 'zod'
 
 const asignacionSchema = z.object({
@@ -12,12 +12,14 @@ const asignacionSchema = z.object({
   esAdmin: z.boolean().optional(),
   /** Al borrar: quita todos los permisos del usuario, sin listarlos uno a uno. */
   todos: z.boolean().optional(),
-  tiendaId: z.string().uuid().optional(),
 })
 
 export async function POST(request: NextRequest) {
   try {
-    const { usuario: solicitante, error } = await exigirPermiso(request, 'usuarios.gestionar')
+    const { usuario: solicitante, tiendaId, error } = await exigirTienda(
+      request,
+      'usuarios.gestionar'
+    )
     if (error) return error
 
     const parsed = asignacionSchema.safeParse(await request.json())
@@ -26,11 +28,9 @@ export async function POST(request: NextRequest) {
     }
 
     const { usuarioIds, permisos, modo, esAdmin } = parsed.data
-    const tiendaId = parsed.data.tiendaId || solicitante.tienda?.tiendaId
 
-    if (!tiendaId) {
-      return NextResponse.json({ error: 'No hay tienda seleccionada' }, { status: 400 })
-    }
+    // La tienda es la activa de quien pide. Antes se aceptaba en el cuerpo,
+    // así que un administrador podía repartir permisos en otra tienda.
 
     // Solo el dueño nombra o retira administradores.
     if (esAdmin !== undefined && !esOwner(solicitante, tiendaId)) {
@@ -111,6 +111,7 @@ export async function POST(request: NextRequest) {
         await prisma.auditoria.create({
           data: {
             usuarioId: solicitante.id,
+            tiendaId,
             tablaAfectada: 'permisos_asignados',
             registroId: relacion.id,
             accion: 'UPDATE',
@@ -140,7 +141,10 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const { usuario: solicitante, error } = await exigirPermiso(request, 'usuarios.gestionar')
+    const { usuario: solicitante, tiendaId, error } = await exigirTienda(
+      request,
+      'usuarios.gestionar'
+    )
     if (error) return error
 
     const parsed = asignacionSchema.safeParse(await request.json())
@@ -149,10 +153,6 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { usuarioIds, permisos, todos } = parsed.data
-    const tiendaId = parsed.data.tiendaId || solicitante.tienda?.tiendaId
-    if (!tiendaId) {
-      return NextResponse.json({ error: 'No hay tienda seleccionada' }, { status: 400 })
-    }
 
     if (!todos && permisos.length === 0) {
       return NextResponse.json(
@@ -212,6 +212,7 @@ export async function DELETE(request: NextRequest) {
         await prisma.auditoria.create({
           data: {
             usuarioId: solicitante.id,
+            tiendaId,
             tablaAfectada: 'permisos_asignados',
             registroId: relacion.id,
             accion: 'DELETE',

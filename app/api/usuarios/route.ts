@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { exigirPermiso } from '@/lib/permisos'
+import { exigirTienda } from '@/lib/permisos'
 
 export async function GET(request: NextRequest) {
   try {
-    const { error } = await exigirPermiso(request, 'usuarios.ver')
+    const { tiendaId, error } = await exigirTienda(request, 'usuarios.ver')
     if (error) return error
 
+    // Solo la gente de esta tienda, y de cada una solo su acceso aquí:
+    // quien administra una tienda no tiene por qué ver el padrón completo
+    // de la plataforma ni en qué otros negocios trabaja su vendedor.
     const usuarios = await prisma.usuario.findMany({
+      where: { tiendas: { some: { tiendaId } } },
       include: {
         tiendas: {
+          where: { tiendaId },
           include: {
             tienda: { select: { id: true, nombre: true } },
             permisos: { include: { permiso: true } },

@@ -44,6 +44,10 @@ export interface Limite {
  */
 export const LIMITES: Record<string, Limite> = {
   registro: { maximo: 5, ventanaMs: 60_000 },
+  // Buscar tiendas por código: son 887 millones de combinaciones, así que
+  // probar al azar no lleva a nada, pero tampoco hace falta dejar que
+  // alguien lo intente mil veces por minuto.
+  codigo: { maximo: 20, ventanaMs: 60_000 },
   sesion: { maximo: 30, ventanaMs: 60_000 },
   publico: { maximo: 60, ventanaMs: 60_000 },
   api: { maximo: 180, ventanaMs: 60_000 },
@@ -111,6 +115,9 @@ export function grupoDeRuta(pathname: string): keyof typeof LIMITES {
   }
   if (pathname.startsWith('/api/auth/')) {
     return 'sesion'
+  }
+  if (pathname.startsWith('/api/tiendas/codigo')) {
+    return 'codigo'
   }
   if (
     pathname.startsWith('/api/productos/catalogo') ||

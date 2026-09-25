@@ -19,6 +19,9 @@ const RAIZ_API = join(process.cwd(), 'app', 'api')
 /** Cualquiera de estas llamadas cuenta como comprobación. */
 const COMPROBACIONES = [
   'exigirPermiso(',
+  // Como exigirPermiso, y además resuelve la tienda activa. Es la que usan
+  // los endpoints que tocan datos de una tienda.
+  'exigirTienda(',
   'exigirSesion(',
   'usuarioDePeticion(',
   'duenoDelToken(',
@@ -100,6 +103,49 @@ describe('endpoints protegidos', () => {
         `${declarada} está en la lista de rutas públicas pero ya no existe`
       ).toBe(true)
     }
+  })
+
+  // Los endpoints que trabajan con datos de una tienda tienen que usar
+  // `exigirTienda`: con `exigirPermiso` a secas se comprueba el permiso pero
+  // no se filtra por tienda, que fue justo el agujero de TASK-44.
+  it('los endpoints de datos resuelven la tienda activa', () => {
+    const DE_DATOS = [
+      'productos/route.ts',
+      'productos/[id]/route.ts',
+      'clientes/route.ts',
+      'clientes/[id]/route.ts',
+      'facturas/route.ts',
+      'facturas/[id]/route.ts',
+      'facturas/[id]/pdf/route.ts',
+      'abonos/route.ts',
+      'abonos/[id]/route.ts',
+      'inventario/movimientos/route.ts',
+      'reportes/inventario/route.ts',
+      'reportes/facturacion/route.ts',
+      'auditoria/route.ts',
+      'usuarios/route.ts',
+      'usuarios/permisos/route.ts',
+    ]
+
+    const sinTienda = DE_DATOS.filter((ruta) => {
+      const encontrada = rutas.find((r) => r.relativa === ruta)
+      return !encontrada || !encontrada.contenido.includes('exigirTienda(')
+    })
+
+    expect(sinTienda, 'Estas rutas no filtran por tienda').toEqual([])
+  })
+
+  it('ninguna ruta acepta la tienda desde la petición', () => {
+    // El identificador de tienda llega en una cabecera que el servidor
+    // valida; tomarlo del cuerpo o de la URL permitiría trabajar sobre la
+    // tienda de otro.
+    const sospechosas = rutas.filter(
+      (r) =>
+        /searchParams\.get\(['"]tiendaId['"]\)/.test(r.contenido) ||
+        /parsed\.data\.tiendaId/.test(r.contenido)
+    )
+
+    expect(sospechosas.map((r) => r.relativa)).toEqual([])
   })
 
   it('ningún endpoint resuelve el usuario desde un parámetro', () => {

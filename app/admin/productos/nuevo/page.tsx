@@ -6,11 +6,13 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { PermissionProtector } from '@/components/PermissionProtector'
 import { ImageUploader } from '@/components/ImageUploader'
+import { SelectorCategoria } from '@/components/Common/SelectorCategoria'
 
 interface Producto {
   id: string
   nombre: string
   sku: string
+  categoria?: string
 }
 
 export default function NuevoProductoPage() {
@@ -21,6 +23,12 @@ export default function NuevoProductoPage() {
   const [productosExistentes, setProductosExistentes] = useState<Producto[]>([])
   const [sugerenciasNombre, setSugerenciasNombre] = useState<Producto[]>([])
   const [mostrarSugerenciasNombre, setMostrarSugerenciasNombre] = useState(false)
+
+  // Las categorías salen de los productos de la tienda: no hay catálogo
+  // común, cada negocio organiza los suyos como quiera.
+  const categoriasExistentes = Array.from(
+    new Set(productosExistentes.map((p) => p.categoria).filter(Boolean) as string[])
+  ).sort((a, b) => a.localeCompare(b, 'es'))
   const [formData, setFormData] = useState({
     sku: '',
     nombre: '',
@@ -110,6 +118,14 @@ export default function NuevoProductoPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // La categoría es un campo de texto con lista, así que el navegador no
+    // la exige por su cuenta como hacía el select.
+    if (!formData.categoria.trim()) {
+      setError('Elige una categoría o escribe una nueva')
+      return
+    }
+
     setLoading(true)
     setError(null)
 
@@ -239,18 +255,14 @@ export default function NuevoProductoPage() {
 
           <div>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Categoría *</label>
-            <select
-              name="categoria"
+            <SelectorCategoria
               value={formData.categoria}
-              onChange={handleChange}
-              required
-              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-            >
-              <option value="">Selecciona categoría</option>
-              <option value="baldosa">Baldosa</option>
-              <option value="ceramica">Cerámica</option>
-              <option value="porcelanato">Porcelanato</option>
-            </select>
+              onChange={(categoria) => setFormData((prev) => ({ ...prev, categoria }))}
+              categorias={categoriasExistentes}
+            />
+            <small style={{ color: '#6b7280', fontSize: '12px' }}>
+              Escribe para buscar entre las que ya usas, o crea una nueva.
+            </small>
           </div>
 
           <div>

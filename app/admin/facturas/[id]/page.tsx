@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { enlaceWhatsApp, mensajeFactura, normalizarTelefono } from '@/lib/whatsapp'
+import { fechaYHora } from '@/lib/fechas'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
 import { apiFetch } from '@/lib/api-client'
@@ -413,7 +414,7 @@ export default function FacturaPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '20px' }}>
           <div>
             <h1 style={{ margin: '0 0 10px 0' }}>{factura.numeroFactura}</h1>
-            <p style={{ margin: '5px 0', color: '#666' }}>{new Date(factura.fecha).toLocaleDateString()}</p>
+            <p style={{ margin: '5px 0', color: '#666' }}>{fechaYHora(factura.fecha)}</p>
           </div>
           <div style={{ textAlign: 'right', display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {/* Marca por qué los precios de esta factura son distintos. */}
@@ -543,7 +544,7 @@ export default function FacturaPage() {
                 <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', fontSize: '12px', color: '#666' }}>Abonos Registrados:</p>
                 {abonos.map((abono, idx) => (
                   <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontFamily: 'monospace', fontSize: '12px' }}>
-                    <span>{new Date(abono.fecha).toLocaleDateString('es-CO')}</span>
+                    <span>{fechaYHora(abono.fecha)}</span>
                     <span>{formatearDinero(abono.monto)}</span>
                   </div>
                 ))}

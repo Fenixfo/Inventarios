@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { exigirPermiso } from '@/lib/permisos'
+import { exigirTienda } from '@/lib/permisos'
 export async function GET(request: NextRequest) {
   try {
-    const { error: sinPermiso } = await exigirPermiso(request, 'reportes.ver')
+    const { tiendaId, error: sinPermiso } = await exigirTienda(request, 'reportes.ver')
     if (sinPermiso) return sinPermiso
 
     const { searchParams } = new URL(request.url)
@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
     // Obtener facturas en el rango
     const facturas = await prisma.factura.findMany({
       where: {
+        tiendaId,
         fecha: {
           gte: desde,
           lte: hasta,

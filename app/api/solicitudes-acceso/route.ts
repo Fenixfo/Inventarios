@@ -1,20 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { exigirSesion, exigirPermiso } from '@/lib/permisos'
+import { exigirSesion, exigirTienda } from '@/lib/permisos'
+import { codigoValido, normalizarCodigo } from '@/lib/codigo-tienda'
 
 // POST: Crear nueva solicitud de acceso
 export async function POST(request: NextRequest) {
   try {
     // Aquí solo se exige sesión: quien pide acceso todavía no tiene permisos,
     // que es justamente el motivo de la solicitud.
-    const { error: sinSesion } = await exigirSesion(request)
+    const { usuario, error: sinSesion } = await exigirSesion(request)
     if (sinSesion) return sinSesion
 
-    const { usuarioId, tiendaId, email, razon } = await request.json()
+    const { codigo, razon } = await request.json()
 
-    if (!usuarioId || !tiendaId || !email) {
+    // Quién pide sale del token. Antes venían `usuarioId` y `email` en el
+    // cuerpo, así que se podía pedir acceso en nombre de otra persona.
+    const usuarioId = usuario.id
+    const email = usuario.email
+
+    if (!codigo) {
       return NextResponse.json(
-        { error: 'usuarioId, tiendaId y email son requeridos' },
+        { error: 'Indica el código de la tienda' },
+        { status: 400 }
+      )
+    }
+
+    const limpio = normalizarCodigo(String(codigo))
+
+    if (!codigoValido(limpio)) {
+      return NextResponse.json(
+        { error: 'El código son 6 caracteres, sin la letra O ni el número 0' },
+        { status: 400 }
+      )
+    }
+
+    // La tienda se resuelve por el código, no por un identificador que
+    // venga en la petición.
+    const tienda = await prisma.tienda.findFirst({
+      where: { codigo: limpio, activo: true },
+      select: { id: true, nombre: true },
+    })
+
+    if (!tienda) {
+      return NextResponse.json(
+        { error: 'No hay ninguna tienda con ese código' },
+        { status: 404 }
+      )
+    }
+
+    const tiendaId = tienda.id
+
+    const yaTieneAcceso = await prisma.usuarioTienda.findUnique({
+      where: { usuarioId_tiendaId: { usuarioId, tiendaId } },
+      select: { id: true },
+    })
+
+    if (yaTieneAcceso) {
+      return NextResponse.json(
+        { error: `Ya tienes acceso a ${tienda.nombre}` },
         { status: 400 }
       )
     }
@@ -75,14 +118,14 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Ver las solicitudes de otros sí requiere el permiso del módulo.
-    const { error: sinPermiso } = await exigirPermiso(request, 'solicitudes-acceso')
+    const { tiendaId, error: sinPermiso } = await exigirTienda(request, 'solicitudes-acceso')
     if (sinPermiso) return sinPermiso
 
-    const tiendaId = request.nextUrl.searchParams.get('tiendaId')
     const estado = request.nextUrl.searchParams.get('estado') || 'pendiente'
 
-    const where: any = {}
-    if (tiendaId) where.tiendaId = tiendaId
+    // La tienda sale de la sesión. Antes venía como parámetro, así que se
+    // podían leer las solicitudes de cualquier otra tienda.
+    const where: any = { tiendaId }
     if (estado) where.estado = estado
 
     const solicitudes = await prisma.solicitudAcceso.findMany({

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { exigirPermiso } from '@/lib/permisos'
+import { exigirTienda } from '@/lib/permisos'
 export async function GET(request: NextRequest) {
   try {
-    const { error: sinPermiso } = await exigirPermiso(request, ['productos.ver', 'facturas.crear'])
+    const { tiendaId, error: sinPermiso } = await exigirTienda(request, [
+      'productos.ver',
+      'facturas.crear',
+    ])
     if (sinPermiso) return sinPermiso
 
     const { searchParams } = new URL(request.url)
@@ -13,14 +16,15 @@ export async function GET(request: NextRequest) {
       const productos = await prisma.producto.findMany({
         where: {
           sku: sku,
-          activo: true
+          activo: true,
+          tiendaId,
         }
       })
       return NextResponse.json(productos)
     }
 
     const productos = await prisma.producto.findMany({
-      where: { activo: true },
+      where: { activo: true, tiendaId },
       orderBy: { nombre: 'asc' },
     })
     return NextResponse.json(productos)
@@ -34,12 +38,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { error: sinPermiso } = await exigirPermiso(request, 'productos.crear')
+    const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(
+      request,
+      'productos.crear'
+    )
     if (sinPermiso) return sinPermiso
 
     const data = await request.json()
     const producto = await prisma.producto.create({
       data: {
+        // La tienda sale de la sesión, no del cuerpo: si viniera en la
+        // petición, cualquiera podría meter productos en otra tienda.
+        tiendaId,
+        createdBy: usuario.id,
         sku: data.sku,
         nombre: data.nombre,
         categoria: data.categoria,
@@ -75,7 +86,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { error: sinPermiso } = await exigirPermiso(request, 'productos.editar')
+    const { tiendaId, error: sinPermiso } = await exigirTienda(request, 'productos.editar')
     if (sinPermiso) return sinPermiso
 
     const data = await request.json()
@@ -86,6 +97,17 @@ export async function PUT(request: NextRequest) {
         { error: 'ID is required' },
         { status: 400 }
       )
+    }
+
+    // Se comprueba que el producto sea de la tienda activa antes de tocarlo:
+    // el identificador viaja en el cuerpo y podría ser de otra tienda.
+    const propio = await prisma.producto.findFirst({
+      where: { id, tiendaId },
+      select: { id: true },
+    })
+
+    if (!propio) {
+      return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 })
     }
 
     const updateData: any = {

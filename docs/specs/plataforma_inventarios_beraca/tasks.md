@@ -1600,6 +1600,311 @@ El inicio de sesión va aparte del registro porque toda la tienda puede salir po
 
 **Pendiente:** borrar las tablas del modelo viejo (`roles_personalizados`, `permisos_modulos`,
 `usuarios_roles` y sus dos puentes). El SQL está en `docs/sql/limpiar_modelo_roles.sql`.
+*Ejecutado el 2026-09-23; los modelos también se quitaron de `schema.prisma`.*
+
+---
+
+## 🏪 Fase 13 — Varias tiendas de verdad (TASK-44 a 48)
+
+Hoy la aplicación se comporta como si solo existiera Beraca: ningún endpoint filtra por tienda,
+y la configuración (nombre, logo, NIT, WhatsApp) es una sola para todo el sistema. El objetivo de
+esta fase es que cualquiera pueda crear su tienda y trabajar aislado de las demás.
+
+**Estado al empezar (2026-09-24):**
+
+| Tabla | Filas | Con `tienda_id` |
+|---|---:|---:|
+| productos | 185 | 168 |
+| clientes | 3 | 0 |
+| facturas | 26 | 0 |
+
+Respaldo previo: `backups/backup_2026-09-24_1341.json` (441 registros).
+
+**Decisiones acordadas con el dueño:**
+
+| Tema | Decisión |
+|---|---|
+| Pedir acceso | Por **código de tienda** de 6 caracteres, no buscando por nombre |
+| Directorio de tiendas | **No existe**: sin el código no se puede pedir acceso |
+| Catálogo público `/` | Salen **todas** las tiendas; cada dueño elige si la suya es pública o privada |
+| Tiendas por persona | **Una**. Varias quedarán para planes de pago más adelante |
+| Quien crea la tienda | Queda como **dueño**, con todo el acceso y sin que nadie se lo pueda retirar |
+
+---
+
+### TASK-44: Aislar los datos por tienda
+
+- **Cubre:** RNF-3 (seguridad), base de todo lo demás de esta fase
+- **Componente:** lib/permisos.ts, todos los endpoints de datos
+- **Tipo:** seguridad
+- **Estado:** completada (2026-09-24)
+
+**Descripción:**
+Ningún endpoint filtra por `tiendaId` y los clientes y facturas ni siquiera lo tienen guardado.
+La segunda tienda que se cree vería los productos, clientes y facturas de Beraca.
+
+**Tienda activa:** el cliente la manda en una cabecera `x-tienda-id`; el servidor **comprueba que
+el usuario pertenezca a esa tienda** antes de usarla y, si no, cae en la primera. La cabecera es
+una preferencia, nunca una credencial.
+
+**Criterio de done:**
+- [x] `usuarioDePeticion` resuelve la tienda activa desde la cabecera, validando pertenencia
+- [x] Productos, clientes, facturas, abonos, inventario, reportes, auditoría y usuarios filtran por ella
+- [x] Todo lo que se crea guarda su `tiendaId`
+- [x] Relleno de los clientes y facturas existentes, que son todos de Beraca
+- [x] Prueba de integración: un usuario de la tienda A no ve nada de la tienda B
+
+**SQL:** `docs/sql/aislar_por_tienda.sql`, ejecutado el 2026-09-24.
+
+**Lo que apareció por el camino:**
+
+| Hallazgo | Riesgo | Solución |
+|---|---|---|
+| `numero_factura` era único en toda la base | La segunda tienda que facturara un día no podría emitir | Único por `(tienda_id, numero_factura)`; el consecutivo se cuenta por tienda |
+| `usuarios/permisos` aceptaba `tiendaId` en el cuerpo | Un administrador repartía permisos en otra tienda | La tienda sale de la sesión |
+| `solicitudes-acceso` aceptaba `tiendaId` por URL | Leer las solicitudes de cualquier tienda | Íd. |
+| `solicitudes-acceso/[id]` aceptaba `adminId` | Firmar la aprobación con el nombre de otro | Íd. |
+| `inventario/movimientos` y `facturas` aceptaban el autor | Atribuirle un movimiento o una factura a otra persona | Íd. |
+| El listado de usuarios mostraba el padrón completo | Ver a toda la gente de la plataforma y en qué otros negocios trabaja | Solo la gente de la tienda activa |
+
+`DROP CONSTRAINT` no quitaba el índice único de `numero_factura`: Prisma lo creó como índice,
+no como restricción, y hacía falta `DROP INDEX`. Lo detectó la prueba de integración.
+
+**Pendiente relacionado:** no existe la acción de *sacar a alguien de la tienda*. Hoy se le
+pueden quitar todos los permisos, pero el vínculo con la tienda se queda y la persona sigue
+apareciendo en el listado. Se decidirá en TASK-48.
+
+---
+
+### TASK-45: Configuración por tienda
+
+- **Cubre:** RF-9 (configuración)
+- **Componente:** prisma/schema.prisma, app/api/configuracion
+- **Tipo:** refactor
+- **Estado:** completada (2026-09-24)
+
+**Descripción:**
+`configuracion.clave` es única en toda la base: hay una sola fila `nombre_empresa` para el sistema
+entero. Con varias tiendas, cada una necesita la suya.
+
+`Tienda.nombre` pasa a ser **el** nombre de la tienda y `nombre_empresa` desaparece de la
+configuración: dos fuentes para el mismo dato terminan contradiciéndose.
+
+**Criterio de done:**
+- [x] `configuracion` gana `tienda_id`; la unicidad pasa a `(tienda_id, clave)`
+- [x] Las filas actuales quedan asignadas a Beraca
+- [x] `/api/configuracion` lee y escribe solo la de la tienda activa
+- [x] El PDF y el catálogo toman el nombre y el logo de la tienda que corresponde
+
+**SQL:** `docs/sql/configuracion_por_tienda.sql`, ejecutado el 2026-09-24.
+
+De paso se resolvió el "No autorizado" que salía como nombre de la empresa en las facturas: era
+un mensaje de error que en algún momento quedó guardado en `nombre_empresa`. Esa clave ya no
+existe; el nombre sale de `tiendas.nombre`.
+
+`/api/configuracion/publica` acepta `?tienda=<id>` y, sin parámetro, responde por la tienda más
+antigua — la del catálogo de la portada. Con TASK-49 el parámetro pasará a ser lo normal.
+
+---
+
+### TASK-46: Código de tienda y solicitudes por código
+
+- **Cubre:** RF-10 (acceso a tiendas)
+- **Componente:** prisma/schema.prisma, app/api/solicitudes-acceso, app/request-access
+- **Tipo:** feature
+- **Estado:** completada (2026-09-24)
+
+**Descripción:**
+Para pedir acceso ya no se busca la tienda en una lista: el dueño comparte un código de 6
+caracteres y quien lo tenga puede solicitar entrar. Así no hace falta publicar un directorio con
+todos los negocios registrados.
+
+**El código:** 6 caracteres en mayúscula, de un alfabeto sin caracteres que se confundan al
+dictarlos por teléfono (sin 0/O ni 1/I/L). Son 31⁶ ≈ 887 millones de combinaciones, así que
+probar códigos al azar no lleva a ningún lado; aun así la consulta va limitada por IP.
+
+**Criterio de done:**
+- [x] `tiendas` gana `codigo` único de 6 caracteres, generado al crear
+- [x] Código visible para el dueño y los administradores, con botón de copiar
+- [x] `GET /api/tiendas/codigo/:codigo` devuelve solo el nombre y la ciudad, para confirmar antes de pedir
+- [x] La solicitud se crea con el código, no con el id de la tienda
+- [x] `GET /api/tiendas` deja de exponer la lista completa de tiendas: ahora devuelve las del usuario
+- [x] `POST /api/solicitudes-acceso` toma el usuario del token y no del cuerpo
+
+**SQL:** `docs/sql/codigo_de_tienda.sql`, ejecutado el 2026-09-24. Beraca quedó con el código
+`77BD6D`.
+
+`tiendas.nombre` dejó de ser único: dos dueños distintos pueden tener negocios que se llamen
+igual, y para distinguirlos está el código.
+
+Se eliminó `/api/tiendas/crear`, que exigía `configuracion.editar` — un permiso que quien acaba
+de registrarse nunca tiene, así que no servía para crear la primera tienda. Su reemplazo es
+TASK-47.
+
+---
+
+### TASK-47: Crear tienda
+
+- **Cubre:** RF-10 (alta de tiendas)
+- **Componente:** app/api/tiendas, app/tiendas/nueva
+- **Tipo:** feature
+- **Estado:** completada (2026-09-24)
+
+**Descripción:**
+Quien se registra y no tiene tienda elige entre crear la suya o pedir acceso con un código.
+Quien la crea queda de dueño.
+
+El formulario pide lo mismo que la configuración: nombre, eslogan, NIT, dirección, teléfono,
+correo, ciudad, logo y WhatsApp de pedidos. Solo el nombre es obligatorio; el resto se completa
+después.
+
+**Límite:** una tienda por persona. Es lo que abre la puerta a los planes de pago más adelante.
+
+**Criterio de done:**
+- [x] `POST /api/tiendas/crear` exige sesión, no permisos: quien se acaba de registrar no tiene ninguno
+- [x] En una transacción: tienda + acceso con `esOwner` + configuración inicial
+- [x] Rechaza con mensaje claro a quien ya tiene una tienda propia
+- [x] El endpoint anterior, que exigía `configuracion.editar`, se reescribió entero
+- [x] Al terminar, la tienda nueva queda como activa
+
+**SQL:** `docs/sql/crear_tienda.sql`, ejecutado el 2026-09-24.
+
+**Los dos topes:** una tienda propia por persona, contada sobre quién es dueño —trabajar en
+tiendas de otros no gasta el cupo—, y diez al día por IP, que se guarda al crear la tienda.
+El de IP es diario y no absoluto: en un negocio o una casa todos salen por la misma, y un tope
+de por vida dejaría fuera al segundo dueño legítimo.
+
+**Hallazgo:** `usuario.tiendas` se leía sin orden explícito, así que "la primera tienda" la
+decidía la base y podía cambiar entre peticiones. Con una tienda daba igual; con dos, alguien
+vería sus datos alternarse sin tocar nada. Ahora van por fecha de creación.
+
+---
+
+### TASK-48: Menú de tiendas y pantalla de bienvenida
+
+- **Cubre:** RF-10, usabilidad
+- **Componente:** components/Layout/MenuTiendas.tsx, app/admin/layout.tsx, app/admin/usuarios
+- **Tipo:** feature
+- **Estado:** completada (2026-09-24)
+
+**Descripción:**
+En la cabecera, junto a cerrar sesión, un menú con las tiendas de la persona, marcando la activa
+y qué es en cada una —puede ser dueña en una y vendedora en otra—, más los accesos para crear
+una tienda o pedir acceso con un código.
+
+Quien entra sin ninguna tienda ve esas dos opciones en vez de la pantalla actual de solicitud.
+
+**Criterio de done:**
+- [x] Menú "Tiendas" con la activa marcada y el nivel de cada una
+- [x] Cambiar de tienda recarga el panel con los datos de esa tienda
+- [x] Pantalla de bienvenida con las dos opciones para quien no tiene ninguna
+- [x] Funciona en móvil, igual que el resto del panel
+- [x] Sacar a alguien de la tienda, con las mismas reglas que los permisos
+
+**Sacar de la tienda** (`DELETE /api/usuarios/acceso`): quita el vínculo con el negocio, no la
+cuenta — esa es de la persona y puede seguir trabajando en otras tiendas. Es distinto de
+quitarle todos los permisos, que deja a alguien dentro pero sin poder abrir nada, y sirve para
+quien está de vacaciones o en revisión.
+
+Reglas: al dueño no lo saca nadie; a un administrador solo el dueño; nadie se saca a sí mismo
+desde ahí, para eso está TASK-50.
+
+**Detalle que habría roto el reingreso:** al sacar a alguien se borran también sus solicitudes
+anteriores. Si quedaran, al pedir acceso otra vez el sistema vería una ya resuelta y la
+rechazaría, así que la persona no podría volver nunca.
+
+---
+
+### TASK-50: Salirse de una tienda
+
+- **Cubre:** RF-10 (acceso a tiendas)
+- **Componente:** app/api/tiendas/salir, components/Layout/MenuTiendas.tsx
+- **Tipo:** feature
+- **Estado:** completada (2026-09-24)
+
+**Descripción:**
+Quien no es dueño puede salirse de una tienda por su cuenta, desde el menú de tiendas. No hace
+falta ningún permiso: nadie necesita autorización para dejar de trabajar en un sitio.
+
+El dueño no puede salirse: la tienda quedaría sin nadie que la administre ni reparta accesos.
+
+**Criterio de done:**
+- [x] `DELETE /api/tiendas/salir` exige sesión y nada más
+- [x] La tienda de la que se sale es una de las del usuario, no la de la cabecera
+- [x] El dueño recibe 409 con el motivo
+- [x] Se borran las solicitudes anteriores, para poder volver con el código
+- [x] Diálogo que avisa de qué se pierde y de que lo facturado se queda en la tienda
+
+---
+
+### TASK-49: Catálogo público de varias tiendas
+
+- **Cubre:** RF-2 (catálogo)
+- **Componente:** app/page.tsx, app/api/productos/catalogo, hooks/useCart.ts
+- **Tipo:** feature
+- **Estado:** completada (2026-09-24)
+
+**Descripción:**
+El catálogo pasa a mostrar los productos de todas las tiendas que se hayan marcado como públicas.
+Cada dueño decide si la suya aparece.
+
+Previsto para más adelante, según lo hablado: un carrusel por tienda, con un número limitado de
+productos y un "ver más" para entrar al catálogo completo de esa tienda, mostrando solo los
+productos que tengan imagen.
+
+**Criterio de done:**
+- [x] `tiendas` gana `publica`, que el dueño cambia desde configuración
+- [x] El catálogo excluye los productos de las tiendas privadas
+- [x] Los productos del catálogo indican a qué tienda pertenecen
+- [x] Filtro por tienda, que solo aparece cuando hay más de una
+- [x] Un pedido es de una sola tienda
+
+**SQL:** `docs/sql/catalogo_multitienda.sql`, ejecutado el 2026-09-24.
+
+**Lo que apareció al hacerlo: el carrito.** Cada tienda recibe los pedidos en su propio
+WhatsApp, así que un carrito con productos de dos negocios no se podría enviar a ninguna parte.
+Se resolvió con un pedido por tienda: al añadir algo de otra, un aviso explica de quién es el
+pedido actual y ofrece empezar uno nuevo. El mensaje de WhatsApp lleva el nombre de la tienda,
+por si el número lo atiende alguien con más de un negocio.
+
+**Pendiente para más adelante,** según lo hablado: carrusel por tienda con un número limitado
+de productos y un "ver más", mostrando solo los que tengan imagen.
+
+---
+
+### TASK-51: Una sola barra superior en el panel
+
+- **Cubre:** usabilidad
+- **Componente:** app/admin/layout.tsx, components/Layout/MenuTiendas.tsx
+- **Tipo:** mejora
+- **Estado:** completada (2026-09-24)
+
+**Descripción:**
+Con el selector de tiendas quedaron dos barras superiores: la cabecera general, con el correo y
+el cerrar sesión, y la del panel. El correo y el cerrar sesión se movieron al menú de la tienda
+—son cosas de la cuenta, no de la pantalla— y la cabecera desapareció del panel.
+
+También se quitaron del menú lateral, donde quedaban dos botones de salir a la vista al mismo
+tiempo. El enlace al catálogo sigue ahí arriba.
+
+---
+
+### TASK-52: Entrar a la tienda donde se puede trabajar
+
+- **Cubre:** usabilidad, RNF-3
+- **Componente:** lib/permisos.ts
+- **Tipo:** mejora
+- **Estado:** completada (2026-09-24)
+
+**Descripción:**
+Sin cabecera de tienda se entraba a la más antigua. Alguien que estuviera en una tienda sin
+permisos y fuera dueño de otra veía "no tienes permiso" en todas las pantallas, con su propia
+tienda a un clic y sin ninguna pista de que podía cambiarse. Apareció con la cuenta de pruebas,
+a la que le quitaron los permisos en Beraca.
+
+Ahora, sin cabecera, se entra donde la persona puede trabajar: dueño antes que administrador,
+administrador antes que permisos sueltos, y a igualdad de nivel la más antigua, para que la
+elección no cambie entre peticiones. La cabecera sigue mandando cuando viene.
 
 ---
 

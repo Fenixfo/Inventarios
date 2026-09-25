@@ -42,13 +42,20 @@ export function WhatsAppButton({ carrito, onPedidoEnviado }: WhatsAppButtonProps
   useEffect(() => {
     if (!modalAbierto) return
 
+    // El pedido va al WhatsApp de la tienda que vende, no a uno común: en
+    // el catálogo conviven varias y cada una atiende los suyos.
+    const tiendaId = carrito.items[0]?.tiendaId
+    const url = tiendaId
+      ? `/api/configuracion/publica?tienda=${encodeURIComponent(tiendaId)}`
+      : '/api/configuracion/publica'
+
     setCargandoConfig(true)
-    fetch('/api/configuracion/publica')
+    fetch(url)
       .then((res) => (res.ok ? res.json() : null))
       .then((config) => setDestinoConfigurado(config?.whatsappPedidos || null))
       .catch(() => setDestinoConfigurado(null))
       .finally(() => setCargandoConfig(false))
-  }, [modalAbierto])
+  }, [modalAbierto, carrito.items])
 
   const formatearPrecio = (precio: number) =>
     new Intl.NumberFormat('es-CO', {
@@ -62,6 +69,9 @@ export function WhatsAppButton({ carrito, onPedidoEnviado }: WhatsAppButtonProps
     const lineas = [
       '*NUEVO PEDIDO*',
       '',
+      // La tienda va en el mensaje por si el número lo atiende alguien que
+      // maneja más de un negocio.
+      ...(carrito.items[0]?.tiendaNombre ? [`*Tienda:* ${carrito.items[0].tiendaNombre}`] : []),
       `*Cliente:* ${nombreCliente || 'No especificado'}`,
       `*Teléfono:* ${telefonoCliente}`,
       '',

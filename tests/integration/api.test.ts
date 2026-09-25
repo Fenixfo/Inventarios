@@ -12,6 +12,7 @@ const BASE = process.env.TEST_BASE_URL || 'http://localhost:3000'
 const MARCA = `TEST-${new Date().toISOString().slice(0, 16)}`
 
 let productoId: string
+let tiendaId: string
 let HEADERS: Record<string, string>
 
 // Se inicia sesión de verdad: los endpoints resuelven al usuario desde el
@@ -49,8 +50,31 @@ beforeAll(async () => {
 
   const sufijo = Date.now().toString().slice(-8)
 
+  // El producto se crea en la tienda de la cuenta de pruebas: desde que los
+  // datos están aislados, uno sin tienda no lo vería ningún endpoint.
+  //
+  // Se elige la misma que elegiría el servidor sin cabecera: aquella donde
+  // la cuenta puede trabajar. La de pruebas está en varias tiendas y en
+  // algunas no tiene permisos, así que quedarse con la primera que devuelva
+  // la base haría fallar todo con 403.
+  const accesos = await prisma.usuarioTienda.findMany({
+    where: { usuario: { email: process.env.E2E_USER } },
+    include: { permisos: true },
+    orderBy: { createdAt: 'asc' },
+  })
+
+  if (accesos.length === 0) {
+    throw new Error(`${process.env.E2E_USER} no tiene acceso a ninguna tienda`)
+  }
+
+  const capacidad = (a: (typeof accesos)[number]) =>
+    a.esOwner ? 1000 : a.esAdmin ? 500 : a.permisos.length
+
+  tiendaId = [...accesos].sort((x, y) => capacidad(y) - capacidad(x))[0].tiendaId
+
   const producto = await prisma.producto.create({
     data: {
+      tiendaId,
       sku: `TEST-${sufijo}`,
       nombre: `${MARCA} producto de integración`,
       categoria: 'ceramica',
@@ -603,6 +627,52 @@ describe('GET/PUT /api/configuracion', () => {
     expect(status).toBe(200)
     expect(data).toHaveProperty('config')
   })
+
+  it('el nombre sale de la tienda, no de una clave de configuración', async () => {
+    // Tenerlo en los dos sitios fue lo que dejó un mensaje de error
+    // guardado como nombre de la empresa en las facturas.
+    const { data } = await api('/api/configuracion')
+    const tienda = await prisma.tienda.findUnique({
+      where: { id: tiendaId },
+      select: { nombre: true },
+    })
+
+    expect(data.config.nombre_empresa).toBe(tienda!.nombre)
+
+    const enConfiguracion = await prisma.configuracion.count({
+      where: { clave: 'nombre_empresa' },
+    })
+    expect(enConfiguracion).toBe(0)
+  })
+
+  it('guardar el nombre actualiza la tienda', async () => {
+    // Se vuelve a guardar el mismo nombre: comprueba el camino de escritura
+    // sin cambiarle el nombre a la tienda de verdad.
+    const antes = await prisma.tienda.findUnique({
+      where: { id: tiendaId },
+      select: { nombre: true },
+    })
+
+    const { status } = await api('/api/configuracion', {
+      method: 'PUT',
+      body: JSON.stringify({ nombre_empresa: antes!.nombre }),
+    })
+
+    expect(status).toBe(200)
+
+    const despues = await prisma.tienda.findUnique({
+      where: { id: tiendaId },
+      select: { nombre: true },
+    })
+    expect(despues!.nombre).toBe(antes!.nombre)
+  })
+
+  it('cada fila de configuración pertenece a una tienda', async () => {
+    const huerfanas = await prisma.$queryRawUnsafe<{ total: bigint }[]>(
+      'select count(*) as total from configuracion where tienda_id is null'
+    )
+    expect(Number(huerfanas[0].total)).toBe(0)
+  })
 })
 
 describe('precios de bodega', () => {
@@ -794,8 +864,10 @@ describe('asignar y quitar permisos', () => {
   })
 
   it('no permite tocar al dueño de la tienda', async () => {
+    // El dueño de *esta* tienda: el de otra no tiene acceso aquí, así que
+    // la petición no haría nada y el test no probaría la regla.
     const dueno = await prisma.usuarioTienda.findFirst({
-      where: { esOwner: true },
+      where: { tiendaId, esOwner: true },
       select: { usuarioId: true },
     })
 
@@ -819,6 +891,480 @@ describe('asignar y quitar permisos', () => {
     })
 
     expect(status).toBe(400)
+  })
+})
+
+describe('aislamiento entre tiendas', () => {
+  // Se monta una tienda aparte con sus propios datos y se comprueba que la
+  // sesión de pruebas, que no pertenece a ella, no ve nada de lo suyo.
+  let tiendaAjenaId: string
+  let productoAjenoId: string
+  let clienteAjenoId: string
+  let facturaAjenaId: string
+
+  // Nombre fijo y no uno con marca de tiempo: si cambiara en cada
+  // ejecución, la base acabaría llena de tiendas de prueba.
+  const NOMBRE_TIENDA_AJENA = 'TEST tienda ajena (aislamiento)'
+
+  beforeAll(async () => {
+    const existente = await prisma.tienda.findFirst({
+      where: { nombre: NOMBRE_TIENDA_AJENA },
+      select: { id: true },
+    })
+
+    const tienda =
+      existente ||
+      (await prisma.tienda.create({
+        data: {
+          nombre: NOMBRE_TIENDA_AJENA,
+          descripcion: 'Creada por la suite de integración para probar el aislamiento',
+          ciudad: 'Ninguna',
+        },
+        select: { id: true },
+      }))
+
+    tiendaAjenaId = tienda.id
+
+    const producto = await prisma.producto.create({
+      data: {
+        tiendaId: tiendaAjenaId,
+        sku: `AJENO-${Date.now().toString().slice(-8)}`,
+        nombre: `${MARCA} producto ajeno`,
+        categoria: 'ceramica',
+        precioUnitario: 99000,
+        stockActual: 500,
+      },
+      select: { id: true },
+    })
+    productoAjenoId = producto.id
+
+    const cliente = await prisma.cliente.create({
+      data: { tiendaId: tiendaAjenaId, nombre: `${MARCA} cliente ajeno` },
+      select: { id: true },
+    })
+    clienteAjenoId = cliente.id
+
+    const factura = await prisma.factura.create({
+      data: {
+        tiendaId: tiendaAjenaId,
+        numeroFactura: `AJENA-${Date.now().toString().slice(-8)}`,
+        clienteId: clienteAjenoId,
+        subtotal: 99000,
+        total: 99000,
+      },
+      select: { id: true },
+    })
+    facturaAjenaId = factura.id
+  }, 60000)
+
+  it('el listado de productos no trae los de otra tienda', async () => {
+    const { data } = await api('/api/productos')
+    expect(data.some((p: any) => p.id === productoAjenoId)).toBe(false)
+  })
+
+  it('un producto de otra tienda responde 404', async () => {
+    const { status } = await api(`/api/productos/${productoAjenoId}`)
+    expect(status).toBe(404)
+  })
+
+  it('el listado de clientes no trae los de otra tienda', async () => {
+    const { data } = await api('/api/clientes')
+    expect(data.some((c: any) => c.id === clienteAjenoId)).toBe(false)
+  })
+
+  it('el listado de facturas no trae las de otra tienda', async () => {
+    const { data } = await api('/api/facturas')
+    expect(data.some((f: any) => f.id === facturaAjenaId)).toBe(false)
+  })
+
+  it('una factura de otra tienda responde 404', async () => {
+    const { status } = await api(`/api/facturas/${facturaAjenaId}`)
+    expect(status).toBe(404)
+  })
+
+  it('el PDF de una factura ajena responde 404', async () => {
+    const { status } = await api(`/api/facturas/${facturaAjenaId}/pdf`)
+    expect(status).toBe(404)
+  })
+
+  // Lo esencial: la cabecera es una preferencia, no una credencial. Pedir
+  // una tienda a la que no se pertenece no da acceso a sus datos.
+  it('pedir una tienda ajena en la cabecera no da acceso a sus datos', async () => {
+    const { status, data } = await api('/api/productos', {
+      headers: { 'x-tienda-id': tiendaAjenaId },
+    })
+
+    expect(status).toBe(200)
+    expect(data.some((p: any) => p.id === productoAjenoId)).toBe(false)
+    // Y se sigue viendo la tienda propia, no una lista vacía.
+    expect(data.some((p: any) => p.id === productoId)).toBe(true)
+  })
+
+  it('no se puede mover el stock de un producto ajeno', async () => {
+    const { status } = await api('/api/inventario/movimientos', {
+      method: 'POST',
+      body: JSON.stringify({
+        productoId: productoAjenoId,
+        tipo: 'entrada',
+        cantidad: 10,
+        motivo: `${MARCA} intento contra tienda ajena`,
+      }),
+    })
+
+    expect(status).toBe(404)
+  })
+
+  it('no se puede abonar a una factura ajena', async () => {
+    const { status } = await api('/api/abonos', {
+      method: 'POST',
+      body: JSON.stringify({ facturaId: facturaAjenaId, monto: 1000 }),
+    })
+
+    expect(status).toBe(404)
+  })
+
+  it('la configuración de otra tienda no se ve ni se mezcla', async () => {
+    // La misma clave en dos tiendas con valores distintos: cada una debe
+    // leer la suya.
+    await prisma.configuracion.upsert({
+      where: { tiendaId_clave: { tiendaId: tiendaAjenaId, clave: 'whatsapp_pedidos' } },
+      create: { tiendaId: tiendaAjenaId, clave: 'whatsapp_pedidos', valor: '573009999999' },
+      update: { valor: '573009999999' },
+    })
+
+    const { data } = await api('/api/configuracion')
+    expect(data.config.whatsapp_pedidos).not.toBe('573009999999')
+  })
+
+  it('dos tiendas pueden tener el mismo número de factura', async () => {
+    // Antes el número era único en toda la base y la segunda tienda que
+    // facturara ese día chocaba contra el número de la primera.
+    const numero = `DUP-${Date.now().toString().slice(-8)}`
+
+    const propia = await prisma.factura.create({
+      data: { tiendaId, numeroFactura: numero, subtotal: 1000, total: 1000 },
+      select: { id: true },
+    })
+
+    const ajena = await prisma.factura.create({
+      data: { tiendaId: tiendaAjenaId, numeroFactura: numero, subtotal: 1000, total: 1000 },
+      select: { id: true },
+    })
+
+    expect(propia.id).not.toBe(ajena.id)
+  })
+})
+
+describe('código de tienda', () => {
+  let codigoPropio: string
+
+  beforeAll(async () => {
+    const tienda = await prisma.tienda.findUnique({
+      where: { id: tiendaId },
+      select: { codigo: true },
+    })
+    codigoPropio = tienda!.codigo
+  })
+
+  it('encuentra la tienda por su código', async () => {
+    const { status, data } = await api(`/api/tiendas/codigo/${codigoPropio}`)
+
+    expect(status).toBe(200)
+    expect(data.id).toBe(tiendaId)
+    expect(data.yaTieneAcceso).toBe(true)
+  })
+
+  it('acepta el código en minúsculas y con espacios', async () => {
+    // Se dicta por teléfono y la gente lo escribe como puede.
+    const comoLoEscriben = `${codigoPropio.slice(0, 3).toLowerCase()} ${codigoPropio.slice(3).toLowerCase()}`
+    const { status, data } = await api(
+      `/api/tiendas/codigo/${encodeURIComponent(comoLoEscriben)}`
+    )
+
+    expect(status).toBe(200)
+    expect(data.id).toBe(tiendaId)
+  })
+
+  it('no devuelve datos de la tienda más allá del nombre y la ciudad', async () => {
+    const { data } = await api(`/api/tiendas/codigo/${codigoPropio}`)
+
+    expect(data).not.toHaveProperty('codigo')
+    expect(data).not.toHaveProperty('descripcion')
+  })
+
+  it('rechaza un código con formato inválido', async () => {
+    const { status } = await api('/api/tiendas/codigo/AB3K9O') // lleva la letra O
+    expect(status).toBe(400)
+  })
+
+  it('responde 404 con un código que no existe', async () => {
+    const { status } = await api('/api/tiendas/codigo/ZZZZZZ')
+    expect(status).toBe(404)
+  })
+
+  it('el listado de tiendas solo trae las mías', async () => {
+    const { status, data } = await api('/api/tiendas')
+
+    expect(status).toBe(200)
+    expect(data.some((t: any) => t.id === tiendaId)).toBe(true)
+
+    const mias = await prisma.usuarioTienda.count({
+      where: { usuario: { email: process.env.E2E_USER } },
+    })
+    expect(data.length).toBe(mias)
+  })
+
+  it('pedir acceso a una tienda en la que ya se está no crea nada', async () => {
+    const { status, data } = await api('/api/solicitudes-acceso', {
+      method: 'POST',
+      body: JSON.stringify({ codigo: codigoPropio, razon: `${MARCA} prueba` }),
+    })
+
+    expect(status).toBe(400)
+    expect(String(data.error)).toMatch(/ya tienes acceso/i)
+  })
+
+  it('no se puede pedir acceso con un código inexistente', async () => {
+    const { status } = await api('/api/solicitudes-acceso', {
+      method: 'POST',
+      body: JSON.stringify({ codigo: 'ZZZZZZ', razon: 'prueba' }),
+    })
+
+    expect(status).toBe(404)
+  })
+
+  it('la solicitud se registra a nombre de quien la envía, no de quien digan', async () => {
+    const ajena = await prisma.tienda.findFirst({
+      where: { nombre: 'TEST tienda ajena (aislamiento)' },
+      select: { codigo: true, id: true },
+    })
+
+    if (!ajena) return
+
+    const { status, data } = await api('/api/solicitudes-acceso', {
+      method: 'POST',
+      body: JSON.stringify({
+        codigo: ajena.codigo,
+        razon: `${MARCA} solicitud por código`,
+        // Estos dos se ignoran: antes servían para pedir en nombre de otro.
+        usuarioId: '00000000-0000-0000-0000-000000000000',
+        email: 'otro@ejemplo.com',
+      }),
+    })
+
+    // 201 la primera vez; 400 si ya quedó pendiente de una corrida anterior.
+    expect([201, 400]).toContain(status)
+
+    if (status === 201) {
+      const solicitud = await prisma.solicitudAcceso.findUnique({
+        where: { id: data.id },
+        include: { usuario: { select: { email: true } } },
+      })
+
+      expect(solicitud!.usuario.email).toBe(process.env.E2E_USER)
+      expect(solicitud!.email).toBe(process.env.E2E_USER)
+      expect(solicitud!.tiendaId).toBe(ajena.id)
+    }
+  })
+})
+
+describe('crear tienda', () => {
+  it('sin sesión no se puede crear', async () => {
+    const res = await fetch(`${BASE}/api/tiendas/crear`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre: 'Tienda sin sesión' }),
+    })
+
+    expect(res.status).toBe(401)
+  })
+
+  it('exige un nombre', async () => {
+    const { status } = await api('/api/tiendas/crear', {
+      method: 'POST',
+      body: JSON.stringify({ nombre: '' }),
+    })
+
+    expect(status).toBe(400)
+  })
+
+  it('crea la tienda con dueño, código y configuración', async () => {
+    const { status, data } = await api('/api/tiendas/crear', {
+      method: 'POST',
+      body: JSON.stringify({
+        nombre: `${MARCA} tienda propia`,
+        ciudad: 'Medellín',
+        nit_empresa: '900123456-7',
+        whatsapp_pedidos: '573001234567',
+      }),
+    })
+
+    // 409 si una corrida anterior ya creó la tienda propia de esta cuenta:
+    // el límite es una por persona.
+    expect([201, 409]).toContain(status)
+
+    if (status === 409) {
+      expect(String(data.error)).toMatch(/ya tienes una tienda/i)
+      return
+    }
+
+    expect(data.codigo).toHaveLength(6)
+
+    const acceso = await prisma.usuarioTienda.findFirst({
+      where: { tiendaId: data.id },
+      include: { usuario: { select: { email: true } } },
+    })
+
+    // Quien la crea queda de dueño, sin que nadie se lo tenga que dar.
+    expect(acceso!.esOwner).toBe(true)
+    expect(acceso!.usuario.email).toBe(process.env.E2E_USER)
+
+    const config = await prisma.configuracion.findMany({
+      where: { tiendaId: data.id },
+      select: { clave: true, valor: true },
+    })
+
+    expect(config.find((c) => c.clave === 'nit_empresa')?.valor).toBe('900123456-7')
+    expect(config.find((c) => c.clave === 'whatsapp_pedidos')?.valor).toBe('573001234567')
+
+    // La tienda nace vacía: no hereda nada de ninguna otra.
+    expect(await prisma.producto.count({ where: { tiendaId: data.id } })).toBe(0)
+    expect(await prisma.factura.count({ where: { tiendaId: data.id } })).toBe(0)
+  })
+
+  it('no deja crear una segunda tienda propia', async () => {
+    const { status, data } = await api('/api/tiendas/crear', {
+      method: 'POST',
+      body: JSON.stringify({ nombre: `${MARCA} segunda tienda` }),
+    })
+
+    expect(status).toBe(409)
+    expect(String(data.error)).toMatch(/una sola|ya tienes/i)
+  })
+})
+
+describe('sacar de la tienda y salirse', () => {
+  let invitadoId: string
+
+  // Se trabaja con un usuario creado para esto: sacar a alguien real lo
+  // dejaría sin poder trabajar.
+  beforeAll(async () => {
+    const usuario = await prisma.usuario.create({
+      data: { email: `test-acceso-${Date.now()}@integracion.local` },
+      select: { id: true },
+    })
+    invitadoId = usuario.id
+
+    await prisma.usuarioTienda.create({
+      data: { usuarioId: invitadoId, tiendaId },
+    })
+  }, 60000)
+
+  it('sacar a alguien le quita el acceso pero no la cuenta', async () => {
+    const { status, data } = await api('/api/usuarios/acceso', {
+      method: 'DELETE',
+      body: JSON.stringify({ usuarioIds: [invitadoId] }),
+    })
+
+    expect(status).toBe(200)
+    expect(data.afectados).toHaveLength(1)
+
+    const vinculo = await prisma.usuarioTienda.findUnique({
+      where: { usuarioId_tiendaId: { usuarioId: invitadoId, tiendaId } },
+    })
+    expect(vinculo).toBeNull()
+
+    // La cuenta sigue existiendo: es de la persona, no de la tienda.
+    const cuenta = await prisma.usuario.findUnique({ where: { id: invitadoId } })
+    expect(cuenta).not.toBeNull()
+  })
+
+  it('quien sale puede volver a pedir acceso', async () => {
+    // Si las solicitudes anteriores quedaran, el sistema vería una ya
+    // resuelta y rechazaría la nueva: la persona no podría volver nunca.
+    const solicitudes = await prisma.solicitudAcceso.count({
+      where: { usuarioId: invitadoId, tiendaId },
+    })
+
+    expect(solicitudes).toBe(0)
+  })
+
+  it('no se puede sacar al dueño de la tienda', async () => {
+    const dueno = await prisma.usuarioTienda.findFirst({
+      where: { tiendaId, esOwner: true },
+      select: { usuarioId: true },
+    })
+
+    if (!dueno) return
+
+    const { status } = await api('/api/usuarios/acceso', {
+      method: 'DELETE',
+      body: JSON.stringify({ usuarioIds: [dueno.usuarioId] }),
+    })
+
+    expect(status).toBe(403)
+  })
+
+  it('nadie se saca a sí mismo desde la gestión de usuarios', async () => {
+    const yo = await prisma.usuario.findUnique({
+      where: { email: process.env.E2E_USER! },
+      select: { id: true },
+    })
+
+    const { status, data } = await api('/api/usuarios/acceso', {
+      method: 'DELETE',
+      body: JSON.stringify({ usuarioIds: [yo!.id] }),
+    })
+
+    // Dos motivos distintos según el caso, y el orden importa: si la cuenta
+    // es la dueña, el rechazo es 403 porque de su tienda no puede salir por
+    // ningún lado; si no lo es, 400 remitiendo al menú de tiendas.
+    expect([400, 403]).toContain(status)
+    expect(String(data.error)).toMatch(/salir|dueño/i)
+  })
+
+  it('el dueño no puede salirse de su propia tienda', async () => {
+    const propia = await prisma.usuarioTienda.findFirst({
+      where: { usuario: { email: process.env.E2E_USER }, esOwner: true },
+      select: { tiendaId: true },
+    })
+
+    if (!propia) return
+
+    const { status, data } = await api('/api/tiendas/salir', {
+      method: 'DELETE',
+      body: JSON.stringify({ tiendaId: propia.tiendaId }),
+    })
+
+    expect(status).toBe(409)
+    expect(String(data.error)).toMatch(/dueño/i)
+  })
+
+  it('salir de una tienda en la que no se trabaja responde 404', async () => {
+    const ajena = await prisma.tienda.findFirst({
+      where: { nombre: 'TEST tienda ajena (aislamiento)' },
+      select: { id: true },
+    })
+
+    if (!ajena) return
+
+    const { status } = await api('/api/tiendas/salir', {
+      method: 'DELETE',
+      body: JSON.stringify({ tiendaId: ajena.id }),
+    })
+
+    expect(status).toBe(404)
+  })
+
+  it('salir no necesita permisos, solo sesión', async () => {
+    const res = await fetch(`${BASE}/api/tiendas/salir`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tiendaId }),
+    })
+
+    // Sin token, 401; nunca 403 por falta de permisos.
+    expect(res.status).toBe(401)
   })
 })
 

@@ -26,9 +26,21 @@ export interface UsuarioAutenticado {
   id: string
   email: string
   tiendas: AccesoTienda[]
-  /** Acceso de la tienda activa; con una sola tienda, es esa. */
+  /**
+   * Tienda en la que se está trabajando. Sale de la cabecera `x-tienda-id`
+   * y solo si el usuario pertenece a esa tienda; si no, es la primera.
+   */
   tienda: AccesoTienda | null
 }
+
+/**
+ * Cabecera con la que el cliente indica en qué tienda está trabajando.
+ *
+ * Es una preferencia, nunca una credencial: el servidor comprueba que el
+ * usuario pertenezca a la tienda antes de usarla, así que mandar el
+ * identificador de una tienda ajena no da acceso a nada.
+ */
+export const CABECERA_TIENDA = 'x-tienda-id'
 
 /**
  * Validar el token contra Supabase y leer los permisos cuesta dos viajes de
@@ -88,14 +100,56 @@ async function emailDesdeToken(token: string): Promise<string | null> {
   }
 }
 
+/**
+ * Elige la tienda activa entre las del usuario.
+ *
+ * Solo se acepta la pedida si el usuario pertenece a ella. Una tienda ajena
+ * en la cabecera se ignora en silencio y se cae al valor por defecto.
+ *
+ * Sin cabecera se entra a la tienda donde la persona puede trabajar: su
+ * propio negocio antes que uno donde solo es vendedora, y cualquiera con
+ * permisos antes que una donde se los quitaron. Entrar siempre a la más
+ * antigua dejaba a alguien mirando "no tienes permiso" en todas las
+ * pantallas mientras su tienda estaba a un clic, sin ninguna pista.
+ */
+export function elegirTienda(
+  tiendas: AccesoTienda[],
+  pedida: string | null
+): AccesoTienda | null {
+  if (pedida) {
+    const elegida = tiendas.find((t) => t.tiendaId === pedida)
+    if (elegida) return elegida
+  }
+
+  if (tiendas.length <= 1) return tiendas[0] || null
+
+  // A igualdad de nivel gana la primera, que vienen ordenadas por
+  // antigüedad: así la elección es estable entre peticiones.
+  const porCapacidad = [...tiendas].sort((a, b) => nivel(b) - nivel(a))
+  return porCapacidad[0]
+}
+
+/** Cuánto puede hacer alguien en una tienda, para elegir dónde entrar. */
+function nivel(acceso: AccesoTienda): number {
+  if (acceso.esOwner) return 1000
+  if (acceso.esAdmin) return 500
+  return acceso.permisos.length
+}
+
 export async function usuarioDePeticion(
   request: Request
 ): Promise<UsuarioAutenticado | null> {
   const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
   if (!token) return null
 
+  const pedida = request.headers.get(CABECERA_TIENDA)
+
+  // El caché guarda los accesos del usuario, no la tienda activa: la misma
+  // persona puede cambiar de tienda entre dos peticiones con el mismo token.
   const enCache = leerCache(token)
-  if (enCache) return enCache
+  if (enCache) {
+    return { ...enCache, tienda: elegirTienda(enCache.tiendas, pedida) }
+  }
 
   const email = await emailDesdeToken(token)
   if (!email) return null
@@ -108,6 +162,10 @@ export async function usuarioDePeticion(
           tienda: { select: { id: true, nombre: true } },
           permisos: { include: { permiso: true } },
         },
+        // Sin un orden explícito, "la primera tienda" la decide la base y
+        // puede cambiar entre dos peticiones: quien trabaje en dos tiendas
+        // vería sus datos alternarse sin tocar nada.
+        orderBy: { createdAt: 'asc' },
       },
     },
   })
@@ -122,17 +180,25 @@ export async function usuarioDePeticion(
     permisos: ut.permisos.map((pa) => `${pa.permiso.modulo}.${pa.permiso.accion}`),
   }))
 
-  // Mientras exista una sola tienda, la activa es esa. Cuando haya varias,
-  // se elegirá por cabecera o por preferencia del usuario.
   const resultado: UsuarioAutenticado = {
     id: usuario.id,
     email: usuario.email,
     tiendas,
-    tienda: tiendas[0] || null,
+    tienda: elegirTienda(tiendas, pedida),
   }
 
   guardarCache(token, resultado)
   return resultado
+}
+
+/**
+ * Identificador de la tienda activa, listo para usar en un `where`.
+ *
+ * Sin tienda no hay nada que consultar: es alguien con sesión pero sin
+ * acceso a ninguna, y devolver todo sería justo el problema que esto evita.
+ */
+export function tiendaDe(usuario: UsuarioAutenticado | null): string | null {
+  return usuario?.tienda?.tiendaId || null
 }
 
 /**
@@ -222,6 +288,38 @@ export async function exigirPermiso(
   }
 
   return { usuario, error: null }
+}
+
+/**
+ * Como `exigirPermiso`, pero además devuelve la tienda activa ya resuelta.
+ *
+ * Es lo que usan los endpoints de datos: todos tienen que filtrar por
+ * tienda, y así el identificador viene comprobado en lugar de sacarlo cada
+ * uno por su cuenta.
+ */
+export async function exigirTienda(
+  request: Request,
+  permisos: string | string[]
+): Promise<
+  | { usuario: UsuarioAutenticado; tiendaId: string; error: null }
+  | { usuario: null; tiendaId: null; error: Response }
+> {
+  const { usuario, error } = await exigirPermiso(request, permisos)
+  if (error) return { usuario: null, tiendaId: null, error }
+
+  const tiendaId = tiendaDe(usuario)
+  if (!tiendaId) {
+    return {
+      usuario: null,
+      tiendaId: null,
+      error: Response.json(
+        { error: 'No tienes ninguna tienda asignada' },
+        { status: 403 }
+      ),
+    }
+  }
+
+  return { usuario, tiendaId, error: null }
 }
 
 /** Solo comprueba que haya sesión válida, sin exigir ningún permiso. */

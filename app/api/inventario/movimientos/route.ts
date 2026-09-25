@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import { exigirPermiso } from '@/lib/permisos'
+import { exigirTienda } from '@/lib/permisos'
 
 const TIPOS_VALIDOS = ['entrada', 'salida', 'ajuste'] as const
 
@@ -13,9 +13,8 @@ const movimientoSchema = z
     // resultado válido (producto agotado). En entradas y salidas, no.
     cantidad: z.number().min(0, 'La cantidad no puede ser negativa'),
     motivo: z.string().trim().min(1, 'El motivo es obligatorio'),
-    // Solo sirve para atribuir el movimiento a un usuario. Si no llega, no
-    // corresponde a nadie o tiene un formato raro, el movimiento se registra
-    // igual sin autor: no es motivo para rechazar la operación.
+    // El autor ya no viaja en el cuerpo: sale del token, como el resto.
+    // Antes bastaba con mandar otro email para atribuirle el movimiento.
     email: z.string().trim().optional().nullable(),
   })
   .refine((d) => d.tipo === 'ajuste' || d.cantidad > 0, {
@@ -23,17 +22,9 @@ const movimientoSchema = z
     path: ['cantidad'],
   })
 
-async function resolverUsuario(email: string | null | undefined) {
-  if (!email) return null
-  return prisma.usuario.findUnique({
-    where: { email },
-    select: { id: true },
-  })
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const { error: sinPermiso } = await exigirPermiso(request, 'inventario.ver')
+    const { tiendaId, error: sinPermiso } = await exigirTienda(request, 'inventario.ver')
     if (sinPermiso) return sinPermiso
 
     const { searchParams } = new URL(request.url)
@@ -42,7 +33,9 @@ export async function GET(request: NextRequest) {
     const desde = searchParams.get('desde')
     const hasta = searchParams.get('hasta')
 
-    const where: any = {}
+    // Los movimientos no guardan la tienda: se filtran por la del producto
+    // al que pertenecen, que es quien la tiene.
+    const where: any = { producto: { tiendaId } }
 
     if (productoId) where.productoId = productoId
     if (tipo && TIPOS_VALIDOS.includes(tipo as any)) where.tipo = tipo
@@ -92,7 +85,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { error: sinPermiso } = await exigirPermiso(request, 'inventario.movimientos')
+    const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(
+      request,
+      'inventario.movimientos'
+    )
     if (sinPermiso) return sinPermiso
 
     const body = await request.json()
@@ -105,12 +101,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { productoId, tipo, cantidad, motivo, email } = parsed.data
-    const usuario = await resolverUsuario(email)
+    const { productoId, tipo, cantidad, motivo } = parsed.data
 
     const resultado = await prisma.$transaction(async (tx) => {
-      const producto = await tx.producto.findUnique({
-        where: { id: productoId },
+      // Solo productos de la tienda activa: un producto ajeno responde
+      // "no encontrado" en vez de dejar que le muevan el stock.
+      const producto = await tx.producto.findFirst({
+        where: { id: productoId, tiendaId },
         select: { id: true, nombre: true, stockActual: true },
       })
 
@@ -142,7 +139,7 @@ export async function POST(request: NextRequest) {
           stockDespues,
           referenciaTipo: 'manual',
           motivo,
-          usuarioId: usuario?.id || null,
+          usuarioId: usuario.id,
         },
       })
 
@@ -152,7 +149,8 @@ export async function POST(request: NextRequest) {
     try {
       await prisma.auditoria.create({
         data: {
-          usuarioId: usuario?.id || null,
+          usuarioId: usuario.id,
+          tiendaId,
           tablaAfectada: 'inventario_movimientos',
           registroId: resultado.movimiento.id,
           accion: 'CREATE',

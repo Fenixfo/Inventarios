@@ -7,6 +7,9 @@ export interface ItemCarrito {
   precioUnitario: number
   cantidad: number
   subtotal: number
+  /** A qué tienda se le compra. El pedido va a su WhatsApp, no a uno común. */
+  tiendaId?: string
+  tiendaNombre?: string
 }
 
 export interface Carrito {
@@ -70,6 +73,8 @@ export function useCart() {
     sku: string
     nombre: string
     precioUnitario: number
+    tiendaId?: string
+    tiendaNombre?: string
   }, cantidad: number = 1) => {
     setCarrito((prev) => {
       const itemExistente = prev.items.find((item) => item.id === producto.id)
@@ -97,6 +102,8 @@ export function useCart() {
             precioUnitario: producto.precioUnitario,
             cantidad,
             subtotal: cantidad * producto.precioUnitario,
+            tiendaId: producto.tiendaId,
+            tiendaNombre: producto.tiendaNombre,
           },
         ]
       }
@@ -141,11 +148,28 @@ export function useCart() {
     })
   }
 
+  /**
+   * Tienda a la que pertenece el pedido.
+   *
+   * El carrito es de una sola tienda: cada una recibe los pedidos en su
+   * propio WhatsApp, así que un carrito con productos de dos negocios no
+   * se podría enviar a ninguna parte.
+   */
+  const tiendaDelCarrito = carrito.items[0]
+    ? { id: carrito.items[0].tiendaId, nombre: carrito.items[0].tiendaNombre }
+    : null
+
+  /** ¿Este producto es de otra tienda distinta a la del carrito? */
+  const esDeOtraTienda = (tiendaId?: string) =>
+    Boolean(carrito.items.length > 0 && tiendaId && tiendaDelCarrito?.id !== tiendaId)
+
   return {
     carrito,
     agregarAlCarrito,
     quitarDelCarrito,
     actualizarCantidad,
     vaciarCarrito,
+    tiendaDelCarrito,
+    esDeOtraTienda,
   }
 }

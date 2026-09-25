@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
 import { PermissionProtector } from '@/components/PermissionProtector'
+import { fechaYHora } from '@/lib/fechas'
 
 interface FacturaItem {
   id: string
@@ -185,7 +186,7 @@ export default function FacturasPage() {
             <tr style={{ borderBottom: '2px solid #ddd' }}>
               <th style={{ padding: '10px', textAlign: 'left' }}>Número</th>
               <th style={{ padding: '10px', textAlign: 'left' }}>Cliente</th>
-              <th style={{ padding: '10px', textAlign: 'left' }}>Fecha</th>
+              <th style={{ padding: '10px', textAlign: 'left' }}>Fecha y hora</th>
               <th style={{ padding: '10px', textAlign: 'right' }}>Total</th>
               <th style={{ padding: '10px', textAlign: 'center' }}>Estado</th>
               <th style={{ padding: '10px', textAlign: 'center' }}>Acciones</th>
@@ -196,7 +197,7 @@ export default function FacturasPage() {
               <tr key={factura.id} style={{ borderBottom: '1px solid #eee' }}>
                 <td style={{ padding: '10px' }}><strong>{factura.numeroFactura}</strong></td>
                 <td style={{ padding: '10px' }}>{factura.cliente?.nombre || 'Cliente General'}</td>
-                <td style={{ padding: '10px' }}>{new Date(factura.fecha).toLocaleDateString()}</td>
+                <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>{fechaYHora(factura.fecha)}</td>
                 <td style={{ padding: '10px', textAlign: 'right' }}>${Number(factura.total).toFixed(2)}</td>
                 <td style={{ padding: '10px', textAlign: 'center' }}>
                   <span style={{

@@ -47,6 +47,7 @@ export default function UsuariosPage() {
   const [modulos, setModulos] = useState<Modulo[]>([])
   const [plantillas, setPlantillas] = useState<Plantilla[]>([])
   const [soyOwner, setSoyOwner] = useState(false)
+  const [miEmail, setMiEmail] = useState<string | null>(null)
 
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -56,8 +57,9 @@ export default function UsuariosPage() {
   const [usuariosSel, setUsuariosSel] = useState<Set<string>>(new Set())
   const [permisosSel, setPermisosSel] = useState<Set<string>>(new Set())
   const [nombrarAdmin, setNombrarAdmin] = useState(false)
-  // Qué se está confirmando: añadir permisos o quitárselos todos.
-  const [confirmando, setConfirmando] = useState<'agregar' | 'quitar' | null>(null)
+  // Qué se está confirmando: añadir permisos, quitárselos todos, o sacar
+  // a la persona de la tienda.
+  const [confirmando, setConfirmando] = useState<'agregar' | 'quitar' | 'sacar' | null>(null)
   const [guardando, setGuardando] = useState(false)
 
   useEffect(() => {
@@ -88,6 +90,7 @@ export default function UsuariosPage() {
       setModulos(datosPermisos.modulos || [])
       setPlantillas(datosPermisos.plantillas || [])
       setSoyOwner(Boolean(sesion.esOwner))
+      setMiEmail(sesion.email || null)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -182,6 +185,36 @@ export default function UsuariosPage() {
     }
   }
 
+  /** Saca a las personas marcadas de la tienda: pierden el acceso, no la cuenta. */
+  const sacarDeLaTienda = async () => {
+    setGuardando(true)
+    setError(null)
+
+    try {
+      const res = await apiFetch('/api/usuarios/acceso', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuarioIds: [...usuariosSel] }),
+      })
+
+      const datos = await res.json()
+      if (!res.ok) throw new Error(datos.error || 'No se pudo sacar de la tienda')
+
+      const cuantos = datos.afectados.length
+      setExito(
+        `${cuantos} usuario${cuantos !== 1 ? 's' : ''} ya no tiene${cuantos !== 1 ? 'n' : ''} acceso a la tienda`
+      )
+      setConfirmando(null)
+      limpiar()
+      await cargar()
+    } catch (err: any) {
+      setError(err.message)
+      setConfirmando(null)
+    } finally {
+      setGuardando(false)
+    }
+  }
+
   const accesoDe = (u: Usuario) => u.tiendas[0]
   const nivelDe = (u: Usuario) => {
     const a = accesoDe(u)
@@ -201,6 +234,12 @@ export default function UsuariosPage() {
   )
   const adminsMarcados = marcados.filter((u) => accesoDe(u)?.esAdmin)
   const puedeQuitar = conAlgoQueQuitar.length > 0 && (adminsMarcados.length === 0 || soyOwner)
+
+  // Nadie se saca a sí mismo desde aquí: para eso está "salir" en el menú
+  // de tiendas, que además avisa de lo que implica.
+  const meMarquéAMíMismo = marcados.some((u) => u.email === miEmail)
+  const puedeSacar =
+    marcados.length > 0 && !meMarquéAMíMismo && (adminsMarcados.length === 0 || soyOwner)
 
   const tarjeta = {
     backgroundColor: 'white',
@@ -436,6 +475,32 @@ export default function UsuariosPage() {
                 </button>
               )}
 
+              {usuariosSel.size > 0 && (
+                <button
+                  onClick={() => setConfirmando('sacar')}
+                  disabled={!puedeSacar}
+                  title={
+                    !puedeSacar && adminsMarcados.length > 0 && !soyOwner
+                      ? 'Solo el dueño puede sacar a un administrador'
+                      : !puedeSacar
+                        ? 'No puedes sacarte a ti mismo desde aquí'
+                        : 'Quita el acceso a la tienda, no la cuenta'
+                  }
+                  style={{
+                    padding: '12px 26px',
+                    backgroundColor: 'white',
+                    color: puedeSacar ? '#b91c1c' : '#9ca3af',
+                    border: `1px solid ${puedeSacar ? '#fca5a5' : '#e5e7eb'}`,
+                    borderRadius: '6px',
+                    cursor: puedeSacar ? 'pointer' : 'not-allowed',
+                    fontWeight: 'bold',
+                    fontSize: '14px',
+                  }}
+                >
+                  Sacar de la tienda
+                </button>
+              )}
+
               {(usuariosSel.size > 0 || permisosSel.size > 0) && (
                 <>
                   <button
@@ -537,6 +602,70 @@ export default function UsuariosPage() {
                   style={{ flex: 1, padding: '11px', backgroundColor: guardando ? '#9ca3af' : '#10b981', color: 'white', border: 'none', borderRadius: '6px', cursor: guardando ? 'wait' : 'pointer', fontWeight: 'bold', fontSize: '14px' }}
                 >
                   {guardando ? 'Guardando...' : 'Confirmar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Confirmación de salida de la tienda */}
+        {confirmando === 'sacar' && (
+          <div
+            onClick={() => !guardando && setConfirmando(null)}
+            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 50 }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '560px', width: '100%', maxHeight: '85vh', overflow: 'auto', padding: '24px' }}
+            >
+              <h2 style={{ fontSize: '18px', marginTop: 0, marginBottom: '6px' }}>
+                Sacar de la tienda
+              </h2>
+              <p style={{ fontSize: '13px', color: '#6b7280', marginTop: 0, marginBottom: '20px' }}>
+                Revisa antes de guardar. Nada se ha modificado todavía.
+              </p>
+
+              <div style={{ marginBottom: '18px' }}>
+                <p style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '8px' }}>
+                  {marcados.length} usuario{marcados.length !== 1 ? 's' : ''} dejará
+                  {marcados.length !== 1 ? 'n' : ''} de tener acceso:
+                </p>
+                <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '14px' }}>
+                  {marcados.map((u) => (
+                    <li key={u.id} style={{ marginBottom: '4px' }}>
+                      {u.email}
+                      {accesoDe(u)?.esAdmin && (
+                        <span style={{ color: '#6b7280', fontSize: '13px' }}> (administrador)</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fecaca', borderRadius: '6px', padding: '12px', marginBottom: '14px', fontSize: '13px', color: '#991b1b' }}>
+                Se les quita el acceso a esta tienda y desaparecen del listado. Para volver
+                tendrán que pedir acceso otra vez con el código.
+              </div>
+
+              <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '20px' }}>
+                No se borra su cuenta: la cuenta es de la persona, no de la tienda, y puede
+                seguir trabajando en otras. Lo que hayan facturado se queda aquí, a su nombre.
+              </p>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => setConfirmando(null)}
+                  disabled={guardando}
+                  style={{ flex: 1, padding: '11px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={sacarDeLaTienda}
+                  disabled={guardando}
+                  style={{ flex: 1, padding: '11px', backgroundColor: guardando ? '#9ca3af' : '#dc2626', color: 'white', border: 'none', borderRadius: '6px', cursor: guardando ? 'wait' : 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+                >
+                  {guardando ? 'Sacando...' : 'Sí, sacar de la tienda'}
                 </button>
               </div>
             </div>

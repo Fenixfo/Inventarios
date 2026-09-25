@@ -5,6 +5,8 @@ import {
   esOwner,
   administraTienda,
   veTodasLasFacturas,
+  elegirTienda,
+  tiendaDe,
   type UsuarioAutenticado,
   type AccesoTienda,
 } from '@/lib/permisos'
@@ -176,5 +178,84 @@ describe('reglas de subida de imágenes', () => {
 
   it('tener sesión no basta: hace falta el permiso', () => {
     expect(puede(usuario(acceso(TIENDA_A, [])), 'productos.crear')).toBe(false)
+  })
+})
+
+describe('elección de la tienda activa', () => {
+  const a = acceso(TIENDA_A, ['productos.ver'])
+  const b = acceso(TIENDA_B, ['facturas.crear'])
+
+  it('con una sola tienda, esa es', () => {
+    expect(elegirTienda([a], null)?.tiendaId).toBe(TIENDA_A)
+  })
+
+  // Entrar siempre a la más antigua dejaba a alguien viendo "no tienes
+  // permiso" en todas las pantallas mientras su propia tienda estaba a un
+  // clic, sin ninguna pista de que podía cambiarse.
+  it('sin cabecera entra donde puede trabajar, no a la más antigua', () => {
+    const sinPermisos = acceso(TIENDA_A, [])
+    const propia = acceso(TIENDA_B, [], { esOwner: true })
+
+    expect(elegirTienda([sinPermisos, propia], null)?.tiendaId).toBe(TIENDA_B)
+  })
+
+  it('prefiere ser dueño antes que administrador', () => {
+    const admin = acceso(TIENDA_A, [], { esAdmin: true })
+    const dueño = acceso(TIENDA_B, [], { esOwner: true })
+
+    expect(elegirTienda([admin, dueño], null)?.tiendaId).toBe(TIENDA_B)
+  })
+
+  it('entre tiendas sin cargo, la que tenga más permisos', () => {
+    const poco = acceso(TIENDA_A, ['productos.ver'])
+    const mucho = acceso(TIENDA_B, ['productos.ver', 'facturas.crear', 'clientes.ver'])
+
+    expect(elegirTienda([poco, mucho], null)?.tiendaId).toBe(TIENDA_B)
+  })
+
+  it('a igualdad de nivel, la primera: la elección no puede bailar', () => {
+    const uno = acceso(TIENDA_A, ['productos.ver'])
+    const otro = acceso(TIENDA_B, ['facturas.ver'])
+
+    expect(elegirTienda([uno, otro], null)?.tiendaId).toBe(TIENDA_A)
+    expect(elegirTienda([uno, otro], null)?.tiendaId).toBe(TIENDA_A)
+  })
+
+  it('con cabecera trabaja en la tienda pedida', () => {
+    expect(elegirTienda([a, b], TIENDA_B)?.tiendaId).toBe(TIENDA_B)
+  })
+
+  // Lo importante: la cabecera es una preferencia, no una credencial.
+  it('ignora una tienda a la que no pertenece', () => {
+    expect(elegirTienda([a], TIENDA_B)?.tiendaId).toBe(TIENDA_A)
+    expect(elegirTienda([a], 'tienda-inventada')?.tiendaId).toBe(TIENDA_A)
+  })
+
+  it('sin tiendas no hay tienda activa', () => {
+    expect(elegirTienda([], TIENDA_A)).toBeNull()
+    expect(elegirTienda([], null)).toBeNull()
+  })
+
+  it('los permisos son los de la tienda elegida, no los de la primera', () => {
+    const u: UsuarioAutenticado = {
+      id: 'u1',
+      email: 'alguien@ejemplo.com',
+      tiendas: [a, b],
+      tienda: elegirTienda([a, b], TIENDA_B),
+    }
+
+    expect(puede(u, 'facturas.crear')).toBe(true)
+    expect(puede(u, 'productos.ver')).toBe(false)
+  })
+})
+
+describe('tiendaDe', () => {
+  it('devuelve la tienda activa', () => {
+    expect(tiendaDe(usuario(acceso(TIENDA_A, [])))).toBe(TIENDA_A)
+  })
+
+  it('sin tienda devuelve null, para que el filtro no quede vacío', () => {
+    expect(tiendaDe(usuario())).toBeNull()
+    expect(tiendaDe(null)).toBeNull()
   })
 })

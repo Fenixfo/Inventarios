@@ -196,7 +196,13 @@ export async function generarPdfFactura(
     empresa.email,
   ].filter(Boolean) as string[]
 
-  const fecha = new Date(factura.fecha).toLocaleDateString('es-CO')
+  const fecha = new Date(factura.fecha).toLocaleString('es-CO', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
   const datosFactura = [
     `Fecha: ${fecha}`,
     `Estado: ${factura.estado.charAt(0).toUpperCase() + factura.estado.slice(1)}`,

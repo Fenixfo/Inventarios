@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { exigirPermiso, veTodasLasFacturas } from '@/lib/permisos'
+import { exigirTienda, veTodasLasFacturas } from '@/lib/permisos'
 
 function generateFacturaNumber(): string {
   const today = new Date()
@@ -12,30 +12,41 @@ function generateFacturaNumber(): string {
   return datePrefix
 }
 
-async function getNextSequence(datePrefix: string): Promise<number> {
-  const facturas = await prisma.factura.findMany({
+/**
+ * Consecutivo del día, contado dentro de la tienda.
+ *
+ * Cada tienda lleva su propia numeración: si fuera global, a un negocio le
+ * saltarían números porque otro facturó ese día, y el consecutivo de una
+ * factura es algo que se explica ante la DIAN.
+ */
+async function getNextSequence(datePrefix: string, tiendaId: string): Promise<number> {
+  const emitidas = await prisma.factura.count({
     where: {
+      tiendaId,
       numeroFactura: {
         startsWith: datePrefix,
       },
     },
   })
 
-  return facturas.length + 1
+  return emitidas + 1
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const { usuario, error: sinPermiso } = await exigirPermiso(request, 'facturas.ver')
+    const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, 'facturas.ver')
     if (sinPermiso) return sinPermiso
 
     const { searchParams } = new URL(request.url)
 
-    // Quien no tenga 'facturas.ver_todas' solo ve las que él creó. El
+    // Dos filtros encadenados: la tienda activa siempre, y dentro de ella,
+    // quien no tenga 'facturas.ver_todas' solo ve las que él creó. El
     // alcance sale del token, no de un parámetro de la petición: antes el
     // filtro dependía de que el cliente enviara ?email=, así que omitirlo
     // mostraba las facturas de todos.
-    const filtro: any = veTodasLasFacturas(usuario) ? {} : { usuarioId: usuario.id }
+    const filtro: any = veTodasLasFacturas(usuario)
+      ? { tiendaId }
+      : { tiendaId, usuarioId: usuario.id }
 
     // El listado solo necesita la cabecera de cada factura. Traer los items
     // con su producto completo multiplicaba el tiempo de respuesta por tres
@@ -71,21 +82,24 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { error: sinPermiso } = await exigirPermiso(request, 'facturas.crear')
+    const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, 'facturas.crear')
     if (sinPermiso) return sinPermiso
 
     const data = await request.json()
 
     const datePrefix = generateFacturaNumber()
-    const sequence = await getNextSequence(datePrefix)
+    const sequence = await getNextSequence(datePrefix, tiendaId)
     const numeroFactura = `${datePrefix}-${String(sequence).padStart(3, '0')}`
 
     const factura = await prisma.$transaction(async (tx) => {
       const nuevaFactura = await tx.factura.create({
         data: {
           numeroFactura,
+          // La tienda y el autor salen de la sesión. El usuarioId que
+          // llegaba en el cuerpo permitía facturar a nombre de otro.
+          tiendaId,
           clienteId: data.clienteId || null,
-          usuarioId: data.usuarioId || null,
+          usuarioId: usuario.id,
           terminoPago: data.terminoPago || null,
           metodoPago: data.metodoPago || null,
           anticipo: data.anticipo ? parseFloat(data.anticipo) : 0,
@@ -129,8 +143,10 @@ export async function POST(request: NextRequest) {
       }
 
       if (cantidadPorProducto.size > 0) {
+        // Solo productos de esta tienda: si en los items viniera el id de
+        // un producto ajeno, se ignora en vez de descontarle stock.
         const productos = await tx.producto.findMany({
-          where: { id: { in: Array.from(cantidadPorProducto.keys()) } },
+          where: { id: { in: Array.from(cantidadPorProducto.keys()) }, tiendaId },
           select: { id: true, stockActual: true },
         })
 
@@ -155,7 +171,7 @@ export async function POST(request: NextRequest) {
               faltante > 0
                 ? `Venta - Factura ${numeroFactura} (se facturaron ${faltante} m² sin stock disponible)`
                 : `Venta - Factura ${numeroFactura}`,
-            usuarioId: data.usuarioId || null,
+            usuarioId: usuario.id,
           }
         })
 
@@ -214,7 +230,7 @@ export async function PUT(request: NextRequest) {
     const permisoNecesario =
       data.estado === 'anulado' ? 'facturas.anular' : 'facturas.crear'
 
-    const { error: sinPermiso } = await exigirPermiso(request, permisoNecesario)
+    const { tiendaId, error: sinPermiso } = await exigirTienda(request, permisoNecesario)
     if (sinPermiso) return sinPermiso
 
     if (!id) {
@@ -224,10 +240,14 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Obtener factura anterior
-    const facturaBefore = await prisma.factura.findUnique({
-      where: { id },
+    // Obtener factura anterior, comprobando de paso que sea de esta tienda.
+    const facturaBefore = await prisma.factura.findFirst({
+      where: { id, tiendaId },
     })
+
+    if (!facturaBefore) {
+      return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 })
+    }
 
     const updateData: any = {
       terminoPago: data.terminoPago || null,

@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { exigirPermiso } from '@/lib/permisos'
+import { exigirTienda } from '@/lib/permisos'
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { error: sinPermiso } = await exigirPermiso(request, 'solicitudes-acceso.gestionar')
+    const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(
+      request,
+      'solicitudes-acceso.gestionar'
+    )
     if (sinPermiso) return sinPermiso
 
     const { id } = await context.params
-    const { estado, comentarioAdmin, adminId } = await request.json()
+    const { estado, comentarioAdmin } = await request.json()
 
     if (!estado || !['aprobado', 'rechazado'].includes(estado)) {
       return NextResponse.json(
@@ -19,9 +22,10 @@ export async function PATCH(
       )
     }
 
-    // Obtener solicitud actual
-    const solicitud = await prisma.solicitudAcceso.findUnique({
-      where: { id },
+    // La solicitud tiene que ser de esta tienda: si no, se podría aprobar
+    // el acceso de alguien a un negocio ajeno.
+    const solicitud = await prisma.solicitudAcceso.findFirst({
+      where: { id, tiendaId },
     })
 
     if (!solicitud) {
@@ -36,7 +40,8 @@ export async function PATCH(
       where: { id },
       data: {
         estado,
-        respondidoPor: adminId || null,
+        // Quién respondió sale del token, no del cuerpo.
+        respondidoPor: usuario.id,
         respondidoEn: new Date(),
         comentarioAdmin: comentarioAdmin || null,
       },

@@ -41,7 +41,23 @@ model Usuario {
 
 model Tienda {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  nombre      String   @unique @db.VarChar(255)
+
+  /// El nombre no es único: dos dueños distintos pueden tener negocios que
+  /// se llamen igual, y se distinguen por su código.
+  nombre      String   @db.VarChar(255)
+
+  /// Código de 6 caracteres que el dueño comparte para que le pidan acceso.
+  /// Sustituye al directorio de tiendas: sin el código no se puede solicitar
+  /// entrar, así que no hace falta publicar la lista de negocios.
+  codigo      String   @unique @db.VarChar(6)
+
+  /// Desde qué IP se creó. Sirve para frenar a quien abra tiendas en serie
+  /// sin castigar a quien comparte conexión: el tope es por día, no total.
+  creadaDesdeIp String? @map("creada_desde_ip") @db.VarChar(45)
+
+  /// Si sus productos salen en el catálogo público. Lo decide el dueño:
+  /// hay quien quiere vitrina y quien usa esto solo para su inventario.
+  publica     Boolean  @default(true)
   descripcion String?  @db.Text
   ciudad      String?  @db.VarChar(100)
   pais        String?  @default("Colombia") @db.VarChar(100)
@@ -53,6 +69,8 @@ model Tienda {
   productos   Producto[]
   clientes    Cliente[]
   facturas    Factura[]
+  auditoria   Auditoria[]
+  configuracion Configuracion[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
@@ -249,7 +267,11 @@ model Cliente {
 
 model Factura {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  numeroFactura   String   @unique @map("numero_factura") @db.VarChar(50)
+
+  /// Único dentro de la tienda, no en toda la base: cada negocio lleva su
+  /// propia numeración y dos tiendas pueden emitir el mismo número el mismo
+  /// día.
+  numeroFactura   String   @map("numero_factura") @db.VarChar(50)
 
   clienteId       String?  @map("cliente_id") @db.Uuid
   cliente         Cliente? @relation(fields: [clienteId], references: [id])
@@ -294,6 +316,7 @@ model Factura {
   items       FacturaItem[]
   abonos      Abono[]
 
+  @@unique([tiendaId, numeroFactura], map: "facturas_tienda_numero_key")
   @@index([numeroFactura])
   @@index([clienteId])
   @@index([estado])
@@ -379,6 +402,11 @@ model Auditoria {
   usuarioId   String?  @map("usuario_id") @db.Uuid
   usuario     Usuario? @relation(fields: [usuarioId], references: [id])
 
+  /// En qué tienda ocurrió. Sin esto, quien puede ver la auditoría vería
+  /// también los movimientos de los demás negocios.
+  tiendaId    String?  @map("tienda_id") @db.Uuid
+  tienda      Tienda?  @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+
   tablaAfectada String @map("tabla_afectada") @db.VarChar(100)
   registroId    String @map("registro_id") @db.Uuid
   accion        String @db.VarChar(50)
@@ -401,7 +429,13 @@ model Auditoria {
 
 model Configuracion {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clave     String   @unique @db.VarChar(100)
+
+  /// Cada tienda tiene su propia configuración: su logo, su NIT, su
+  /// WhatsApp. Antes había una sola fila por clave para todo el sistema.
+  tiendaId  String   @map("tienda_id") @db.Uuid
+  tienda    Tienda   @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+
+  clave     String   @db.VarChar(100)
   valor     String?  @db.VarChar(500)
   tipo      String?  @db.VarChar(50)
 
@@ -409,5 +443,6 @@ model Configuracion {
   updatedBy String?  @map("updated_by") @db.Uuid
   updatedByUser Usuario? @relation(fields: [updatedBy], references: [id])
 
+  @@unique([tiendaId, clave])
   @@map("configuracion")
 }

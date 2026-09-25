@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { exigirPermiso } from '@/lib/permisos'
+import { exigirTienda } from '@/lib/permisos'
 export async function GET(request: NextRequest) {
   try {
-    const { error: sinPermiso } = await exigirPermiso(request, ['clientes.ver', 'facturas.crear'])
+    const { tiendaId, error: sinPermiso } = await exigirTienda(request, ['clientes.ver', 'facturas.crear'])
     if (sinPermiso) return sinPermiso
 
     const clientes = await prisma.cliente.findMany({
-      where: { activo: true },
+      where: { activo: true, tiendaId },
       orderBy: { nombre: 'asc' },
     })
     return NextResponse.json(clientes)
@@ -21,12 +21,15 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { error: sinPermiso } = await exigirPermiso(request, ['clientes.crear', 'facturas.crear'])
+    const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, ['clientes.crear', 'facturas.crear'])
     if (sinPermiso) return sinPermiso
 
     const data = await request.json()
     const cliente = await prisma.cliente.create({
       data: {
+        // La tienda y el autor salen de la sesión, nunca del cuerpo.
+        tiendaId,
+        createdBy: usuario.id,
         nombre: data.nombre,
         email: data.email || null,
         telefono: data.telefono || null,
@@ -48,7 +51,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { error: sinPermiso } = await exigirPermiso(request, 'clientes.editar')
+    const { tiendaId, error: sinPermiso } = await exigirTienda(request, 'clientes.editar')
     if (sinPermiso) return sinPermiso
 
     const data = await request.json()
@@ -59,6 +62,17 @@ export async function PUT(request: NextRequest) {
         { error: 'ID is required' },
         { status: 400 }
       )
+    }
+
+    // El id viene en el cuerpo, así que hay que comprobar que el cliente
+    // sea de esta tienda antes de modificarlo.
+    const propio = await prisma.cliente.findFirst({
+      where: { id, tiendaId },
+      select: { id: true },
+    })
+
+    if (!propio) {
+      return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
     }
 
     const updateData: any = {

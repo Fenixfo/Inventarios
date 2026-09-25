@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { exigirPermiso } from '@/lib/permisos'
+import { exigirTienda } from '@/lib/permisos'
 import { generarPdfFactura, nombreArchivoFactura } from '@/lib/factura-pdf'
 
 export async function GET(
@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { error: sinPermiso } = await exigirPermiso(request, 'facturas.ver')
+    const { tiendaId, error: sinPermiso } = await exigirTienda(request, 'facturas.ver')
     if (sinPermiso) return sinPermiso
 
     const { id } = await params
@@ -16,20 +16,23 @@ export async function GET(
     // Las dos consultas son independientes: en secuencia pagaban dos veces
     // la ida y vuelta a la base de datos.
     const [factura, registros] = await Promise.all([
-      prisma.factura.findUnique({
-        where: { id },
+      prisma.factura.findFirst({
+        where: { id, tiendaId },
         include: {
           cliente: true,
           usuario: true,
           items: { include: { producto: true } },
           abonos: { orderBy: { fecha: 'asc' } },
+          // El nombre que sale en la factura es el de la tienda que la
+          // emitió, no una configuración global.
+          tienda: { select: { nombre: true } },
         },
       }),
       prisma.configuracion.findMany({
         where: {
+          tiendaId,
           clave: {
             in: [
-              'nombre_empresa',
               'eslogan_empresa',
               'nit_empresa',
               'direccion_empresa',
@@ -51,6 +54,7 @@ export async function GET(
     }
 
     const config = Object.fromEntries(registros.map((r) => [r.clave, r.valor || '']))
+    config.nombre_empresa = factura.tienda?.nombre || ''
 
     // Con ?formato=pdf se devuelve el archivo, que es lo que se puede
     // adjuntar en WhatsApp. Por defecto sigue saliendo el HTML, que es el
@@ -110,7 +114,15 @@ function generarHTML(factura: any, config: Record<string, string> = {}): string 
     logo: config.logo_url || '',
   }
 
-  const fecha = new Date(factura.fecha).toLocaleDateString('es-CO')
+  // Con fecha y hora: en un día con varias ventas al mismo cliente, el día
+  // solo no distingue una factura de otra.
+  const fecha = new Date(factura.fecha).toLocaleString('es-CO', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
   const subtotal = Number(factura.subtotal)
   const descuento = Number(factura.descuentoMonto)
   const impuesto = Number(factura.impuesto)

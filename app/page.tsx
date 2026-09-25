@@ -16,16 +16,26 @@ interface Producto {
   acabado?: string | null
   m2PorCaja?: number | null
   precioUnitario: number
+  tienda?: { id: string; nombre: string; ciudad?: string | null } | null
+}
+
+interface TiendaCatalogo {
+  id: string
+  nombre: string
 }
 
 export default function Catalogo() {
-  const { carrito, agregarAlCarrito } = useCart()
+  const { carrito, agregarAlCarrito, tiendaDelCarrito, esDeOtraTienda, vaciarCarrito } = useCart()
   const [productos, setProductos] = useState<Producto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('')
   const [categorias, setCategorias] = useState<string[]>([])
+  const [tiendaFiltro, setTiendaFiltro] = useState<string>('')
+  const [tiendas, setTiendas] = useState<TiendaCatalogo[]>([])
   const [busqueda, setBusqueda] = useState('')
+  // Avisa antes de mezclar tiendas en el mismo carrito.
+  const [cambioDeTienda, setCambioDeTienda] = useState<Producto | null>(null)
   const [modalAbierto, setModalAbierto] = useState(false)
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null)
   const [cantidadModal, setCantidadModal] = useState('1')
@@ -35,27 +45,34 @@ export default function Catalogo() {
 
   useEffect(() => {
     cargarProductos()
-  }, [categoriaFiltro])
+  }, [categoriaFiltro, tiendaFiltro])
 
   const cargarProductos = async () => {
     setLoading(true)
     setError(null)
 
     try {
-      const url = categoriaFiltro
-        ? `/api/productos/catalogo?categoria=${categoriaFiltro}`
-        : '/api/productos/catalogo'
+      const params = new URLSearchParams()
+      if (categoriaFiltro) params.set('categoria', categoriaFiltro)
+      if (tiendaFiltro) params.set('tienda', tiendaFiltro)
 
-      const res = await fetch(url)
+      const res = await fetch(`/api/productos/catalogo?${params.toString()}`)
       if (!res.ok) throw new Error('Error al cargar productos')
 
       const data = await res.json()
       setProductos(data)
 
-      // Extraer categorías únicas en la primera carga
-      if (!categoriaFiltro && categorias.length === 0) {
-        const cats = Array.from(new Set(data.map((p: Producto) => p.categoria)))
-        setCategorias(cats as string[])
+      // Las listas de filtros se arman con el catálogo completo: si se
+      // rehicieran con la lista ya filtrada, al elegir una tienda
+      // desaparecerían las demás y no habría forma de volver.
+      if (!categoriaFiltro && !tiendaFiltro) {
+        setCategorias(Array.from(new Set(data.map((p: Producto) => p.categoria))) as string[])
+
+        const porTienda = new Map<string, string>()
+        data.forEach((p: Producto) => {
+          if (p.tienda) porTienda.set(p.tienda.id, p.tienda.nombre)
+        })
+        setTiendas([...porTienda].map(([id, nombre]) => ({ id, nombre })))
       }
     } catch (err: any) {
       setError(err.message)
@@ -90,9 +107,28 @@ export default function Catalogo() {
   }
 
   const abrirModalAgregar = (producto: Producto) => {
+    setDetalle(null)
+
+    // Cada tienda recibe los pedidos en su propio WhatsApp, así que un
+    // carrito con productos de dos negocios no se podría enviar.
+    if (esDeOtraTienda(producto.tienda?.id)) {
+      setCambioDeTienda(producto)
+      return
+    }
+
     setProductoSeleccionado(producto)
     setCantidadModal('1')
-    setDetalle(null)
+    setModalAbierto(true)
+  }
+
+  /** Vacía lo que había y empieza el pedido en la tienda nueva. */
+  const empezarPedidoNuevo = () => {
+    if (!cambioDeTienda) return
+
+    vaciarCarrito()
+    setProductoSeleccionado(cambioDeTienda)
+    setCantidadModal('1')
+    setCambioDeTienda(null)
     setModalAbierto(true)
   }
 
@@ -100,7 +136,14 @@ export default function Catalogo() {
     if (productoSeleccionado) {
       const cantidad = parseFloat(cantidadModal) || 1
       if (cantidad > 0) {
-        agregarAlCarrito(productoSeleccionado, cantidad)
+        agregarAlCarrito(
+          {
+            ...productoSeleccionado,
+            tiendaId: productoSeleccionado.tienda?.id,
+            tiendaNombre: productoSeleccionado.tienda?.nombre,
+          },
+          cantidad
+        )
         setModalAbierto(false)
       }
     }
@@ -231,7 +274,48 @@ export default function Catalogo() {
                 </button>
               ))}
             </div>
+
+            {/* El filtro de tiendas solo aparece cuando hay más de una:
+                con una sola no dice nada y ocupa sitio. */}
+            {tiendas.length > 1 && (
+              <>
+                <p className="font-semibold text-gray-700 mt-6 mb-4">Filtrar por tienda:</p>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => setTiendaFiltro('')}
+                    className={`px-4 py-2 rounded font-medium transition ${
+                      tiendaFiltro === ''
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Todas
+                  </button>
+                  {tiendas.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => setTiendaFiltro(t.id)}
+                      className={`px-4 py-2 rounded font-medium transition ${
+                        tiendaFiltro === t.id
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      🏪 {t.nombre}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
+
+          {/* A quién se le está comprando: el pedido va a esa tienda. */}
+          {tiendaDelCarrito?.nombre && (
+            <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+              Tu pedido es de <strong>{tiendaDelCarrito.nombre}</strong>. Para pedirle a otra
+              tienda tendrás que empezar un pedido nuevo.
+            </div>
+          )}
 
           {/* Estado de carga */}
           {loading && (
@@ -296,6 +380,13 @@ export default function Catalogo() {
                         <span className="inline-block bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded capitalize">
                           {producto.categoria}
                         </span>
+                        {/* De qué tienda es: en el catálogo conviven varias
+                            y el cliente necesita saber a quién le compra. */}
+                        {tiendas.length > 1 && producto.tienda && (
+                          <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                            🏪 {producto.tienda.nombre}
+                          </span>
+                        )}
                       </div>
 
                       {/* Nombre */}
@@ -375,6 +466,51 @@ export default function Catalogo() {
             </span>
           )}
         </Link>
+
+        {/* Mezclar tiendas en el mismo pedido */}
+        {cambioDeTienda && (
+          <div
+            onClick={() => setCambioDeTienda(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 popup-in"
+            >
+              <h2 className="text-xl font-bold text-gray-900 mb-3">
+                Es de otra tienda
+              </h2>
+
+              <p className="text-sm text-gray-600 mb-4">
+                Tu pedido es de <strong>{tiendaDelCarrito?.nombre}</strong> y{' '}
+                <strong>{cambioDeTienda.nombre}</strong> lo vende{' '}
+                <strong>{cambioDeTienda.tienda?.nombre}</strong>.
+              </p>
+
+              <p className="text-sm text-gray-600 mb-6">
+                Cada tienda recibe los pedidos en su propio WhatsApp, así que un pedido solo
+                puede ser de una. Si sigues, se vacía lo que llevabas.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setCambioDeTienda(null)}
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition"
+                >
+                  Seguir con {tiendaDelCarrito?.nombre}
+                </button>
+                <button
+                  onClick={empezarPedidoNuevo}
+                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition"
+                >
+                  Empezar pedido nuevo
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Ficha ampliada del producto */}
         {detalle && (

@@ -68,7 +68,11 @@ test.describe('Gestión de productos', () => {
 
     await page.locator('input[name="sku"]').fill(sku)
     await page.locator('input[name="nombre"]').fill(`${MARCA} producto`)
-    await page.locator('select[name="categoria"]').selectOption('ceramica')
+    // La categoría ya no es una lista cerrada: se escribe, y si no existe
+    // se ofrece crearla.
+    const categoria = page.getByPlaceholder(/escribe o elige una categoría/i)
+    await categoria.fill('ceramica')
+    await page.getByText('Nueva categoría').or(page.getByRole('option').first()).first().click()
     await page.locator('input[name="precioUnitario"]').fill('55000')
     await page.locator('input[name="stockActual"]').fill('250')
     await page.locator('input[name="stockMinimo"]').fill('20')

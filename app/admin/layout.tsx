@@ -2,10 +2,11 @@
 
 import { AdminProtector } from '@/components/AdminProtector'
 import { PermisosProvider, usePermisos, invalidarPermisos } from '@/components/PermisosProvider'
-import { Header } from '@/components/Layout/Header'
+import { MenuTiendas } from '@/components/Layout/MenuTiendas'
 import { useRouter, usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase-client'
+import { olvidarSesion } from '@/lib/sesion'
 
 interface MenuItem {
   label: string
@@ -81,25 +82,34 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
 
   const handleLogout = async () => {
     invalidarPermisos()
+    // Se borra la marca de inicio, no la preferencia: quien pidió mantener
+    // la sesión en su celular no tiene por qué volver a marcar la casilla.
+    olvidarSesion()
     await supabase.auth.signOut()
     router.push('/login')
   }
 
   return (
     <AdminProtector>
-      <Header />
-
-      {/* Barra de navegación del panel, solo en móvil */}
-      <div className="md:hidden sticky top-0 z-30 flex items-center gap-3 bg-gray-900 px-4 py-3 text-white shadow-lg">
+      {/* Una sola barra superior. Antes había dos: la cabecera general y
+          esta; el correo y el cerrar sesión se movieron al menú de la
+          tienda, que es donde están las cosas de la cuenta. */}
+      <div className="sticky top-0 z-30 flex items-center gap-3 bg-gray-900 px-4 py-3 text-white shadow-lg">
         <button
           onClick={() => setMenuAbierto(true)}
           aria-label="Abrir menú"
           aria-expanded={menuAbierto}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10 text-xl active:bg-white/20"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10 text-xl active:bg-white/20 md:hidden"
         >
           ☰
         </button>
+        {/* En escritorio la barra quedaría vacía a la izquierda: el nombre
+            de la sección la equilibra y dice dónde se está. */}
         <span className="truncate font-semibold">{seccionActual}</span>
+
+        <div className="ml-auto">
+          <MenuTiendas email={userEmail} onCerrarSesion={handleLogout} />
+        </div>
       </div>
 
       <div className="flex min-h-screen bg-gray-100">
@@ -158,18 +168,9 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
               )
             })}
 
-            <hr className="my-5 border-gray-700" />
-
-            <div className="break-words px-4 py-2 text-center text-[11px] text-gray-400">
-              👤 {userEmail}
-            </div>
-
-            <button
-              onClick={handleLogout}
-              className="mt-2 w-full rounded-md bg-red-500 px-4 py-3 text-sm font-medium text-white transition hover:bg-red-600"
-            >
-              🚪 Cerrar Sesión
-            </button>
+            {/* El correo y el cerrar sesión viven en el menú de la tienda:
+                tenerlos también aquí eran dos botones de salir a la vista
+                al mismo tiempo. */}
           </nav>
         </aside>
 

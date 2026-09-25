@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { exigirPermiso, veTodasLasFacturas } from '@/lib/permisos'
+import { exigirTienda, veTodasLasFacturas } from '@/lib/permisos'
 
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { usuario, error: sinPermiso } = await exigirPermiso(request, 'facturas.ver')
+    const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, 'facturas.ver')
     if (sinPermiso) return sinPermiso
 
     const { id } = await context.params
 
-    const factura = await prisma.factura.findUnique({
-      where: { id },
+    const factura = await prisma.factura.findFirst({
+      where: { id, tiendaId },
       include: {
         cliente: true,
         usuario: true,
@@ -54,15 +54,19 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { error: sinPermiso } = await exigirPermiso(request, 'facturas.anular')
+    const { tiendaId, error: sinPermiso } = await exigirTienda(request, 'facturas.anular')
     if (sinPermiso) return sinPermiso
 
     const { id } = await context.params
 
     // Obtener factura antes de actualizar
-    const facturaBefore = await prisma.factura.findUnique({
-      where: { id },
+    const facturaBefore = await prisma.factura.findFirst({
+      where: { id, tiendaId },
     })
+
+    if (!facturaBefore) {
+      return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 })
+    }
 
     const facturaAfter = await prisma.factura.update({
       where: { id },

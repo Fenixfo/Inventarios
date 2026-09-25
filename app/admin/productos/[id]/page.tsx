@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase-client'
 import { apiFetch } from '@/lib/api-client'
 import { ImageUploader } from '@/components/ImageUploader'
 import { PermissionProtector } from '@/components/PermissionProtector'
+import { SelectorCategoria } from '@/components/Common/SelectorCategoria'
 
 interface Producto {
   id: string
@@ -39,6 +40,7 @@ export default function EditProductoPage() {
   const [error, setError] = useState<string | null>(null)
   const [skuError, setSkuError] = useState<string | null>(null)
   const [skuOriginal, setSkuOriginal] = useState('')
+  const [categoriasExistentes, setCategoriasExistentes] = useState<string[]>([])
 
   useEffect(() => {
     const fetchProducto = async () => {
@@ -71,6 +73,27 @@ export default function EditProductoPage() {
 
     fetchProducto()
   }, [id])
+
+  // Las categorías que ya usa la tienda, para ofrecerlas en el campo.
+  useEffect(() => {
+    const cargarCategorias = async () => {
+      try {
+        const res = await apiFetch('/api/productos')
+        if (!res.ok) return
+
+        const productos = await res.json()
+        setCategoriasExistentes(
+          Array.from(
+            new Set(productos.map((p: any) => p.categoria).filter(Boolean) as string[])
+          ).sort((a, b) => a.localeCompare(b, 'es'))
+        )
+      } catch {
+        // Sin la lista el campo sigue sirviendo: se escribe la categoría.
+      }
+    }
+
+    cargarCategorias()
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     if (!formData) return
@@ -107,6 +130,13 @@ export default function EditProductoPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData) return
+
+    // La categoría es un campo de texto con lista: el navegador ya no la
+    // exige por su cuenta como hacía el select.
+    if (!formData.categoria.trim()) {
+      setError('Elige una categoría o escribe una nueva')
+      return
+    }
 
     setSaving(true)
     setError(null)
@@ -206,18 +236,13 @@ export default function EditProductoPage() {
 
           <div>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Categoría *</label>
-            <select
-              name="categoria"
+            <SelectorCategoria
               value={formData.categoria}
-              onChange={handleChange}
-              required
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-            >
-              <option value="">Selecciona categoría</option>
-              <option value="baldosa">Baldosa</option>
-              <option value="ceramica">Cerámica</option>
-              <option value="porcelanato">Porcelanato</option>
-            </select>
+              onChange={(categoria) =>
+                setFormData((prev) => (prev ? { ...prev, categoria } : prev))
+              }
+              categorias={categoriasExistentes}
+            />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>

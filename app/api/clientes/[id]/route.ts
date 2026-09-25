@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { exigirPermiso } from '@/lib/permisos'
+import { exigirTienda } from '@/lib/permisos'
 
 export async function GET(
   request: NextRequest,
@@ -9,7 +9,7 @@ export async function GET(
   try {
     // Antes la comprobación solo ocurría si el cliente enviaba ?email=,
     // así que omitirlo bastaba para saltársela.
-    const { error: sinPermiso } = await exigirPermiso(request, [
+    const { tiendaId, error: sinPermiso } = await exigirTienda(request, [
       'clientes.ver',
       'facturas.crear',
     ])
@@ -17,8 +17,10 @@ export async function GET(
 
     const { id } = await context.params
 
-    const cliente = await prisma.cliente.findUnique({
-      where: { id },
+    // Con la tienda en el where, un cliente de otra tienda responde
+    // "no encontrado" en vez de mostrarse.
+    const cliente = await prisma.cliente.findFirst({
+      where: { id, tiendaId },
     })
 
     if (!cliente) {
@@ -42,15 +44,19 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { error: sinPermiso } = await exigirPermiso(request, 'clientes.editar')
+    const { tiendaId, error: sinPermiso } = await exigirTienda(request, 'clientes.editar')
     if (sinPermiso) return sinPermiso
 
     const { id } = await context.params
 
-    await prisma.cliente.update({
-      where: { id },
+    const { count } = await prisma.cliente.updateMany({
+      where: { id, tiendaId },
       data: { activo: false },
     })
+
+    if (count === 0) {
+      return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
