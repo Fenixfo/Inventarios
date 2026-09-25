@@ -77,6 +77,16 @@ export async function POST(request: NextRequest) {
     })
     return NextResponse.json(producto, { status: 201 })
   } catch (error: any) {
+    // P2002 es choque de índice único: aquí solo puede ser el SKU, y decirlo
+    // así evita mostrarle al usuario el mensaje crudo de la base.
+    if (error?.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Ya tienes un producto con ese SKU en esta tienda' },
+        { status: 409 }
+      )
+    }
+
+    console.error('Error creando producto:', error)
     return NextResponse.json(
       { error: error.message || 'Error creating producto' },
       { status: 400 }
@@ -153,6 +163,13 @@ export async function PUT(request: NextRequest) {
     })
     return NextResponse.json(producto)
   } catch (error: any) {
+    if (error?.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Ya tienes otro producto con ese SKU en esta tienda' },
+        { status: 409 }
+      )
+    }
+
     console.error('PUT error:', error)
     return NextResponse.json(
       { error: error.message || 'Error updating producto' },

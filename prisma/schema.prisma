@@ -174,7 +174,9 @@ model PermisoAsignado {
 
 model Producto {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  sku       String   @unique @db.VarChar(100)
+  /// Único dentro de la tienda, no en toda la base: cada negocio numera sus
+  /// productos como quiera y dos tiendas distintas pueden usar el mismo SKU.
+  sku       String   @db.VarChar(100)
   nombre    String   @db.VarChar(255)
   categoria String   @db.VarChar(100)
 
@@ -225,6 +227,7 @@ model Producto {
   facturasItems FacturaItem[]
   movimientosInventario InventarioMovimiento[]
 
+  @@unique([tiendaId, sku], map: "productos_tienda_sku_key")
   @@index([sku])
   @@index([stockActual])
   @@index([activo])
@@ -236,7 +239,9 @@ model Cliente {
   nombre    String   @db.VarChar(255)
   email     String?  @db.VarChar(255)
   telefono  String?  @db.VarChar(20)
-  cedulaCc  String?  @unique @map("cedula_cc") @db.VarChar(50)
+  /// Única dentro de la tienda: la misma persona puede ser cliente de dos
+  /// negocios distintos, y cada uno la registra por su cuenta.
+  cedulaCc  String?  @map("cedula_cc") @db.VarChar(50)
   direccion String?  @db.Text
 
   // Términos de pago
@@ -260,6 +265,7 @@ model Cliente {
   // Relations
   facturas  Factura[]
 
+  @@unique([tiendaId, cedulaCc], map: "clientes_tienda_cedula_key")
   @@index([cedulaCc])
   @@index([email])
   @@map("clientes")

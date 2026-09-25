@@ -42,6 +42,16 @@ export async function POST(request: NextRequest) {
     })
     return NextResponse.json(cliente, { status: 201 })
   } catch (error: any) {
+    // Choque de índice único: aquí solo puede ser la cédula, que es única
+    // dentro de la tienda.
+    if (error?.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Ya tienes un cliente con esa cédula en esta tienda' },
+        { status: 409 }
+      )
+    }
+
+    console.error('Error creando cliente:', error)
     return NextResponse.json(
       { error: error.message || 'Error creating cliente' },
       { status: 400 }
