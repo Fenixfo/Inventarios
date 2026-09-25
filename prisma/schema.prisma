@@ -177,6 +177,11 @@ model Producto {
   /// Único dentro de la tienda, no en toda la base: cada negocio numera sus
   /// productos como quiera y dos tiendas distintas pueden usar el mismo SKU.
   sku       String   @db.VarChar(100)
+
+  /// El nombre en minúsculas y sin tildes, para buscar. La calcula Postgres
+  /// sola (columna generada): nunca se escribe desde aquí, y por eso no
+  /// aparece en ningún `create` ni `update`.
+  nombreBusqueda String? @map("nombre_busqueda")
   nombre    String   @db.VarChar(255)
   categoria String   @db.VarChar(100)
 

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
 import { apiFetch } from '@/lib/api-client'
 import { PermissionProtector } from '@/components/PermissionProtector'
+import { soloFecha } from '@/lib/fechas'
 
 interface Cliente {
   id: string
@@ -259,7 +260,7 @@ export default function EditClientePage() {
 
           {formData.ultimaCompraFecha && (
             <div style={{ padding: '10px', backgroundColor: '#f0f0f0', borderRadius: '4px' }}>
-              <strong>Última compra:</strong> {new Date(formData.ultimaCompraFecha).toLocaleDateString()}
+              <strong>Última compra:</strong> {soloFecha(formData.ultimaCompraFecha)}
             </div>
           )}
 

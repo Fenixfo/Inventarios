@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/api-client'
 import { useEffect, useState } from 'react'
 import { PermissionProtector } from '@/components/PermissionProtector'
 import Link from 'next/link'
+import { fechaYHora } from '@/lib/fechas'
 
 interface RegistroAuditoria {
   id: string
@@ -76,7 +77,7 @@ export default function AuditoriaPage() {
   }
 
   const formatearFecha = (fecha: string) => {
-    return new Date(fecha).toLocaleString('es-CO')
+    return fechaYHora(fecha)
   }
 
   return (

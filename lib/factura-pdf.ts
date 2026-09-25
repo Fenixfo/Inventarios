@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib'
+import { fechaYHora } from '@/lib/fechas'
 
 /**
  * Genera la factura como archivo PDF de verdad.
@@ -196,13 +197,7 @@ export async function generarPdfFactura(
     empresa.email,
   ].filter(Boolean) as string[]
 
-  const fecha = new Date(factura.fecha).toLocaleString('es-CO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  const fecha = fechaYHora(factura.fecha)
   const datosFactura = [
     `Fecha: ${fecha}`,
     `Estado: ${factura.estado.charAt(0).toUpperCase() + factura.estado.slice(1)}`,
@@ -374,7 +369,7 @@ export async function generarPdfFactura(
     y -= 13
 
     for (const abono of factura.abonos || []) {
-      const cuando = new Date(abono.fecha).toLocaleDateString('es-CO')
+      const cuando = fechaYHora(abono.fecha)
       escribir(ctx, cuando, MARGEN, y, { tamano: 9, color: GRIS })
       escribir(ctx, pesos(abono.monto), 0, y, { tamano: 9, derecha: MARGEN + 180 })
       y -= 12

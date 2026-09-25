@@ -112,6 +112,25 @@ test.describe('Catálogo público', () => {
     expect(enPortada).toBeGreaterThan(0)
   })
 
+  test('elegir una tienda deja solo sus categorías', async ({ page }) => {
+    const tarjetas = page.getByTestId('productos').locator('> div')
+    await expect(tarjetas.first()).toBeVisible()
+
+    const selectorTienda = page.getByLabel('Tienda', { exact: true })
+    if (!(await selectorTienda.isVisible().catch(() => false))) return
+
+    const categorias = page.getByLabel('Categoría', { exact: true }).locator('option')
+    const antes = await categorias.count()
+
+    const tienda = (await selectorTienda.locator('option').nth(1).getAttribute('value'))!
+    await selectorTienda.selectOption(tienda)
+
+    // Quedan las de esa tienda: ofrecer categorías que no tiene solo lleva
+    // a una pantalla en blanco.
+    await expect.poll(async () => categorias.count()).toBeLessThanOrEqual(antes)
+    expect(await categorias.count()).toBeGreaterThan(1)
+  })
+
   test('todos los productos del catálogo tienen foto', async ({ page }) => {
     const tarjetas = page.getByTestId('productos').locator('> div')
     await expect(tarjetas.first()).toBeVisible()
@@ -129,30 +148,51 @@ test.describe('Catálogo público', () => {
     await expect(enlace).toBeVisible()
   })
 
-  test('el buscador filtra por nombre sin tildes', async ({ page }) => {
+  // La búsqueda la hace el servidor y se lanza con Enter: antes filtraba lo
+  // que ya estaba en pantalla, así que buscar "gris" dentro de una categoría
+  // solo miraba los nueve productos cargados.
+  test('el buscador busca en todo el catálogo al pulsar Enter', async ({ page }) => {
     const tarjetas = page.getByTestId('productos').locator('> div')
     await expect(tarjetas.first()).toBeVisible()
 
-    const nombre = await tarjetas.first().getByRole('heading').textContent()
-    const primeraPalabra = (nombre || '').trim().split(/\s+/)[0]
+    const campo = page.getByLabel(/buscar por nombre/i)
 
     // Se busca sin tildes a propósito: "cafe" tiene que encontrar "Café".
-    const sinTildes = primeraPalabra.normalize('NFD').replace(/[̀-ͯ]/g, '')
+    await campo.fill('cafe')
+    await campo.press('Enter')
 
-    await page.getByLabel(/buscar por nombre/i).fill(sinTildes)
+    await expect.poll(async () => tarjetas.count()).toBeGreaterThan(0)
+
+    const nombres = await tarjetas.getByRole('heading').allTextContents()
+    nombres.forEach((n) => {
+      const sinTildes = n.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+      expect(sinTildes).toContain('cafe')
+    })
+  })
+
+  test('con menos de tres letras no se busca', async ({ page }) => {
+    const campo = page.getByLabel(/buscar por nombre/i)
+    await campo.fill('ca')
+
+    await expect(page.getByText(/al menos 3 letras/i)).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Buscar', exact: true })).toBeDisabled()
+  })
+
+  test('una búsqueda sin resultados se puede limpiar', async ({ page }) => {
+    const tarjetas = page.getByTestId('productos').locator('> div')
     await expect(tarjetas.first()).toBeVisible()
 
-    const resultados = await tarjetas.count()
-    expect(resultados).toBeGreaterThan(0)
+    const campo = page.getByLabel(/buscar por nombre/i)
+    await campo.fill('zzzz-no-existe-zzzz')
+    await campo.press('Enter')
 
-    await page.getByLabel(/buscar por nombre/i).fill('zzzz-no-existe-zzzz')
     await expect(page.getByText(/ningún producto coincide/i)).toBeVisible()
 
     // Hay dos formas de limpiar: la × del campo y el botón del mensaje.
     // Aquí se usa el del mensaje, que es el que ve quien no encontró nada.
     await page.getByRole('button', { name: 'Borrar búsqueda', exact: true }).click()
     await expect(tarjetas.first()).toBeVisible()
-    await expect(page.getByLabel(/buscar por nombre/i)).toHaveValue('')
+    await expect(campo).toHaveValue('')
   })
 
   test('al pulsar la tarjeta se abre la ficha ampliada', async ({ page }) => {

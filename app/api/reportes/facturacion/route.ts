@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { exigirTienda } from '@/lib/permisos'
+import { diaColombiano } from '@/lib/fechas'
 export async function GET(request: NextRequest) {
   try {
     const { tiendaId, error: sinPermiso } = await exigirTienda(request, 'reportes.ver')
@@ -98,7 +99,9 @@ export async function GET(request: NextRequest) {
     // Ventas por día (para gráfico)
     const ventasPorDia = new Map<string, number>()
     facturas.forEach((factura) => {
-      const fecha = new Date(factura.fecha).toLocaleDateString('es-CO')
+      // El día al que pertenece la venta aquí: una de las 8 de la noche
+      // es del 24, aunque en UTC ya sea el 25.
+      const fecha = diaColombiano(factura.fecha)
       const actual = ventasPorDia.get(fecha) || 0
       ventasPorDia.set(fecha, actual + Number(factura.total))
     })

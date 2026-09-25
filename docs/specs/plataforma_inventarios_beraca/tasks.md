@@ -1941,7 +1941,7 @@ Pasa a traer 9 y un botón "Ver más" que suma 3 cada vez.
 - **Cubre:** RF-2 (catálogo), usabilidad
 - **Componente:** app/api/productos/catalogo/filtros, app/page.tsx
 - **Tipo:** mejora
-- **Estado:** pendiente
+- **Estado:** completada (2026-09-25)
 
 **Descripción:**
 Hoy los dos desplegables muestran siempre todo. Si se elige Beraca, siguen apareciendo
@@ -1951,9 +1951,12 @@ Al elegir una tienda, las categorías se reducen a las de esa tienda. Al elegir 
 las tiendas se reducen a las que la tienen.
 
 **Criterio de done:**
-- [ ] Los filtros se recalculan según lo que ya esté elegido
-- [ ] Ninguna combinación ofrecida lleva a cero resultados
-- [ ] Si la elección actual deja de ser válida, se limpia sola
+- [x] Los filtros se recalculan según lo que ya esté elegido
+- [x] Ninguna combinación ofrecida lleva a cero resultados
+- [x] Si la elección actual deja de ser válida, se limpia sola
+
+Cada lista ignora su propia selección: si la de categorías se acotara con la categoría elegida,
+quedaría esa sola en el desplegable y no habría forma de cambiar.
 
 ---
 
@@ -1962,7 +1965,7 @@ las tiendas se reducen a las que la tienen.
 - **Cubre:** RF-2 (catálogo)
 - **Componente:** app/api/productos/catalogo, app/page.tsx
 - **Tipo:** feature
-- **Estado:** pendiente
+- **Estado:** completada (2026-09-25)
 
 **Descripción:**
 El catálogo solo muestra productos con imagen, porque es una vitrina. Pero quien busca un
@@ -1972,10 +1975,16 @@ La búsqueda pasa a hacerse en el servidor —hoy filtra sobre lo ya cargado— 
 de 9 y su "Ver más".
 
 **Criterio de done:**
-- [ ] Buscando por nombre aparecen también los productos sin imagen
-- [ ] Sin búsqueda, el catálogo sigue mostrando solo los que tienen foto
-- [ ] La búsqueda respeta el tope y el "Ver más"
-- [ ] Sigue encontrando sin tildes
+- [x] Buscando por nombre aparecen también los productos sin imagen
+- [x] Sin búsqueda, el catálogo sigue mostrando solo los que tienen foto
+- [x] La búsqueda respeta el tope y el "Ver más"
+- [x] Sigue encontrando sin tildes
+- [x] Se suma a los filtros en vez de reemplazarlos
+- [x] Mínimo 3 letras y se lanza con Enter, no en cada tecla
+
+**SQL:** `docs/sql/busqueda_por_nombre.sql`, ejecutado el 2026-09-25. Añade `nombre_busqueda`,
+una columna generada por Postgres con el nombre en minúsculas y sin tildes: comparar sin tildes
+no lo hace la base por su cuenta, y hay 28 productos con tilde o ñ.
 
 ---
 
@@ -1984,7 +1993,7 @@ de 9 y su "Ver más".
 - **Cubre:** RNF (coherencia de datos)
 - **Componente:** lib/fechas.ts
 - **Tipo:** corrección
-- **Estado:** pendiente
+- **Estado:** completada (2026-09-25)
 
 **Descripción:**
 Las fechas se muestran con la zona horaria del dispositivo. Un celular mal configurado, o
@@ -1992,8 +2001,16 @@ alguien mirando desde otro país, ve horas que no son las del negocio. Las factu
 en la hora de Colombia, así que deben mostrarse en esa.
 
 **Criterio de done:**
-- [ ] Todas las fechas se muestran en UTC-5, sin depender del dispositivo
-- [ ] El PDF y el mensaje de WhatsApp también
+- [x] Todas las fechas se muestran en UTC-5, sin depender del dispositivo
+- [x] El PDF y el mensaje de WhatsApp también
+
+**Cómo quedó:**
+`lib/fechas.ts` fija `America/Bogota` en `fechaYHora`, `soloFecha` y `soloHora`, y suma
+`diaColombiano()` para agrupar por día (una venta de las 8 p. m. es del 24, aunque en UTC
+ya sea el 25). Se pasaron por esos ayudantes las fechas que se armaban a mano en:
+PDF en HTML, `lib/factura-pdf.ts`, `lib/whatsapp.ts`, auditoría, detalle de cliente,
+solicitudes de acceso, configuración, inventario y el reporte de facturación.
+Pruebas: `tests/unit/fechas.test.ts` (8, en verde).
 
 ---
 

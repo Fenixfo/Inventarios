@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { exigirTienda } from '@/lib/permisos'
 import { generarPdfFactura, nombreArchivoFactura } from '@/lib/factura-pdf'
+import { fechaYHora, soloFecha, soloHora } from '@/lib/fechas'
 
 export async function GET(
   request: NextRequest,
@@ -116,13 +117,7 @@ function generarHTML(factura: any, config: Record<string, string> = {}): string 
 
   // Con fecha y hora: en un día con varias ventas al mismo cliente, el día
   // solo no distingue una factura de otra.
-  const fecha = new Date(factura.fecha).toLocaleString('es-CO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  const fecha = fechaYHora(factura.fecha)
   const subtotal = Number(factura.subtotal)
   const descuento = Number(factura.descuentoMonto)
   const impuesto = Number(factura.impuesto)
@@ -383,7 +378,7 @@ function generarHTML(factura: any, config: Record<string, string> = {}): string 
         <h3>Información de Pago</h3>
         <p>Término de Pago: <strong>${factura.terminoPago || 'N/A'}</strong></p>
         <p>Método de Pago: <strong>${factura.metodoPago || 'N/A'}</strong></p>
-        ${factura.fechaPago ? `<p>Fecha de Pago: ${new Date(factura.fechaPago).toLocaleDateString('es-CO')}</p>` : ''}
+        ${factura.fechaPago ? `<p>Fecha de Pago: ${fechaYHora(factura.fechaPago)}</p>` : ''}
       </div>
     </div>
 
@@ -464,7 +459,7 @@ function generarHTML(factura: any, config: Record<string, string> = {}): string 
           <tbody>
             ${(factura.abonos || []).map((abono: any) => `
               <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px; font-size: 12px;">${new Date(abono.fecha).toLocaleDateString('es-CO')}</td>
+                <td style="padding: 10px; font-size: 12px;">${fechaYHora(abono.fecha)}</td>
                 <td style="padding: 10px; text-align: right; font-size: 12px;">${formatearDinero(Number(abono.monto))}</td>
               </tr>
             `).join('')}
@@ -482,7 +477,7 @@ function generarHTML(factura: any, config: Record<string, string> = {}): string 
 
     <!-- Footer -->
     <div class="footer">
-      <p>Generado el ${new Date().toLocaleDateString('es-CO')} a las ${new Date().toLocaleTimeString('es-CO')}</p>
+      <p>Generado el ${soloFecha(new Date())} a las ${soloHora(new Date())}</p>
       <p>${empresa.nombre}</p>
     </div>
   </div>

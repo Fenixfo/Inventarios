@@ -4,6 +4,7 @@ import { apiFetch } from '@/lib/api-client'
 import { useEffect, useState } from 'react'
 import { PermissionProtector } from '@/components/PermissionProtector'
 import { SelectorProducto } from '@/components/Common/SelectorProducto'
+import { fechaYHora } from '@/lib/fechas'
 import { supabase } from '@/lib/supabase-client'
 import Link from 'next/link'
 
@@ -398,13 +399,7 @@ export default function InventarioPage() {
                 {movimientos.map((m) => (
                   <tr key={m.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                     <td style={{ padding: '12px', fontSize: '12px', whiteSpace: 'nowrap' }}>
-                      {new Date(m.fechaMovimiento).toLocaleString('es-CO', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      {fechaYHora(m.fechaMovimiento)}
                     </td>
                     <td style={{ padding: '12px', fontSize: '12px' }}>
                       <span

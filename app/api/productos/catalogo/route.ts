@@ -41,6 +41,15 @@ function respuestaCacheable(datos: unknown) {
   })
 }
 
+/** Minúsculas y sin tildes, igual que la columna `nombre_busqueda`. */
+function normalizarBusqueda(texto: string): string {
+  return texto
+    .trim()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+}
+
 /** Lee un número de la URL, con tope para que nadie pida el catálogo entero. */
 function entero(valor: string | null, porDefecto: number, maximo: number): number {
   const n = parseInt(valor || '', 10)
@@ -55,6 +64,13 @@ export async function GET(request: NextRequest) {
     const tienda = searchParams.get('tienda')
     const limitePorTienda = parseInt(searchParams.get('limitePorTienda') || '', 10)
 
+    // Se busca contra la columna que la base mantiene ya normalizada, así
+    // que el término se normaliza igual: "Café" y "cafe" acaban siendo lo
+    // mismo. Menos de tres letras no se busca, para no pasear el catálogo
+    // entero por una tecla suelta.
+    const busqueda = normalizarBusqueda(searchParams.get('busqueda') || '')
+    const buscando = busqueda.length >= 3
+
     // Cuántos traer y desde dónde. El tope de 60 es para que una URL a mano
     // no pueda pedir diez mil productos de una vez.
     const limite = entero(searchParams.get('limite'), 9, 60)
@@ -66,14 +82,24 @@ export async function GET(request: NextRequest) {
       // Una tienda privada no aparece aquí aunque tenga productos activos.
       tienda: { activo: true, publica: true },
 
-      // Solo con foto: una vitrina de cuadros grises no vende nada. El
-      // producto sigue existiendo para facturar, simplemente no se expone
-      // hasta que tenga imagen. La cadena vacía se descarta aparte porque
-      // en SQL no es lo mismo que NULL.
-      imagenUrl: { not: null },
-      NOT: { imagenUrl: '' },
     }
 
+    // Solo con foto: una vitrina de cuadros grises no vende nada. El
+    // producto sigue existiendo para facturar, simplemente no se expone
+    // hasta que tenga imagen. La cadena vacía se descarta aparte porque
+    // en SQL no es lo mismo que NULL.
+    //
+    // Al buscar por nombre sí salen todos: quien escribe el nombre ya sabe
+    // lo que quiere, y ocultárselo porque le falta la foto no ayuda a nadie.
+    if (!buscando) {
+      where.imagenUrl = { not: null }
+      where.NOT = { imagenUrl: '' }
+    } else {
+      where.nombreBusqueda = { contains: busqueda }
+    }
+
+    // La búsqueda no sustituye a los filtros, se suma a ellos: buscar "gris"
+    // con la categoría Porcelanato puesta busca entre los porcelanatos.
     if (categoria) where.categoria = categoria
     if (tienda) where.tiendaId = tienda
 
@@ -86,7 +112,9 @@ export async function GET(request: NextRequest) {
     // la respuesta entera. Se leen más filas de las que se muestran; con
     // catálogos de miles de productos por tienda habría que pasar a SQL con
     // ROW_NUMBER() para cortar en la base.
-    if (Number.isFinite(limitePorTienda) && limitePorTienda > 0) {
+    // Buscando no hay muestra por tienda: se busca en todo lo que cumpla,
+    // por tandas como cualquier filtro.
+    if (!buscando && Number.isFinite(limitePorTienda) && limitePorTienda > 0) {
       const productos = await prisma.producto.findMany({
         where,
         select: SELECCION,

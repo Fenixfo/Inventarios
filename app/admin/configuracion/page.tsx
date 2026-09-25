@@ -4,6 +4,7 @@ import { apiFetch } from '@/lib/api-client'
 import { useEffect, useState } from 'react'
 import { PermissionProtector } from '@/components/PermissionProtector'
 import { ImageUploader } from '@/components/ImageUploader'
+import { fechaYHora } from '@/lib/fechas'
 import { supabase } from '@/lib/supabase-client'
 import Link from 'next/link'
 
@@ -437,13 +438,7 @@ export default function ConfiguracionPage() {
               {!hayCambios && actualizadoEn && (
                 <span style={{ fontSize: '13px', color: '#6b7280' }}>
                   Última actualización:{' '}
-                  {new Date(actualizadoEn).toLocaleString('es-CO', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  {fechaYHora(actualizadoEn)}
                 </span>
               )}
             </div>

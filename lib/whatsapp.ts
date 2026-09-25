@@ -1,3 +1,5 @@
+import { fechaYHora } from '@/lib/fechas'
+
 /**
  * Enlaces de WhatsApp.
  *
@@ -79,13 +81,7 @@ export function mensajeFactura(
 ): string {
   const { empresa = 'Beraca', totalAbonado, saldoPendiente } = opciones
 
-  const fecha = new Date(factura.fecha).toLocaleString('es-CO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  const fecha = fechaYHora(factura.fecha)
 
   const lineas = [
     `*${empresa.toUpperCase()}*`,

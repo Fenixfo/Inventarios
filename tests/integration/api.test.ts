@@ -294,6 +294,154 @@ describe('GET /api/productos/catalogo', () => {
     expect(productos.length).toBeLessThanOrEqual(60)
   })
 
+  it('al elegir una tienda, solo quedan las categorías de esa tienda', async () => {
+    const { data: todas } = await api('/api/productos/catalogo/filtros')
+    const tienda = todas.tiendas[0]?.id
+    if (!tienda) return
+
+    const { data: acotadas } = await api(
+      `/api/productos/catalogo/filtros?tienda=${tienda}`
+    )
+
+    expect(acotadas.categorias.length).toBeGreaterThan(0)
+    expect(acotadas.categorias.length).toBeLessThanOrEqual(todas.categorias.length)
+
+    // Todas las que quedan existen de verdad en esa tienda.
+    for (const categoria of acotadas.categorias) {
+      const cuantos = await prisma.producto.count({
+        where: {
+          tiendaId: tienda,
+          categoria,
+          activo: true,
+          stockActual: { gt: 0 },
+          imagenUrl: { not: null },
+          NOT: { imagenUrl: '' },
+        },
+      })
+      expect(cuantos).toBeGreaterThan(0)
+    }
+  })
+
+  it('al elegir una categoría, solo quedan las tiendas que la tienen', async () => {
+    const { data: todas } = await api('/api/productos/catalogo/filtros')
+    const categoria = todas.categorias[0]
+    if (!categoria) return
+
+    const { data: acotadas } = await api(
+      `/api/productos/catalogo/filtros?categoria=${encodeURIComponent(categoria)}`
+    )
+
+    expect(acotadas.tiendas.length).toBeGreaterThan(0)
+    expect(acotadas.tiendas.length).toBeLessThanOrEqual(todas.tiendas.length)
+  })
+
+  it('ninguna combinación que se ofrece lleva a cero resultados', async () => {
+    // Es el problema que esto resuelve: antes se podía elegir una tienda y
+    // luego una categoría que esa tienda no tiene, y quedar en blanco.
+    const { data: todas } = await api('/api/productos/catalogo/filtros')
+    const tienda = todas.tiendas[0]?.id
+    if (!tienda) return
+
+    const { data: acotadas } = await api(
+      `/api/productos/catalogo/filtros?tienda=${tienda}`
+    )
+
+    for (const categoria of acotadas.categorias) {
+      const { total } = await catalogo(
+        `/api/productos/catalogo?tienda=${tienda}&categoria=${encodeURIComponent(categoria)}`
+      )
+      expect(total).toBeGreaterThan(0)
+    }
+  })
+
+  it('busca por nombre sin importar las tildes', async () => {
+    // En la base hay 28 nombres con tilde o ñ. Quien escribe "cafe" tiene
+    // que encontrar los "Café": la columna nombre_busqueda es justo para eso.
+    const conTilde = await prisma.producto.findFirst({
+      where: {
+        nombre: { contains: 'Café' },
+        activo: true,
+        stockActual: { gt: 0 },
+        tienda: { activo: true, publica: true },
+      },
+      select: { id: true },
+    })
+
+    if (!conTilde) return
+
+    const { productos, total } = await catalogo('/api/productos/catalogo?busqueda=cafe')
+
+    expect(total).toBeGreaterThan(0)
+    expect(productos.some((p) => p.id === conTilde.id)).toBe(true)
+  })
+
+  it('buscando también salen los productos sin foto', async () => {
+    // Sin búsqueda el catálogo es una vitrina; buscando, quien escribe el
+    // nombre ya sabe lo que quiere.
+    const sinFoto = await prisma.producto.findFirst({
+      where: {
+        activo: true,
+        stockActual: { gt: 0 },
+        tienda: { activo: true, publica: true },
+        OR: [{ imagenUrl: null }, { imagenUrl: '' }],
+      },
+      select: { id: true, nombre: true },
+    })
+
+    if (!sinFoto) return
+
+    const termino = sinFoto.nombre.split(/\s+/)[0]
+    if (termino.length < 3) return
+
+    const { productos } = await catalogo(
+      `/api/productos/catalogo?busqueda=${encodeURIComponent(termino)}&limite=60`
+    )
+
+    expect(productos.some((p) => p.id === sinFoto.id)).toBe(true)
+
+    // Y sin buscar, ese mismo producto no aparece.
+    const { productos: vitrina } = await catalogo('/api/productos/catalogo?limite=60')
+    expect(vitrina.some((p) => p.id === sinFoto.id)).toBe(false)
+  })
+
+  it('la búsqueda se suma a los filtros, no los reemplaza', async () => {
+    // El caso que no funcionaba: buscar dentro de una categoría miraba solo
+    // los productos ya cargados en pantalla.
+    const { data: filtros } = await api('/api/productos/catalogo/filtros')
+    const categoria = filtros.categorias[0]
+    if (!categoria) return
+
+    const { productos } = await catalogo(
+      `/api/productos/catalogo?categoria=${encodeURIComponent(categoria)}&busqueda=gris&limite=60`
+    )
+
+    productos.forEach((p) => {
+      expect(p.categoria).toBe(categoria)
+      expect(p.nombre.toLowerCase()).toContain('gris')
+    })
+  })
+
+  it('con menos de tres letras no busca', async () => {
+    // Dos letras encontrarían medio catálogo y no ayudan a nadie.
+    const { total: buscando } = await catalogo('/api/productos/catalogo?busqueda=ca')
+    const { total: normal } = await catalogo('/api/productos/catalogo')
+
+    expect(buscando).toBe(normal)
+  })
+
+  it('la búsqueda también viene por tandas', async () => {
+    const primera = await catalogo('/api/productos/catalogo?busqueda=pared&limite=9&desde=0')
+    if (primera.total <= 9) return
+
+    const segunda = await catalogo('/api/productos/catalogo?busqueda=pared&limite=3&desde=9')
+
+    expect(primera.productos.length).toBe(9)
+    expect(segunda.productos.length).toBeLessThanOrEqual(3)
+
+    const yaVistos = new Set(primera.productos.map((p) => p.id))
+    segunda.productos.forEach((p) => expect(yaVistos.has(p.id)).toBe(false))
+  })
+
   it('filtra por categoría', async () => {
     const { productos: todos } = await catalogo()
     if (todos.length === 0) return

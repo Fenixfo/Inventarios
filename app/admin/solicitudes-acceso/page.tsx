@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/api-client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase-client'
 import { PermissionProtector } from '@/components/PermissionProtector'
+import { soloFecha } from '@/lib/fechas'
 
 interface SolicitudAcceso {
   id: string
@@ -119,7 +120,7 @@ export default function SolicitudesAccesoPage() {
                     {solicitud.razon || '-'}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">
-                    {new Date(solicitud.createdAt).toLocaleDateString('es-CO')}
+                    {soloFecha(solicitud.createdAt)}
                   </td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex justify-center gap-2">

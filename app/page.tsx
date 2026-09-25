@@ -74,6 +74,9 @@ export default function Catalogo() {
   const [categorias, setCategorias] = useState<string[]>([])
   const [tiendaFiltro, setTiendaFiltro] = useState<string>('')
   const [tiendas, setTiendas] = useState<TiendaCatalogo[]>([])
+  // Dos estados: lo que hay escrito y lo que se está buscando de verdad.
+  // Sin esa separación, cada tecla dispararía una consulta al servidor.
+  const [textoBusqueda, setTextoBusqueda] = useState('')
   const [busqueda, setBusqueda] = useState('')
   // Avisa antes de mezclar tiendas en el mismo carrito.
   const [cambioDeTienda, setCambioDeTienda] = useState<Producto | null>(null)
@@ -84,31 +87,47 @@ export default function Catalogo() {
   // pop-up de cantidad, que sigue saliendo desde el botón del carrito.
   const [detalle, setDetalle] = useState<Producto | null>(null)
 
-  // Al cambiar de filtro se vuelve a empezar desde la primera tanda: si no,
-  // se pediría la página 3 de un listado que ahora tiene dos.
+  // Al cambiar de filtro o de búsqueda se vuelve a empezar desde la primera
+  // tanda: si no, se pediría la página 3 de un listado que ahora tiene dos.
   useEffect(() => {
     cargarProductos({ reiniciar: true })
-  }, [categoriaFiltro, tiendaFiltro])
+  }, [categoriaFiltro, tiendaFiltro, busqueda])
 
-  // Los filtros se piden una sola vez y aparte de los productos: la portada
-  // trae solo unos pocos por tienda, así que armarlos con eso dejaría fuera
-  // categorías que sí existen.
+  // Los filtros se piden aparte de los productos —la portada trae solo unos
+  // pocos por tienda— y se rehacen cada vez que cambia una selección, para
+  // que cada lista muestre solo lo que combina con la otra.
   useEffect(() => {
     const cargarFiltros = async () => {
       try {
-        const res = await fetch('/api/productos/catalogo/filtros')
+        const params = new URLSearchParams()
+        if (categoriaFiltro) params.set('categoria', categoriaFiltro)
+        if (tiendaFiltro) params.set('tienda', tiendaFiltro)
+
+        const res = await fetch(`/api/productos/catalogo/filtros?${params.toString()}`)
         if (!res.ok) return
 
         const datos = await res.json()
-        setCategorias(datos.categorias || [])
-        setTiendas(datos.tiendas || [])
+        const nuevasCategorias: string[] = datos.categorias || []
+        const nuevasTiendas: TiendaCatalogo[] = datos.tiendas || []
+
+        setCategorias(nuevasCategorias)
+        setTiendas(nuevasTiendas)
+
+        // Si lo elegido dejó de existir en la otra lista, se limpia: si no,
+        // el desplegable mostraría una opción que ya no da resultados.
+        if (categoriaFiltro && !nuevasCategorias.includes(categoriaFiltro)) {
+          setCategoriaFiltro('')
+        }
+        if (tiendaFiltro && !nuevasTiendas.some((t) => t.id === tiendaFiltro)) {
+          setTiendaFiltro('')
+        }
       } catch {
         // Sin filtros el catálogo sigue viéndose; solo no se puede acotar.
       }
     }
 
     cargarFiltros()
-  }, [])
+  }, [categoriaFiltro, tiendaFiltro])
 
   /**
    * Trae productos del servidor.
@@ -127,10 +146,11 @@ export default function Catalogo() {
       const params = new URLSearchParams()
       if (categoriaFiltro) params.set('categoria', categoriaFiltro)
       if (tiendaFiltro) params.set('tienda', tiendaFiltro)
+      if (busqueda) params.set('busqueda', busqueda)
 
-      // Sin filtros, la portada enseña una muestra de cada tienda en vez de
-      // volcar el inventario de todas.
-      if (!categoriaFiltro && !tiendaFiltro) {
+      // Sin filtros ni búsqueda, la portada enseña una muestra de cada
+      // tienda en vez de volcar el inventario de todas.
+      if (!categoriaFiltro && !tiendaFiltro && !busqueda) {
         params.set('limitePorTienda', String(POR_TIENDA_EN_PORTADA))
       } else {
         params.set('limite', String(reiniciar ? PRIMERA_TANDA : TANDA_SIGUIENTE))
@@ -150,23 +170,27 @@ export default function Catalogo() {
     }
   }
 
-  /** Sin filtros lo que se ve es una muestra, no el catálogo completo. */
-  const esMuestra = !categoriaFiltro && !tiendaFiltro
+  /** Lanza la búsqueda. Menos de tres letras no se busca. */
+  const buscar = () => {
+    const texto = textoBusqueda.trim()
+    if (texto.length > 0 && texto.length < 3) return
 
-  /** Sin tildes y en minúsculas, para que "cafe" encuentre "Pared Café". */
-  const normalizar = (texto: string) =>
-    texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    setBusqueda(texto)
+  }
 
-  // El filtro trabaja sobre lo ya cargado: no hace falta ir al servidor por
-  // cada tecla. Cada palabra debe aparecer, así "pared gris" vale aunque el
-  // nombre sea "Pared Mancha Gris".
-  const palabras = normalizar(busqueda.trim()).split(/\s+/).filter(Boolean)
-  const productosFiltrados = palabras.length
-    ? productos.filter((p) => {
-        const nombre = normalizar(p.nombre)
-        return palabras.every((w) => nombre.includes(w))
-      })
-    : productos
+  const limpiarBusqueda = () => {
+    setTextoBusqueda('')
+    setBusqueda('')
+  }
+
+  /**
+   * La portada enseña una muestra por tienda mientras no haya nada elegido
+   * ni buscado.
+   */
+  const esMuestra = !categoriaFiltro && !tiendaFiltro && !busqueda
+
+  // La búsqueda la hace el servidor, así que lo que llega ya viene filtrado.
+  const productosFiltrados = productos
 
   const formatearPrecio = (precio: number) => {
     return new Intl.NumberFormat('es-CO', {
@@ -293,31 +317,58 @@ export default function Catalogo() {
             <label htmlFor="buscar" className="block font-semibold text-gray-700 mb-2">
               Buscar por nombre:
             </label>
-            <div className="relative mb-6">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden="true">
-                🔍
-              </span>
-              <input
-                id="buscar"
-                type="search"
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Ej: pared gris, carrara, porcelanato…"
-                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-              />
-              {busqueda && (
-                <button
-                  onClick={() => setBusqueda('')}
-                  // Nombre distinto al del botón del mensaje "sin
-                  // resultados": dos controles con el mismo nombre se
-                  // anuncian igual y no hay forma de distinguirlos.
-                  aria-label="Limpiar el campo de búsqueda"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-xl leading-none"
+
+            {/* La búsqueda la hace el servidor y se lanza al pulsar Enter,
+                no en cada tecla: así se busca en el catálogo entero sin
+                mandar una consulta por letra. */}
+            <div className="mb-2 flex gap-2">
+              <div className="relative flex-1">
+                <span
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  aria-hidden="true"
                 >
-                  ×
-                </button>
-              )}
+                  🔍
+                </span>
+                <input
+                  id="buscar"
+                  type="search"
+                  value={textoBusqueda}
+                  onChange={(e) => setTextoBusqueda(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') buscar()
+                    if (e.key === 'Escape') limpiarBusqueda()
+                  }}
+                  placeholder="Ej: carrara, porcelanato, café…"
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+                />
+                {textoBusqueda && (
+                  <button
+                    onClick={limpiarBusqueda}
+                    // Nombre distinto al del botón del mensaje "sin
+                    // resultados": dos controles con el mismo nombre se
+                    // anuncian igual y no hay forma de distinguirlos.
+                    aria-label="Limpiar el campo de búsqueda"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-xl leading-none"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+
+              <button
+                onClick={buscar}
+                disabled={textoBusqueda.trim().length > 0 && textoBusqueda.trim().length < 3}
+                className="px-6 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:bg-gray-300 transition"
+              >
+                Buscar
+              </button>
             </div>
+
+            <p className="text-xs text-gray-500 mb-6">
+              {textoBusqueda.trim().length > 0 && textoBusqueda.trim().length < 3
+                ? 'Escribe al menos 3 letras.'
+                : 'Pulsa Enter para buscar. Se busca en todo el catálogo, también en los productos sin foto, y respeta los filtros que tengas puestos.'}
+            </p>
 
             {/* Listas desplegables y no botones: con muchas categorías o
                 muchas tiendas, las hileras de botones empujaban los
@@ -508,7 +559,7 @@ export default function Catalogo() {
           {/* Ver más: solo al filtrar, y solo si queda algo por traer. La
               búsqueda por nombre trabaja sobre lo ya cargado, así que
               mientras hay texto escrito no tiene sentido pedir más. */}
-          {!loading && !esMuestra && !busqueda && productos.length < total && (
+          {!loading && !esMuestra && productos.length < total && (
             <div className="mt-8 text-center">
               <button
                 onClick={() => cargarProductos()}
@@ -531,7 +582,7 @@ export default function Catalogo() {
                     Ningún producto coincide con “{busqueda}”
                   </p>
                   <button
-                    onClick={() => setBusqueda('')}
+                    onClick={limpiarBusqueda}
                     className="mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded font-medium hover:bg-gray-300 transition"
                   >
                     Borrar búsqueda
