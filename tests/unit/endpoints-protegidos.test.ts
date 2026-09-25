@@ -35,6 +35,8 @@ const COMPROBACIONES = [
  */
 const PUBLICAS: Record<string, string> = {
   'productos/catalogo/route.ts': 'El catálogo lo consulta cualquier visitante, sin login.',
+  'productos/catalogo/filtros/route.ts':
+    'Las categorías y las tiendas del catálogo, para los desplegables de la portada.',
   'configuracion/publica/route.ts': 'Nombre de la tienda y WhatsApp, que salen en el catálogo.',
   'auth/register/route.ts': 'Registro de cuentas nuevas; va limitado por IP.',
 }

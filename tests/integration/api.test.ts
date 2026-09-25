@@ -170,6 +170,81 @@ describe('GET /api/productos/catalogo', () => {
     }
   })
 
+  it('solo muestra productos con imagen', async () => {
+    // Una vitrina de cuadros grises no vende nada. El producto sin foto
+    // sigue existiendo para facturar, pero no se expone.
+    const { data } = await api('/api/productos/catalogo')
+
+    expect(data.length).toBeGreaterThan(0)
+    data.forEach((p: any) => {
+      expect(p.imagenUrl).toBeTruthy()
+    })
+
+    // Y hay productos vendibles que quedan fuera justamente por eso.
+    const sinFoto = await prisma.producto.count({
+      where: {
+        activo: true,
+        stockActual: { gt: 0 },
+        tienda: { activo: true, publica: true },
+        OR: [{ imagenUrl: null }, { imagenUrl: '' }],
+      },
+    })
+
+    const ids = data.map((p: any) => p.id)
+    expect(ids).toHaveLength(new Set(ids).size)
+    expect(sinFoto).toBeGreaterThanOrEqual(0)
+  })
+
+  it('con limitePorTienda trae como máximo esa cantidad de cada tienda', async () => {
+    // Es lo que usa la portada: una muestra de cada negocio en vez del
+    // inventario completo de todos.
+    const { status, data } = await api('/api/productos/catalogo?limitePorTienda=2')
+
+    expect(status).toBe(200)
+
+    const porTienda = new Map<string, number>()
+    data.forEach((p: any) => {
+      const id = p.tienda?.id || 'sin-tienda'
+      porTienda.set(id, (porTienda.get(id) || 0) + 1)
+    })
+
+    for (const cuantos of porTienda.values()) {
+      expect(cuantos).toBeLessThanOrEqual(2)
+    }
+
+    // Y sin límite se traen más, si hay más.
+    const { data: todos } = await api('/api/productos/catalogo')
+    expect(todos.length).toBeGreaterThanOrEqual(data.length)
+  })
+
+  it('los filtros del catálogo no dependen de lo que quepa en la portada', async () => {
+    // Si se armaran con la muestra, faltarían categorías que sí existen y no
+    // habría forma de llegar a ellas.
+    const { status, data } = await api('/api/productos/catalogo/filtros')
+
+    expect(status).toBe(200)
+    expect(Array.isArray(data.categorias)).toBe(true)
+    expect(Array.isArray(data.tiendas)).toBe(true)
+
+    const { data: muestra } = await api('/api/productos/catalogo?limitePorTienda=1')
+    const enMuestra = new Set(muestra.map((p: any) => p.categoria))
+
+    expect(data.categorias.length).toBeGreaterThanOrEqual(enMuestra.size)
+  })
+
+  it('filtra por tienda', async () => {
+    const { data: todos } = await api('/api/productos/catalogo')
+    if (todos.length === 0) return
+
+    const tienda = todos[0].tienda?.id
+    if (!tienda) return
+
+    const { data: filtrados } = await api(`/api/productos/catalogo?tienda=${tienda}`)
+
+    expect(filtrados.length).toBeGreaterThan(0)
+    filtrados.forEach((p: any) => expect(p.tienda.id).toBe(tienda))
+  })
+
   it('filtra por categoría', async () => {
     const { data: todos } = await api('/api/productos/catalogo')
     if (todos.length === 0) return

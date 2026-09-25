@@ -22,6 +22,39 @@ interface Producto {
 interface TiendaCatalogo {
   id: string
   nombre: string
+  ciudad?: string | null
+}
+
+/**
+ * Cuántos productos de cada tienda se enseñan en la portada.
+ *
+ * Es una vitrina, no el inventario: con varias tiendas y cientos de
+ * productos cada una, volcarlo todo deja al visitante desplazándose sin
+ * rumbo. Para ver el resto están los filtros.
+ */
+const POR_TIENDA_EN_PORTADA = 5
+
+/**
+ * Pide el catálogo y reintenta una vez si falla.
+ *
+ * Es la portada de una tienda: un tropiezo de red o una conexión que el
+ * pooler de la base cerró por inactividad no deberían dejar al visitante
+ * mirando un mensaje de error. El estado va en el mensaje para que, si
+ * vuelve a fallar, se sepa por qué.
+ */
+async function pedirCatalogo(params: URLSearchParams) {
+  const intentar = async () => {
+    const res = await fetch(`/api/productos/catalogo?${params.toString()}`)
+    if (!res.ok) throw new Error(`Error al cargar productos (${res.status})`)
+    return res.json()
+  }
+
+  try {
+    return await intentar()
+  } catch (primerFallo) {
+    await new Promise((seguir) => setTimeout(seguir, 600))
+    return intentar()
+  }
 }
 
 export default function Catalogo() {
@@ -47,6 +80,26 @@ export default function Catalogo() {
     cargarProductos()
   }, [categoriaFiltro, tiendaFiltro])
 
+  // Los filtros se piden una sola vez y aparte de los productos: la portada
+  // trae solo unos pocos por tienda, así que armarlos con eso dejaría fuera
+  // categorías que sí existen.
+  useEffect(() => {
+    const cargarFiltros = async () => {
+      try {
+        const res = await fetch('/api/productos/catalogo/filtros')
+        if (!res.ok) return
+
+        const datos = await res.json()
+        setCategorias(datos.categorias || [])
+        setTiendas(datos.tiendas || [])
+      } catch {
+        // Sin filtros el catálogo sigue viéndose; solo no se puede acotar.
+      }
+    }
+
+    cargarFiltros()
+  }, [])
+
   const cargarProductos = async () => {
     setLoading(true)
     setError(null)
@@ -56,24 +109,14 @@ export default function Catalogo() {
       if (categoriaFiltro) params.set('categoria', categoriaFiltro)
       if (tiendaFiltro) params.set('tienda', tiendaFiltro)
 
-      const res = await fetch(`/api/productos/catalogo?${params.toString()}`)
-      if (!res.ok) throw new Error('Error al cargar productos')
-
-      const data = await res.json()
-      setProductos(data)
-
-      // Las listas de filtros se arman con el catálogo completo: si se
-      // rehicieran con la lista ya filtrada, al elegir una tienda
-      // desaparecerían las demás y no habría forma de volver.
+      // Sin filtros, la portada enseña una muestra de cada tienda en vez de
+      // volcar el inventario de todas. Al filtrar se ve todo lo que cumpla,
+      // que es lo que va buscando quien filtra.
       if (!categoriaFiltro && !tiendaFiltro) {
-        setCategorias(Array.from(new Set(data.map((p: Producto) => p.categoria))) as string[])
-
-        const porTienda = new Map<string, string>()
-        data.forEach((p: Producto) => {
-          if (p.tienda) porTienda.set(p.tienda.id, p.tienda.nombre)
-        })
-        setTiendas([...porTienda].map(([id, nombre]) => ({ id, nombre })))
+        params.set('limitePorTienda', String(POR_TIENDA_EN_PORTADA))
       }
+
+      setProductos(await pedirCatalogo(params))
     } catch (err: any) {
       setError(err.message)
       console.error('Error:', err)
@@ -81,6 +124,9 @@ export default function Catalogo() {
       setLoading(false)
     }
   }
+
+  /** Sin filtros lo que se ve es una muestra, no el catálogo completo. */
+  const esMuestra = !categoriaFiltro && !tiendaFiltro
 
   /** Sin tildes y en minúsculas, para que "cafe" encuentre "Pared Café". */
   const normalizar = (texto: string) =>
@@ -248,65 +294,52 @@ export default function Catalogo() {
               )}
             </div>
 
-            <p className="font-semibold text-gray-700 mb-4">Filtrar por categoría:</p>
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => setCategoriaFiltro('')}
-                className={`px-4 py-2 rounded font-medium transition ${
-                  categoriaFiltro === ''
-                    ? 'bg-red-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                Todas
-              </button>
-              {categorias.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setCategoriaFiltro(cat)}
-                  className={`px-4 py-2 rounded font-medium transition capitalize ${
-                    categoriaFiltro === cat
-                      ? 'bg-red-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
+            {/* Listas desplegables y no botones: con muchas categorías o
+                muchas tiendas, las hileras de botones empujaban los
+                productos fuera de la pantalla. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="categoria" className="block font-semibold text-gray-700 mb-2">
+                  Categoría
+                </label>
+                <select
+                  id="categoria"
+                  value={categoriaFiltro}
+                  onChange={(e) => setCategoriaFiltro(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white capitalize focus:outline-none focus:ring-2 focus:ring-red-600"
                 >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            {/* El filtro de tiendas solo aparece cuando hay más de una:
-                con una sola no dice nada y ocupa sitio. */}
-            {tiendas.length > 1 && (
-              <>
-                <p className="font-semibold text-gray-700 mt-6 mb-4">Filtrar por tienda:</p>
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={() => setTiendaFiltro('')}
-                    className={`px-4 py-2 rounded font-medium transition ${
-                      tiendaFiltro === ''
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    Todas
-                  </button>
-                  {tiendas.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => setTiendaFiltro(t.id)}
-                      className={`px-4 py-2 rounded font-medium transition ${
-                        tiendaFiltro === t.id
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
-                    >
-                      🏪 {t.nombre}
-                    </button>
+                  <option value="">Todas las categorías</option>
+                  {categorias.map((cat) => (
+                    <option key={cat} value={cat} className="capitalize">
+                      {cat}
+                    </option>
                   ))}
+                </select>
+              </div>
+
+              {/* El de tiendas solo cuando hay más de una: con una sola no
+                  dice nada y ocupa sitio. */}
+              {tiendas.length > 1 && (
+                <div>
+                  <label htmlFor="tienda" className="block font-semibold text-gray-700 mb-2">
+                    Tienda
+                  </label>
+                  <select
+                    id="tienda"
+                    value={tiendaFiltro}
+                    onChange={(e) => setTiendaFiltro(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  >
+                    <option value="">Todas las tiendas</option>
+                    {tiendas.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.nombre}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </>
-            )}
+              )}
+            </div>
           </div>
 
           {/* A quién se le está comprando: el pedido va a esa tienda. */}
@@ -331,18 +364,31 @@ export default function Catalogo() {
             </div>
           )}
 
-          {/* Cuántos resultados hay */}
+          {/* Cuántos resultados hay, y si es una muestra o el listado entero */}
           {!loading && !error && productos.length > 0 && (
-            <p className="text-sm text-gray-600 mb-4">
-              {productosFiltrados.length} de {productos.length} producto
-              {productos.length !== 1 ? 's' : ''}
-              {busqueda && ` para “${busqueda}”`}
-            </p>
+            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+              <p className="text-sm text-gray-600">
+                {productosFiltrados.length} de {productos.length} producto
+                {productos.length !== 1 ? 's' : ''}
+                {busqueda && ` para “${busqueda}”`}
+              </p>
+
+              {esMuestra && (
+                <p className="text-sm text-gray-500">
+                  Lo más reciente de cada tienda. Elige una categoría o una tienda para ver
+                  todo.
+                </p>
+              )}
+            </div>
           )}
 
-          {/* Grid de productos */}
+          {/* Grid de productos. Lleva data-testid porque en la página hay
+              más de una rejilla y las pruebas necesitan señalar esta. */}
           {!loading && productosFiltrados.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div
+              data-testid="productos"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            >
               {productosFiltrados.map((producto) => (
                 <div
                   key={producto.id}

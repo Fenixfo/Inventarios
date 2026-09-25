@@ -26,7 +26,7 @@ test.describe('Catálogo público', () => {
   })
 
   test('muestra los productos disponibles con su precio', async ({ page }) => {
-    const tarjetas = page.locator('main .grid > div')
+    const tarjetas = page.getByTestId('productos').locator('> div')
     await expect(tarjetas.first()).toBeVisible()
 
     const total = await tarjetas.count()
@@ -36,18 +36,66 @@ test.describe('Catálogo público', () => {
     await expect(tarjetas.first().getByText(/\$/).first()).toBeVisible()
   })
 
+  // El filtro es una lista desplegable y no una hilera de botones: con
+  // muchas categorías, los botones empujaban los productos fuera de la
+  // pantalla.
   test('permite filtrar por categoría', async ({ page }) => {
-    const botones = page.locator('main button', { hasText: /^(?!Todas).+/ })
-    await expect(page.getByRole('button', { name: 'Todas' })).toBeVisible()
+    const tarjetas = page.getByTestId('productos').locator('> div')
+    await expect(tarjetas.first()).toBeVisible()
 
-    if ((await botones.count()) > 0) {
-      const antes = await page.locator('main .grid > div').count()
-      await botones.first().click()
-      await page.waitForTimeout(1500)
+    const selector = page.getByLabel('Categoría', { exact: true })
+    const opciones = selector.locator('option')
 
-      const despues = await page.locator('main .grid > div').count()
-      expect(despues).toBeLessThanOrEqual(antes)
-    }
+    // La primera opción es "Todas las categorías".
+    if ((await opciones.count()) < 2) return
+
+    const elegida = (await opciones.nth(1).getAttribute('value'))!
+
+    await selector.selectOption(elegida)
+    await expect(tarjetas.first()).toBeVisible()
+
+    // Lo que queda es de esa categoría, que es lo que importa. No se
+    // comparan cantidades: sin filtro la portada muestra una muestra, así
+    // que al filtrar pueden aparecer más productos, no menos.
+    const insignias = page.getByTestId('productos').getByText(elegida, { exact: true })
+    expect(await insignias.count()).toBe(await tarjetas.count())
+  })
+
+  test('la portada muestra unos pocos por tienda, y los filtros abren el resto', async ({
+    page,
+  }) => {
+    const tarjetas = page.getByTestId('productos').locator('> div')
+    await expect(tarjetas.first()).toBeVisible()
+
+    // Es una vitrina: con varias tiendas y cientos de productos cada una,
+    // volcarlo todo deja al visitante desplazándose sin rumbo.
+    await expect(page.getByText(/lo más reciente de cada tienda/i)).toBeVisible()
+
+    const selectorTienda = page.getByLabel('Tienda', { exact: true })
+    if (!(await selectorTienda.isVisible().catch(() => false))) return
+
+    const enPortada = await tarjetas.count()
+    const tienda = (await selectorTienda.locator('option').nth(1).getAttribute('value'))!
+
+    await selectorTienda.selectOption(tienda)
+    await expect(tarjetas.first()).toBeVisible()
+
+    // Al elegir una tienda se ve su catálogo entero y el aviso desaparece.
+    await expect(page.getByText(/lo más reciente de cada tienda/i)).not.toBeVisible()
+    expect(await tarjetas.count()).toBeGreaterThan(0)
+    expect(enPortada).toBeGreaterThan(0)
+  })
+
+  test('todos los productos del catálogo tienen foto', async ({ page }) => {
+    const tarjetas = page.getByTestId('productos').locator('> div')
+    await expect(tarjetas.first()).toBeVisible()
+
+    // Una vitrina de cuadros grises no vende nada, así que el catálogo deja
+    // fuera lo que no tenga imagen.
+    const total = await tarjetas.count()
+    const imagenes = await page.getByTestId('productos').locator('img').count()
+
+    expect(imagenes).toBe(total)
   })
 
   test('el contador del carrito arranca oculto', async ({ page }) => {
@@ -56,7 +104,7 @@ test.describe('Catálogo público', () => {
   })
 
   test('el buscador filtra por nombre sin tildes', async ({ page }) => {
-    const tarjetas = page.locator('main .grid > div')
+    const tarjetas = page.getByTestId('productos').locator('> div')
     await expect(tarjetas.first()).toBeVisible()
 
     const nombre = await tarjetas.first().getByRole('heading').textContent()
@@ -82,7 +130,7 @@ test.describe('Catálogo público', () => {
   })
 
   test('al pulsar la tarjeta se abre la ficha ampliada', async ({ page }) => {
-    const tarjetas = page.locator('main .grid > div')
+    const tarjetas = page.getByTestId('productos').locator('> div')
     await expect(tarjetas.first()).toBeVisible()
 
     const nombre = (await tarjetas.first().getByRole('heading').textContent())?.trim() || ''
@@ -100,7 +148,7 @@ test.describe('Catálogo público', () => {
   })
 
   test('desde la ficha se pasa al pop-up de cantidad', async ({ page }) => {
-    const tarjetas = page.locator('main .grid > div')
+    const tarjetas = page.getByTestId('productos').locator('> div')
     await expect(tarjetas.first()).toBeVisible()
 
     await tarjetas.first().getByRole('button', { name: /ver detalles/i }).click()
@@ -116,7 +164,7 @@ test.describe('Catálogo público', () => {
 test.describe('Agregar al carrito', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
-    await expect(page.locator('main .grid > div').first()).toBeVisible()
+    await expect(page.getByTestId('productos').locator('> div').first()).toBeVisible()
   })
 
   test('el pop-up pide los metros y calcula el total', async ({ page }) => {
@@ -180,7 +228,7 @@ test.describe('Agregar al carrito', () => {
 test.describe('Carrito', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
-    await expect(page.locator('main .grid > div').first()).toBeVisible()
+    await expect(page.getByTestId('productos').locator('> div').first()).toBeVisible()
 
     await page.getByRole('button', { name: /agregar al carrito/i }).first().click()
     const popup = page.locator('.popup-in')
@@ -222,7 +270,7 @@ test.describe('Envío del pedido por WhatsApp', () => {
     })
 
     await page.goto('/')
-    await expect(page.locator('main .grid > div').first()).toBeVisible()
+    await expect(page.getByTestId('productos').locator('> div').first()).toBeVisible()
 
     await page.getByRole('button', { name: /agregar al carrito/i }).first().click()
     const popup = page.locator('.popup-in')

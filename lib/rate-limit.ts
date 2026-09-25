@@ -49,7 +49,16 @@ export const LIMITES: Record<string, Limite> = {
   // alguien lo intente mil veces por minuto.
   codigo: { maximo: 20, ventanaMs: 60_000 },
   sesion: { maximo: 30, ventanaMs: 60_000 },
-  publico: { maximo: 60, ventanaMs: 60_000 },
+  /**
+   * Catálogo y configuración pública. Era 60 y resultó corto: cada carga de
+   * la portada son dos peticiones —los productos y los filtros—, y una
+   * oficina entera sale por la misma IP. Con 60, alguien mirando el catálogo
+   * a buen ritmo empezaba a ver "error al cargar productos".
+   *
+   * Lo que se quiere frenar aquí es un bucle automatizado, no a un cliente
+   * curioseando.
+   */
+  publico: { maximo: 300, ventanaMs: 60_000 },
   api: { maximo: 180, ventanaMs: 60_000 },
 }
 
