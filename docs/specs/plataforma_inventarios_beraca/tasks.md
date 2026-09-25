@@ -2017,18 +2017,28 @@ Pruebas: `tests/unit/fechas.test.ts` (8, en verde).
 ### TASK-57: El total en palabras en la factura
 
 - **Cubre:** RF-7 (facturación)
-- **Componente:** lib/numero-a-palabras.ts, lib/factura-pdf.ts, PDF en HTML
+- **Componente:** lib/numero-a-palabras.ts, lib/factura-pdf.ts, lib/whatsapp.ts, PDF en HTML
 - **Tipo:** feature
-- **Estado:** pendiente
+- **Estado:** completada (2026-09-25)
 
 **Descripción:**
 Una factura lleva el valor en letras, tanto por costumbre comercial como para que no se pueda
 alterar la cifra. Aparece en el PDF y en la versión para imprimir.
 
 **Criterio de done:**
-- [ ] El total se escribe en palabras, en español
-- [ ] Sale en el PDF y en el HTML de imprimir
-- [ ] Maneja los casos raros del español: uno/un, veintiuno, cien/ciento, quinientos
+- [x] El total se escribe en palabras, en español
+- [x] Sale en el PDF y en el HTML de imprimir
+- [x] Maneja los casos raros del español: uno/un, veintiuno, cien/ciento, quinientos
+
+**Cómo quedó:**
+`lib/numero-a-palabras.ts` (nuevo) exporta `montoEnPalabras()`, que arma el texto ("Un millón
+doscientos cuarenta y cinco mil pesos M/CTE") a partir de millones/miles/centenas, con los
+casos especiales de "cien" vs "ciento" y "veinti-" pegado a la unidad. Se usa en:
+- `lib/factura-pdf.ts`: línea "Son: ..." bajo el total, en el PDF descargable.
+- `app/api/facturas/[id]/pdf/route.ts`: misma línea en el HTML de imprimir (fallback de esa
+  misma ruta de descarga).
+- `lib/whatsapp.ts`: línea "Son: ..." bajo el `*TOTAL*` del mensaje.
+Pruebas: `tests/unit/numero-a-palabras.test.ts` (8, en verde).
 
 ---
 

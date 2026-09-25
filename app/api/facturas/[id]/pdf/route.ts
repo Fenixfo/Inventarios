@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { exigirTienda } from '@/lib/permisos'
 import { generarPdfFactura, nombreArchivoFactura } from '@/lib/factura-pdf'
 import { fechaYHora, soloFecha, soloHora } from '@/lib/fechas'
+import { montoEnPalabras } from '@/lib/numero-a-palabras'
 
 export async function GET(
   request: NextRequest,
@@ -420,6 +421,9 @@ function generarHTML(factura: any, config: Record<string, string> = {}): string 
         <div class="totales-row total">
           <span>TOTAL:</span>
           <span>${formatearDinero(total)}</span>
+        </div>
+        <div class="totales-row" style="font-size: 11px; color: #6b7280;">
+          <span>Son: ${montoEnPalabras(total)}</span>
         </div>
         ${anticipo > 0 ? `
           <div class="totales-row">

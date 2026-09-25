@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib'
 import { fechaYHora } from '@/lib/fechas'
+import { montoEnPalabras } from '@/lib/numero-a-palabras'
 
 /**
  * Genera la factura como archivo PDF de verdad.
@@ -361,6 +362,14 @@ export async function generarPdfFactura(
     escribir(ctx, valor, 0, y, { tamano: bold ? 11 : 9, bold, color, derecha })
     y -= bold ? 17 : 13
   }
+
+  // --- Total en palabras ---
+  y -= 6
+  escribir(ctx, `Son: ${recortar(montoEnPalabras(factura.total), normal, 9, derecha - MARGEN)}`, MARGEN, y, {
+    tamano: 9,
+    color: GRIS,
+  })
+  y -= 13
 
   // --- Abonos ---
   if ((factura.abonos || []).length > 0) {

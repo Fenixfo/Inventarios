@@ -1,4 +1,5 @@
 import { fechaYHora } from '@/lib/fechas'
+import { montoEnPalabras } from '@/lib/numero-a-palabras'
 
 /**
  * Enlaces de WhatsApp.
@@ -101,7 +102,7 @@ export function mensajeFactura(
     })
   }
 
-  lineas.push('', `*TOTAL: ${pesos(factura.total)}*`)
+  lineas.push('', `*TOTAL: ${pesos(factura.total)}*`, `Son: ${montoEnPalabras(factura.total)}`)
 
   if (totalAbonado !== undefined && totalAbonado > 0) {
     lineas.push(`Abonado: ${pesos(totalAbonado)}`)
