@@ -208,6 +208,47 @@ test.describe('Facturación', () => {
     await expect(page.getByRole('button', { name: /actualizar precios/i })).toHaveCount(0)
   })
 
+  // El formulario se partió en secciones (auditoría ECC, paso 7): esto recorre
+  // el camino completo, del cliente al guardado. Con un producto escrito a
+  // mano, para no tocar el inventario.
+  test('crea una factura desde el formulario', async ({ page }) => {
+    await page.goto('/admin/facturas/nueva')
+
+    await page.getByPlaceholder(/SKU o nombre del producto/i).fill(`${MARCA} línea a mano`)
+    await page.getByText(new RegExp(`\\+ Nuevo: ${MARCA}`)).click()
+
+    const numeros = page.locator('input[type="number"]')
+    await numeros.nth(0).fill('2')       // cantidad
+    await numeros.nth(1).fill('15000')   // precio
+    await page.getByRole('button', { name: /^agregar$/i }).click()
+
+    // La línea y el total calculado.
+    await expect(page.getByRole('cell', { name: `${MARCA} línea a mano` })).toBeVisible()
+    await expect(page.getByText(/TOTAL:/).locator('..')).toContainText('30.000')
+
+    await page.getByRole('button', { name: /crear factura/i }).click()
+    await page.waitForURL(/\/admin\/facturas$/, { timeout: 45000 })
+  })
+
+  test('crea una cotización desde el mismo formulario, sin abono inicial', async ({ page }) => {
+    await page.goto('/admin/cotizaciones/nueva')
+
+    await page.getByPlaceholder(/SKU o nombre del producto/i).fill(`${MARCA} cotizada a mano`)
+    await page.getByText(new RegExp(`\\+ Nuevo: ${MARCA}`)).click()
+
+    const numeros = page.locator('input[type="number"]')
+    await numeros.nth(0).fill('1')
+    await numeros.nth(1).fill('20000')
+    await page.getByRole('button', { name: /^agregar$/i }).click()
+
+    // Una cotización no cobra nada: el abono inicial no aparece.
+    await expect(page.getByText(/abono inicial/i)).toHaveCount(0)
+
+    await page.getByRole('button', { name: /guardar cotización/i }).click()
+    await page.waitForURL(/\/admin\/cotizaciones\/[0-9a-f-]{36}$/, { timeout: 45000 })
+    await expect(page.getByText(/COT-\d{8}-\d{3}/).first()).toBeVisible()
+  })
+
   test('cambiar a bodega con productos pregunta qué hacer con los precios', async ({ page }) => {
     await page.goto('/admin/facturas/nueva')
     await page.waitForLoadState('networkidle')
@@ -239,6 +280,44 @@ test.describe('Facturación', () => {
     await page.getByRole('button', { name: /mantener los actuales/i }).click()
     await expect(dialogo).not.toBeVisible()
     await expect(page.getByText(/esta factura usa los precios de bodega/i)).toBeVisible()
+  })
+
+  test('en el detalle se registra un abono y se abre el envío por WhatsApp', async ({ page }) => {
+    await page.goto('/admin/facturas/nueva')
+
+    await page.getByPlaceholder(/SKU o nombre del producto/i).fill(`${MARCA} abono`)
+    await page.getByText(new RegExp(`\\+ Nuevo: ${MARCA}`)).click()
+
+    const numeros = page.locator('input[type="number"]')
+    await numeros.nth(0).fill('2')
+    await numeros.nth(1).fill('15000')
+    await page.getByRole('button', { name: /^agregar$/i }).click()
+    await page.getByRole('button', { name: /crear factura/i }).click()
+    await page.waitForURL(/\/admin\/facturas$/, { timeout: 45000 })
+
+    // La recién creada es la primera del listado.
+    await page.getByRole('link', { name: /ver|detalle/i }).first().click()
+    await expect(page.getByRole('cell', { name: `${MARCA} abono` })).toBeVisible({ timeout: 15000 })
+
+    // Abono con su confirmación (components/factura/PanelPagos).
+    await page.getByPlaceholder('Ingrese monto del abono').fill('10000')
+    await page.getByRole('button', { name: /^agregar$/i }).click()
+    await expect(page.getByRole('heading', { name: 'Confirmar Abono' })).toBeVisible()
+    await page.getByRole('button', { name: 'Confirmar Abono' }).click()
+
+    await expect(page.getByRole('heading', { name: 'Confirmar Abono' })).toBeHidden({ timeout: 15000 })
+    await expect(page.getByText('Total Abonado:').locator('..')).toContainText('10.000')
+    await expect(page.getByText('Saldo Pendiente:').locator('..')).toContainText('20.000')
+
+    // Envío por WhatsApp (components/Common/DialogoEnvioWhatsApp).
+    await page.getByRole('button', { name: /enviar factura por whatsapp/i }).click()
+    const dialogo = page.getByRole('dialog')
+    await expect(dialogo.getByRole('heading', { name: /enviar la factura/i })).toBeVisible()
+    await dialogo.getByText('Ver el mensaje que se va a enviar').click()
+    await expect(dialogo.locator('pre')).toContainText('Son:')
+
+    await dialogo.getByRole('button', { name: 'Cancelar' }).click()
+    await expect(dialogo).toBeHidden()
   })
 
   test('descargar PDF abre una sola pestaña con la factura', async ({ page, context }) => {
