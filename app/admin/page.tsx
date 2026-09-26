@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { apiFetch } from '@/lib/api-client'
 import { usePermisos } from '@/components/PermisosProvider'
@@ -103,9 +104,9 @@ export default function AdminDashboard() {
                 {stats.stockBajo ?? productosAlerta.length}
               </span>
             </h2>
-            <a href="/admin/inventario" className="text-sm text-red-700 hover:text-red-900 font-medium">
+            <Link href="/admin/inventario" className="text-sm text-red-700 hover:text-red-900 font-medium">
               Registrar entrada →
-            </a>
+            </Link>
           </div>
 
           <table className="w-full">
@@ -142,12 +143,12 @@ export default function AdminDashboard() {
                       +{faltante.toFixed(2)}
                     </td>
                     <td className="px-6 py-3 text-right">
-                      <a
+                      <Link
                         href={`/admin/productos/${p.id}`}
                         className="text-xs text-blue-600 hover:text-blue-800 font-medium"
                       >
                         Editar
-                      </a>
+                      </Link>
                     </td>
                   </tr>
                 )
@@ -158,9 +159,9 @@ export default function AdminDashboard() {
           {(stats.stockBajo ?? 0) > productosAlerta.length && (
             <div className="px-6 py-3 bg-gray-50 text-sm text-gray-600 border-t">
               y {(stats.stockBajo ?? 0) - productosAlerta.length} producto{(stats.stockBajo ?? 0) - productosAlerta.length !== 1 ? 's' : ''} más —{' '}
-              <a href="/admin/reportes/inventario" className="text-blue-600 hover:text-blue-800 font-medium">
+              <Link href="/admin/reportes/inventario" className="text-blue-600 hover:text-blue-800 font-medium">
                 ver reporte completo
-              </a>
+              </Link>
             </div>
           )}
         </div>
@@ -171,28 +172,28 @@ export default function AdminDashboard() {
           <h2 className="text-xl font-bold mb-4">Acciones Rápidas</h2>
           <div className="space-y-2">
             {puede('productos.ver') && (
-              <a
+              <Link
                 href="/admin/productos/nuevo"
                 className="block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
                 Nuevo Producto
-              </a>
+              </Link>
             )}
             {puede('clientes.ver') && (
-              <a
+              <Link
                 href="/admin/clientes/nuevo"
                 className="block px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
               >
                 Nuevo Cliente
-              </a>
+              </Link>
             )}
             {puede('facturas.ver') && (
-              <a
+              <Link
                 href="/admin/facturas/nueva"
                 className="block px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
               >
                 Nueva Factura
-              </a>
+              </Link>
             )}
             {!puede('productos.ver') && !puede('clientes.ver') && !puede('facturas.ver') && (
               <p className="text-gray-600 text-sm">No tienes permisos para crear elementos</p>

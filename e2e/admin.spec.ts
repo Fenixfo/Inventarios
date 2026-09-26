@@ -216,7 +216,9 @@ test.describe('Facturación', () => {
     const buscador = page.getByPlaceholder(/SKU o nombre del producto/i)
     await buscador.fill('a')
 
+    // Las sugerencias llegan del servidor tras una pausa corta: se espera a que aparezcan.
     const sugerencia = page.locator('div').filter({ hasText: /^SKU: / }).first()
+    await sugerencia.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
     if (!(await sugerencia.isVisible().catch(() => false))) {
       test.skip(true, 'No hay productos con los que armar la línea')
     }
@@ -254,15 +256,22 @@ test.describe('Facturación', () => {
 
     const paginasAntes = context.pages().length
     const nuevaPagina = context.waitForEvent('page', { timeout: 30000 })
+    const archivo = page.waitForResponse(
+      (r) => /\/api\/facturas\/[^/]+\/pdf$/.test(new URL(r.url()).pathname),
+      { timeout: 30000 }
+    )
 
     await page.getByRole('button', { name: /descargar pdf/i }).click()
 
+    // Una sola pestaña, con el PDF: ya no es un HTML escrito con
+    // document.write. No se mira el contenido de la pestaña porque Chromium
+    // sin ventana no trae visor de PDF.
     const pdf = await nuevaPagina
-    await pdf.waitForLoadState('domcontentloaded')
+    const respuesta = await archivo
 
-    // Debe abrirse exactamente una pestaña, con la factura dentro.
+    expect(respuesta.status()).toBe(200)
+    expect(respuesta.headers()['content-type']).toBe('application/pdf')
     expect(context.pages().length).toBe(paginasAntes + 1)
-    await expect(pdf.getByText(/FACTURA/i).first()).toBeVisible()
 
     await pdf.close()
   })

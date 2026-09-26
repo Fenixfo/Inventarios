@@ -1,18 +1,20 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useBusquedaRemota } from '@/lib/use-busqueda-remota'
 
-interface ProductoOpcion {
+export interface ProductoOpcion {
   id: string
   sku: string
   nombre: string
-  stockActual?: number
+  stockActual: number
 }
 
 interface Props {
-  productos: ProductoOpcion[]
   value: string
   onChange: (id: string) => void
+  /** Recibe el producto elegido completo (con su stock), o null al quitarlo. */
+  onElegir?: (producto: ProductoOpcion | null) => void
   /** Texto cuando no hay nada elegido; también es la opción para quitar la selección. */
   placeholder?: string
   /** Añade "(stock: N)" al nombre, útil en el formulario de movimientos. */
@@ -20,11 +22,12 @@ interface Props {
   ancho?: string
 }
 
-const MAXIMO_VISIBLE = 50
+/** Lo que devuelve como mucho la búsqueda; si llegan todos, puede haber más. */
+const MAXIMO_RESULTADOS = 10
 
 function etiqueta(p: ProductoOpcion, conStock: boolean) {
   const base = `${p.sku} - ${p.nombre}`
-  return conStock && p.stockActual !== undefined ? `${base} (stock: ${p.stockActual})` : base
+  return conStock ? `${base} (stock: ${p.stockActual})` : base
 }
 
 /**
@@ -33,11 +36,15 @@ function etiqueta(p: ProductoOpcion, conStock: boolean) {
  * Un <select> obliga a recorrer la lista entera, y con el catálogo real son
  * más de cien productos: aquí se escribe parte del nombre o del SKU y la
  * lista se reduce mientras se teclea.
+ *
+ * Busca en el servidor (/api/productos/buscar): antes la pantalla bajaba el
+ * catálogo entero para filtrarlo aquí. Al abrirse sin texto muestra los
+ * primeros 10 por nombre.
  */
 export function SelectorProducto({
-  productos,
   value,
   onChange,
+  onElegir,
   placeholder = 'Todos',
   mostrarStock = false,
   ancho = '260px',
@@ -47,22 +54,20 @@ export function SelectorProducto({
   const [resaltado, setResaltado] = useState(0)
   const contenedor = useRef<HTMLDivElement>(null)
 
-  const seleccionado = productos.find((p) => p.id === value) || null
+  // El elegido se recuerda aquí para mostrar su nombre con la lista cerrada:
+  // ya no hay un catálogo completo donde buscarlo.
+  const [elegido, setElegido] = useState<ProductoOpcion | null>(null)
+  const seleccionado = value && elegido?.id === value ? elegido : null
 
-  const filtrados = useMemo(() => {
-    const texto = busqueda.trim().toLowerCase()
-    if (!texto) return productos
-
-    // Se buscan todas las palabras sueltas, así "gris 30" encuentra
-    // "Pared Mancha Gris 30*60" sin escribirlo en orden.
-    const palabras = texto.split(/\s+/)
-    return productos.filter((p) => {
-      const campo = `${p.sku} ${p.nombre}`.toLowerCase()
-      return palabras.every((w) => campo.includes(w))
-    })
-  }, [productos, busqueda])
-
-  const visibles = filtrados.slice(0, MAXIMO_VISIBLE)
+  // Busca cada palabra suelta en el servidor, así "gris 30" encuentra
+  // "Pared Mancha Gris 30*60" sin escribirlo en orden. Solo con la lista abierta.
+  const { resultados: visibles } = useBusquedaRemota<ProductoOpcion>(
+    '/api/productos/buscar',
+    'productos',
+    busqueda,
+    0,
+    abierto
+  )
 
   useEffect(() => {
     if (!abierto) return
@@ -79,7 +84,10 @@ export function SelectorProducto({
   }, [abierto])
 
   const elegir = (id: string) => {
+    const producto = visibles.find((p) => p.id === id) || null
+    setElegido(producto)
     onChange(id)
+    onElegir?.(producto)
     setAbierto(false)
     setBusqueda('')
   }
@@ -224,9 +232,9 @@ export function SelectorProducto({
             ))
           )}
 
-          {filtrados.length > MAXIMO_VISIBLE && (
+          {visibles.length >= MAXIMO_RESULTADOS && (
             <li style={{ padding: '8px 12px', fontSize: '12px', color: '#9ca3af' }}>
-              y {filtrados.length - MAXIMO_VISIBLE} más — escribe para afinar la búsqueda
+              Se muestran los primeros {MAXIMO_RESULTADOS}: escribe para afinar la búsqueda
             </li>
           )}
         </ul>

@@ -72,7 +72,7 @@ export async function PATCH(
   } catch (error: any) {
     console.error('Error actualizando solicitud:', error)
     return NextResponse.json(
-      { error: error.message || 'Error al actualizar solicitud' },
+      { error: 'Error al actualizar solicitud' },
       { status: 500 }
     )
   }

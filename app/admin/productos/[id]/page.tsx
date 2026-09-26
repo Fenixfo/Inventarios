@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase-client'
 import { apiFetch } from '@/lib/api-client'
 import { ImageUploader } from '@/components/ImageUploader'
 import { PermissionProtector } from '@/components/PermissionProtector'
@@ -45,14 +44,8 @@ export default function EditProductoPage() {
   useEffect(() => {
     const fetchProducto = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        const email = session?.user?.email
-
-        const url = email
-          ? `/api/productos/${id}?email=${encodeURIComponent(email)}`
-          : `/api/productos/${id}`
-
-        const res = await apiFetch(url)
+        // El usuario sale del token: el ?email= que se mandaba ya no se usaba.
+        const res = await apiFetch(`/api/productos/${id}`)
         if (!res.ok) {
           if (res.status === 403) {
             setError('No tienes permiso para ver productos')

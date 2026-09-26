@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { PermissionProtector } from '@/components/PermissionProtector'
 import { ImageUploader } from '@/components/ImageUploader'
 import { SelectorCategoria } from '@/components/Common/SelectorCategoria'
+import { useBusquedaRemota } from '@/lib/use-busqueda-remota'
 
 interface Producto {
   id: string
@@ -20,15 +21,12 @@ export default function NuevoProductoPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [skuError, setSkuError] = useState<string | null>(null)
-  const [productosExistentes, setProductosExistentes] = useState<Producto[]>([])
-  const [sugerenciasNombre, setSugerenciasNombre] = useState<Producto[]>([])
   const [mostrarSugerenciasNombre, setMostrarSugerenciasNombre] = useState(false)
 
   // Las categorías salen de los productos de la tienda: no hay catálogo
-  // común, cada negocio organiza los suyos como quiera.
-  const categoriasExistentes = Array.from(
-    new Set(productosExistentes.map((p) => p.categoria).filter(Boolean) as string[])
-  ).sort((a, b) => a.localeCompare(b, 'es'))
+  // común, cada negocio organiza los suyos como quiera. Solo los nombres:
+  // antes se bajaban todos los productos para sacarlas.
+  const [categoriasExistentes, setCategoriasExistentes] = useState<string[]>([])
   const [formData, setFormData] = useState({
     sku: '',
     nombre: '',
@@ -48,48 +46,43 @@ export default function NuevoProductoPage() {
     imagenUrl: '',
   })
 
+  // Nombres parecidos, para avisar antes de crear uno repetido: se buscan en
+  // el servidor mientras se escribe.
+  const { resultados: sugerenciasNombre } = useBusquedaRemota<Producto>(
+    '/api/productos/buscar',
+    'productos',
+    formData.nombre,
+    3
+  )
+
   useEffect(() => {
-    const fetchProductos = async () => {
+    const cargarCategorias = async () => {
       try {
-        const res = await apiFetch('/api/productos')
-        const data = await res.json()
-        setProductosExistentes(data)
-      } catch (err) {
-        console.error('Error fetching productos:', err)
+        const res = await apiFetch('/api/productos/categorias')
+        if (!res.ok) return
+        const categorias: string[] = await res.json()
+        setCategoriasExistentes(categorias.sort((a, b) => a.localeCompare(b, 'es')))
+      } catch {
+        // Sin la lista el campo sigue sirviendo: se escribe la categoría.
       }
     }
 
-    fetchProductos()
+    cargarCategorias()
   }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
 
-    if (name === 'nombre') {
-      if (value.trim() === '') {
-        setSugerenciasNombre([])
-        setMostrarSugerenciasNombre(false)
-        return
-      }
-
-      const sugerencias = productosExistentes.filter(p =>
-        p.nombre.toLowerCase().includes(value.toLowerCase())
-      )
-
-      setSugerenciasNombre(sugerencias)
-      setMostrarSugerenciasNombre(true)
-    }
+    if (name === 'nombre') setMostrarSugerenciasNombre(value.trim() !== '')
   }
 
   const seleccionarProductoExistente = (producto: Producto) => {
     setFormData(prev => ({ ...prev, nombre: producto.nombre }))
-    setSugerenciasNombre([])
     setMostrarSugerenciasNombre(false)
   }
 
   const crearNombreNuevo = () => {
-    setSugerenciasNombre([])
     setMostrarSugerenciasNombre(false)
   }
 

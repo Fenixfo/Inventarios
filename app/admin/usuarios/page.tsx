@@ -62,10 +62,6 @@ export default function UsuariosPage() {
   const [confirmando, setConfirmando] = useState<'agregar' | 'quitar' | 'sacar' | null>(null)
   const [guardando, setGuardando] = useState(false)
 
-  useEffect(() => {
-    cargar()
-  }, [])
-
   const cargar = async () => {
     setCargando(true)
     setError(null)
@@ -97,6 +93,10 @@ export default function UsuariosPage() {
       setCargando(false)
     }
   }
+
+  useEffect(() => {
+    cargar()
+  }, [])
 
   const alternar = (conjunto: Set<string>, valor: string) => {
     const copia = new Set(conjunto)

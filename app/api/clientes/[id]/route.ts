@@ -32,8 +32,10 @@ export async function GET(
 
     return NextResponse.json(cliente)
   } catch (error: any) {
+    // El detalle queda en el log del servidor; al navegador va un texto genérico.
+    console.error('Error en /api/clientes/[id]:', error)
     return NextResponse.json(
-      { error: error.message || 'Error fetching cliente' },
+      { error: 'No se pudo obtener el cliente' },
       { status: 500 }
     )
   }
@@ -60,8 +62,10 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
+    // El detalle queda en el log del servidor; al navegador va un texto genérico.
+    console.error('Error en /api/clientes/[id]:', error)
     return NextResponse.json(
-      { error: error.message || 'Error deleting cliente' },
+      { error: 'No se pudo eliminar el cliente' },
       { status: 400 }
     )
   }

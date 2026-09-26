@@ -186,7 +186,7 @@ export async function PUT(request: NextRequest) {
   } catch (error: any) {
     console.error('Error guardando configuración:', error)
     return NextResponse.json(
-      { error: error.message || 'Error al guardar configuración' },
+      { error: 'Error al guardar configuración' },
       { status: 500 }
     )
   }

@@ -59,8 +59,11 @@ export default function AuditoriaPage() {
     }
   }
 
+  // Vuelve a la primera página solo cuando cambia un filtro. cargarRegistros
+  // cambia en cada render: ponerla en la lista cargaría sin fin.
   useEffect(() => {
     cargarRegistros(0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtroTabla, filtroAccion])
 
   const getAccionColor = (accion: string) => {

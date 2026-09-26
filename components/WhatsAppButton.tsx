@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { z } from 'zod'
 import { Carrito } from '@/hooks/useCart'
+import { pesos } from '@/lib/formato'
 
 const telefonoSchema = z
   .string()
@@ -57,14 +58,6 @@ export function WhatsAppButton({ carrito, onPedidoEnviado }: WhatsAppButtonProps
       .finally(() => setCargandoConfig(false))
   }, [modalAbierto, carrito.items])
 
-  const formatearPrecio = (precio: number) =>
-    new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(precio)
-
   const construirMensaje = (nombreCliente: string, telefonoCliente: string) => {
     const lineas = [
       '*NUEVO PEDIDO*',
@@ -81,14 +74,14 @@ export function WhatsAppButton({ carrito, onPedidoEnviado }: WhatsAppButtonProps
     carrito.items.forEach((item, i) => {
       lineas.push(
         `${i + 1}. ${item.nombre} (${item.sku})`,
-        `   ${item.cantidad} m² × ${formatearPrecio(item.precioUnitario)} = ${formatearPrecio(item.subtotal)}`
+        `   ${item.cantidad} m² × ${pesos(item.precioUnitario)} = ${pesos(item.subtotal)}`
       )
     })
 
     lineas.push(
       '',
       `*Total m²:* ${carrito.totalM2.toFixed(2)}`,
-      `*TOTAL:* ${formatearPrecio(carrito.totalPrecio)}`
+      `*TOTAL:* ${pesos(carrito.totalPrecio)}`
     )
 
     return lineas.join('\n')
@@ -254,7 +247,7 @@ export function WhatsAppButton({ carrito, onPedidoEnviado }: WhatsAppButtonProps
                   <div className="flex justify-between border-t pt-2 mt-2">
                     <span className="font-bold">Total:</span>
                     <span className="font-bold text-red-600">
-                      {formatearPrecio(carrito.totalPrecio)}
+                      {pesos(carrito.totalPrecio)}
                     </span>
                   </div>
                 </div>

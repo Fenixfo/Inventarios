@@ -3,6 +3,7 @@
 import { Carrito } from '@/hooks/useCart'
 import { WhatsAppButton } from '@/components/WhatsAppButton'
 import Link from 'next/link'
+import { pesos } from '@/lib/formato'
 
 interface CartProps {
   carrito: Carrito
@@ -12,15 +13,6 @@ interface CartProps {
 }
 
 export function Cart({ carrito, onQuitarItem, onActualizarCantidad, onVaciarCarrito }: CartProps) {
-  const formatearPrecio = (precio: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(precio)
-  }
-
   if (carrito.items.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-6 text-center">
@@ -52,7 +44,7 @@ export function Cart({ carrito, onQuitarItem, onActualizarCantidad, onVaciarCarr
           <div>
             <p className="text-xs sm:text-sm text-gray-600">Total</p>
             <p className="text-sm sm:text-2xl font-bold text-red-600 break-words">
-              {formatearPrecio(carrito.totalPrecio)}
+              {pesos(carrito.totalPrecio)}
             </p>
           </div>
         </div>
@@ -112,10 +104,10 @@ export function Cart({ carrito, onQuitarItem, onActualizarCantidad, onVaciarCarr
 
               <div className="text-right ml-auto">
                 <p className="text-sm text-gray-600">
-                  {formatearPrecio(item.precioUnitario)}/m²
+                  {pesos(item.precioUnitario)}/m²
                 </p>
                 <p className="font-bold text-gray-900">
-                  {formatearPrecio(item.subtotal)}
+                  {pesos(item.subtotal)}
                 </p>
               </div>
             </div>
@@ -128,11 +120,11 @@ export function Cart({ carrito, onQuitarItem, onActualizarCantidad, onVaciarCarr
         <div className="space-y-2 mb-6 border-t pt-4">
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">Subtotal:</span>
-            <span className="font-medium">{formatearPrecio(carrito.totalPrecio)}</span>
+            <span className="font-medium">{pesos(carrito.totalPrecio)}</span>
           </div>
           <div className="flex justify-between text-lg font-bold">
             <span>Total:</span>
-            <span className="text-red-600">{formatearPrecio(carrito.totalPrecio)}</span>
+            <span className="text-red-600">{pesos(carrito.totalPrecio)}</span>
           </div>
         </div>
 

@@ -92,7 +92,7 @@ export function MenuTiendas({ email, onCerrarSesion }: Props) {
     // y se recarga entera para que ninguna pantalla quede con datos de la
     // tienda anterior.
     invalidarPermisos()
-    window.location.href = '/admin'
+    window.location.assign('/admin')
   }
 
   const salir = async () => {
@@ -113,7 +113,7 @@ export function MenuTiendas({ email, onCerrarSesion }: Props) {
 
       if (saliendo.id === activa) fijarTiendaActiva(null)
       invalidarPermisos()
-      window.location.href = '/admin'
+      window.location.assign('/admin')
     } catch (err: any) {
       setError(err.message)
       setProcesando(false)

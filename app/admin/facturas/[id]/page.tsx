@@ -1,14 +1,14 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
 import { enlaceWhatsApp, mensajeFactura, normalizarTelefono } from '@/lib/whatsapp'
 import { fechaYHora } from '@/lib/fechas'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase-client'
 import { apiFetch } from '@/lib/api-client'
 import { PermissionProtector } from '@/components/PermissionProtector'
 import { usePermisos } from '@/components/PermisosProvider'
+import { pesos } from '@/lib/formato'
 
 interface FacturaItem {
   id: string
@@ -48,7 +48,6 @@ interface Factura {
 }
 
 export default function FacturaPage() {
-  const router = useRouter()
   const params = useParams()
   const id = params.id as string
   const { puede } = usePermisos()
@@ -60,16 +59,10 @@ export default function FacturaPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [estado, setEstado] = useState('')
   const [nuevoAbono, setNuevoAbono] = useState('')
   const [abonos, setAbonos] = useState<Array<{ monto: number; fecha: string }>>([])
-  const [abonoCargado, setAbonoCargado] = useState(false)
   const [mostrarConfirmacionAbono, setMostrarConfirmacionAbono] = useState(false)
   const [montoAbonoConfirmacion, setMontoAbonoConfirmacion] = useState(0)
-
-  // Marca que el saldo se está cerrando desde el botón de "pagado", para
-  // que el efecto que vigila el saldo no dispare el mismo cambio a la vez.
-  const saldandoRef = useRef(false)
 
   // Envío por WhatsApp: el destinatario se puede corregir antes de abrir
   // el chat, y queda vacío si la factura no trae teléfono.
@@ -81,14 +74,8 @@ export default function FacturaPage() {
   useEffect(() => {
     const fetchFactura = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        const email = session?.user?.email
-
-        const url = email
-          ? `/api/facturas/${id}?email=${encodeURIComponent(email)}`
-          : `/api/facturas/${id}`
-
-        const res = await apiFetch(url)
+        // El usuario sale del token: el ?email= que se mandaba ya no se usaba.
+        const res = await apiFetch(`/api/facturas/${id}`)
         if (!res.ok) {
           if (res.status === 403) {
             setError('No tienes permiso para ver esta factura')
@@ -99,7 +86,6 @@ export default function FacturaPage() {
         }
         const data = await res.json()
         setFactura(data)
-        setEstado(data.estado)
 
         // Cargar abonos
         const abonosRes = await apiFetch(`/api/abonos/${id}`)
@@ -111,7 +97,6 @@ export default function FacturaPage() {
           }))
           setAbonos(abonosConNumeros)
         }
-        setAbonoCargado(true)
       } catch (err: any) {
         setError(err.message)
       } finally {
@@ -122,22 +107,14 @@ export default function FacturaPage() {
     fetchFactura()
   }, [id])
 
-  useEffect(() => {
-    if (!factura || !abonoCargado) return
-
-    // Mientras el botón de "pagado" hace su trabajo, este efecto se queda
-    // quieto: si no, los dos mandarían el cambio de estado a la vez.
-    if (saldandoRef.current) return
-
-    const adelanto = Number(factura.anticipo || 0)
-    const totalAbonosRegistrados = abonos.reduce((sum, abono) => sum + Number(abono.monto), 0)
-    const totalAbonado = adelanto + totalAbonosRegistrados
-    const saldoPendienteCalculado = Number(factura.total) - totalAbonado
-
-    if (saldoPendienteCalculado <= 0 && factura.estado === 'pendiente' && !saving && puedeAbonar) {
-      handleStatusChange('pagado')
-    }
-  }, [abonos, abonoCargado, factura?.total, factura?.anticipo, puedeAbonar])
+  // Cuando un abono completa el total, el servidor pasa la factura a
+  // "pagado" en la misma operación y lo dice en la respuesta. Antes lo
+  // decidía un efecto al abrir la factura: lo disparaba quien la estuviera
+  // mirando, y dos pestañas abiertas mandaban el cambio dos veces.
+  const reflejarEstado = (estadoNuevo?: string) => {
+    if (!estadoNuevo) return
+    setFactura((previa) => (previa ? { ...previa, estado: estadoNuevo } : previa))
+  }
 
   /**
    * Marcar la factura como pagada salda lo que falte.
@@ -149,12 +126,12 @@ export default function FacturaPage() {
   const handleMarcarPagado = async () => {
     if (!factura) return
 
+    // Ya saldada (por ejemplo, una de antes de este cambio): solo el estado.
     if (saldoPendiente <= 0) {
       await handleStatusChange('pagado')
       return
     }
 
-    saldandoRef.current = true
     setSaving(true)
     setError(null)
 
@@ -165,23 +142,19 @@ export default function FacturaPage() {
         body: JSON.stringify({ facturaId: factura.id, monto: saldoPendiente }),
       })
 
-      if (!res.ok) throw new Error('No se pudo registrar el abono del saldo pendiente')
-
       const abonoDelSaldo = await res.json()
+      if (!res.ok) throw new Error(abonoDelSaldo.error || 'No se pudo registrar el abono del saldo pendiente')
+
       setAbonos([
         ...abonos,
         { monto: Number(abonoDelSaldo.monto), fecha: abonoDelSaldo.fecha },
       ])
+      reflejarEstado(abonoDelSaldo.estado)
     } catch (err: any) {
       setError(err.message)
+    } finally {
       setSaving(false)
-      saldandoRef.current = false
-      return
     }
-
-    setSaving(false)
-    await handleStatusChange('pagado')
-    saldandoRef.current = false
   }
 
   const handleStatusChange = async (newStatus: string) => {
@@ -203,7 +176,6 @@ export default function FacturaPage() {
       if (!res.ok) throw new Error('Error updating status')
       const updated = await res.json()
       setFactura(updated)
-      setEstado(newStatus)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -228,7 +200,7 @@ export default function FacturaPage() {
 
     const montoMaximoPermitido = saldoPendiente + 10000
     if (monto > montoMaximoPermitido) {
-      alert(`El abono no puede exceder el saldo pendiente en más de $10.000\nSaldo pendiente: ${formatearDinero(saldoPendiente)}\nMáximo permitido: ${formatearDinero(montoMaximoPermitido)}`)
+      alert(`El abono no puede exceder el saldo pendiente en más de $10.000\nSaldo pendiente: ${pesos(saldoPendiente)}\nMáximo permitido: ${pesos(montoMaximoPermitido)}`)
       return
     }
 
@@ -243,14 +215,8 @@ export default function FacturaPage() {
     setError(null)
 
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const email = session?.user?.email
-
-      const url = email
-        ? `/api/abonos?email=${encodeURIComponent(email)}`
-        : '/api/abonos'
-
-      const res = await apiFetch(url, {
+      // Quién abona sale del token: el ?email= que se mandaba ya no se usaba.
+      const res = await apiFetch('/api/abonos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -259,13 +225,15 @@ export default function FacturaPage() {
         }),
       })
 
-      if (!res.ok) throw new Error('Error al agregar abono')
       const nuevoAbonoData = await res.json()
+      if (!res.ok) throw new Error(nuevoAbonoData.error || 'Error al agregar abono')
 
       setAbonos([...abonos, {
         monto: Number(nuevoAbonoData.monto),
         fecha: nuevoAbonoData.fecha,
       }])
+      // Si este abono completó el total, el servidor ya la marcó pagada.
+      reflejarEstado(nuevoAbonoData.estado)
       setNuevoAbono('')
       setMostrarConfirmacionAbono(false)
       setError(null)
@@ -276,24 +244,37 @@ export default function FacturaPage() {
     }
   }
 
+  /**
+   * Abre el PDF de la factura en una pestaña nueva, en el visor del
+   * navegador: desde ahí se ve, se imprime o se guarda. Es el mismo archivo
+   * que se comparte por WhatsApp.
+   *
+   * Antes se pedía un HTML y se escribía con document.write en una pestaña
+   * del mismo origen que el panel, con los datos del cliente sin escapar:
+   * un nombre con código se ejecutaba al abrir la factura, con la sesión de
+   * quien la abría. El PDF dibuja texto y no interpreta nada.
+   *
+   * La pestaña se abre en el mismo clic, antes de pedir el archivo: después
+   * de esperar al servidor, el navegador la bloquearía como emergente.
+   */
   const handleDescargarPDF = async () => {
+    const ventana = window.open('', '_blank')
+    if (!ventana) {
+      alert('Permite las ventanas emergentes para ver la factura')
+      return
+    }
+    ventana.document.title = 'Generando la factura…'
+
     try {
       const res = await apiFetch(`/api/facturas/${id}/pdf`)
       if (!res.ok) throw new Error('Error al generar la factura')
 
-      const html = await res.text()
-
-      // El HTML dispara su propio diálogo de impresión al cargar,
-      // así que aquí solo se abre la pestaña.
-      const ventana = window.open('', '_blank')
-      if (!ventana) {
-        alert('Permite las ventanas emergentes para ver la factura')
-        return
-      }
-
-      ventana.document.write(html)
-      ventana.document.close()
+      const url = URL.createObjectURL(await res.blob())
+      ventana.location.href = url
+      // El visor necesita la dirección mientras carga; se libera después.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
     } catch (err: any) {
+      ventana.close()
       alert('Error al generar el PDF: ' + err.message)
     }
   }
@@ -394,15 +375,6 @@ export default function FacturaPage() {
     return estado.charAt(0).toUpperCase() + estado.slice(1)
   }
 
-  const formatearDinero = (valor: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(valor)
-  }
-
   const totalAbonosRegistrados = abonos.reduce((sum, abono) => sum + Number(abono.monto), 0)
   const adelanto = Number(factura?.anticipo || 0)
   const totalAbonadoSinAdelanto = totalAbonosRegistrados
@@ -493,8 +465,8 @@ export default function FacturaPage() {
               <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
                 <td style={{ padding: '10px' }}>{item.productoNombre || item.producto?.nombre || '(Personalizado)'}</td>
                 <td style={{ padding: '10px', textAlign: 'right' }}>{Number(item.cantidadM2).toFixed(2)}</td>
-                <td style={{ padding: '10px', textAlign: 'right' }}>${Number(item.precioUnitario).toFixed(2)}</td>
-                <td style={{ padding: '10px', textAlign: 'right' }}>${Number(item.subtotal).toFixed(2)}</td>
+                <td style={{ padding: '10px', textAlign: 'right' }}>{pesos(item.precioUnitario)}</td>
+                <td style={{ padding: '10px', textAlign: 'right' }}>{pesos(item.subtotal)}</td>
               </tr>
             ))}
           </tbody>
@@ -503,23 +475,23 @@ export default function FacturaPage() {
         <div style={{ backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '4px', marginBottom: '20px', maxWidth: '400px', marginLeft: 'auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
             <span>Subtotal:</span>
-            <span>${Number(factura.subtotal).toFixed(2)}</span>
+            <span>{pesos(factura.subtotal)}</span>
           </div>
           {factura.descuentoMonto > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#dc2626' }}>
               <span>Descuento ({factura.descuentoPorcentaje}%):</span>
-              <span>-${Number(factura.descuentoMonto).toFixed(2)}</span>
+              <span>-{pesos(factura.descuentoMonto)}</span>
             </div>
           )}
           {factura.impuesto > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#2563eb' }}>
               <span>Impuesto:</span>
-              <span>+${Number(factura.impuesto).toFixed(2)}</span>
+              <span>+{pesos(factura.impuesto)}</span>
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '18px', borderTop: '2px solid #ddd', paddingTop: '10px' }}>
             <span>Total:</span>
-            <span>${Number(factura.total).toFixed(2)}</span>
+            <span>{pesos(factura.total)}</span>
           </div>
         </div>
 
@@ -536,40 +508,40 @@ export default function FacturaPage() {
           <div style={{ marginBottom: '15px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontFamily: 'monospace' }}>
               <span>Total:</span>
-              <span style={{ fontWeight: 'bold' }}>{formatearDinero(factura.total)}</span>
+              <span style={{ fontWeight: 'bold' }}>{pesos(factura.total)}</span>
             </div>
 
             {adelanto > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontFamily: 'monospace', color: '#059669' }}>
                 <span>Adelanto (Inicial):</span>
-                <span>{formatearDinero(adelanto)}</span>
+                <span>{pesos(adelanto)}</span>
               </div>
             )}
 
             {abonos.length > 0 && (
               <div style={{ backgroundColor: 'white', padding: '10px', borderRadius: '4px', marginBottom: '10px' }}>
                 <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', fontSize: '12px', color: '#666' }}>Abonos Registrados:</p>
-                {abonos.map((abono, idx) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontFamily: 'monospace', fontSize: '12px' }}>
+                {abonos.map((abono) => (
+                  <div key={`${abono.fecha}-${abono.monto}`} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontFamily: 'monospace', fontSize: '12px' }}>
                     <span>{fechaYHora(abono.fecha)}</span>
-                    <span>{formatearDinero(abono.monto)}</span>
+                    <span>{pesos(abono.monto)}</span>
                   </div>
                 ))}
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #e5e7eb', fontWeight: 'bold', fontFamily: 'monospace', fontSize: '12px' }}>
                   <span>Subtotal abonos:</span>
-                  <span>{formatearDinero(totalAbonosRegistrados)}</span>
+                  <span>{pesos(totalAbonosRegistrados)}</span>
                 </div>
               </div>
             )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontFamily: 'monospace', backgroundColor: 'white', padding: '8px', borderRadius: '4px' }}>
               <span>Total Abonado:</span>
-              <span style={{ fontWeight: 'bold', color: '#059669' }}>{formatearDinero(totalAbonado)}</span>
+              <span style={{ fontWeight: 'bold', color: '#059669' }}>{pesos(totalAbonado)}</span>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', backgroundColor: saldoPendiente > 0 ? '#fef2f2' : '#f0fdf4', padding: '10px', borderRadius: '4px', borderLeft: `4px solid ${saldoPendiente > 0 ? '#dc2626' : '#10b981'}` }}>
               <span style={{ fontWeight: 'bold' }}>Saldo Pendiente:</span>
-              <span style={{ fontWeight: 'bold', color: saldoPendiente > 0 ? '#dc2626' : '#10b981' }}>{formatearDinero(saldoPendiente)}</span>
+              <span style={{ fontWeight: 'bold', color: saldoPendiente > 0 ? '#dc2626' : '#10b981' }}>{pesos(saldoPendiente)}</span>
             </div>
           </div>
 
@@ -583,7 +555,7 @@ export default function FacturaPage() {
                     value={nuevoAbono}
                     onChange={(e) => setNuevoAbono(e.target.value)}
                     placeholder="Ingrese monto del abono"
-                    title={`Máximo permitido: ${formatearDinero(Math.max(0, saldoPendiente + 10000))}`}
+                    title={`Máximo permitido: ${pesos(Math.max(0, saldoPendiente + 10000))}`}
                     min="0"
                     step="100"
                     onWheel={(e) => e.currentTarget.blur()}
@@ -628,7 +600,7 @@ export default function FacturaPage() {
                   disabled={saving}
                   title={
                     saldoPendiente > 0
-                      ? `Se registrará un abono de ${formatearDinero(saldoPendiente)} para dejar el saldo en cero`
+                      ? `Se registrará un abono de ${pesos(saldoPendiente)} para dejar el saldo en cero`
                       : 'La factura ya está saldada'
                   }
                   style={{
@@ -643,7 +615,7 @@ export default function FacturaPage() {
                   {saving
                     ? 'Procesando...'
                     : saldoPendiente > 0
-                      ? `Marcar como Pagado (abona ${formatearDinero(saldoPendiente)})`
+                      ? `Marcar como Pagado (abona ${pesos(saldoPendiente)})`
                       : 'Marcar como Pagado'}
                 </button>
               )}
@@ -849,14 +821,14 @@ export default function FacturaPage() {
                 <div style={{ marginBottom: '15px' }}>
                   <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '12px' }}>Saldo Actual:</p>
                   <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', fontFamily: 'monospace' }}>
-                    {formatearDinero(saldoPendiente)}
+                    {pesos(saldoPendiente)}
                   </p>
                 </div>
 
                 <div style={{ marginBottom: '15px' }}>
                   <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '12px' }}>Abono a Registrar:</p>
                   <p style={{ margin: 0, fontSize: '20px', fontWeight: 'bold', color: '#0ea5e9', fontFamily: 'monospace' }}>
-                    {formatearDinero(montoAbonoConfirmacion)}
+                    {pesos(montoAbonoConfirmacion)}
                   </p>
                 </div>
 
@@ -872,7 +844,7 @@ export default function FacturaPage() {
                     color: saldoPendiente - montoAbonoConfirmacion > 0 ? '#dc2626' : '#10b981',
                     fontFamily: 'monospace'
                   }}>
-                    {formatearDinero(saldoPendiente - montoAbonoConfirmacion)}
+                    {pesos(saldoPendiente - montoAbonoConfirmacion)}
                   </p>
                 </div>
               </div>
@@ -887,8 +859,8 @@ export default function FacturaPage() {
                   marginBottom: '15px',
                   fontSize: '12px',
                 }}>
-                  <strong>⚠️ Advertencia:</strong> Este abono es superior al saldo pendiente de {formatearDinero(saldoPendiente)}.
-                  Está pagando {formatearDinero(montoAbonoConfirmacion - saldoPendiente)} de más.
+                  <strong>⚠️ Advertencia:</strong> Este abono es superior al saldo pendiente de {pesos(saldoPendiente)}.
+                  Está pagando {pesos(montoAbonoConfirmacion - saldoPendiente)} de más.
                 </div>
               )}
 

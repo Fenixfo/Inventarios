@@ -5,6 +5,8 @@ import { PermissionProtector } from '@/components/PermissionProtector'
 import { usePermisos } from '@/components/PermisosProvider'
 import { fechaYHora } from '@/lib/fechas'
 import { useListaPaginada } from '@/lib/use-lista-paginada'
+import { pesos } from '@/lib/formato'
+import { VerMas } from '@/components/Common/VerMas'
 
 interface Liquidacion {
   id: string
@@ -16,14 +18,6 @@ interface Liquidacion {
   totalGanancia: number
   pagoVendedor: number
 }
-
-const pesos = (valor: number) =>
-  new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(valor)
 
 export default function LiquidacionesPage() {
   const { puede } = usePermisos()
@@ -113,23 +107,7 @@ export default function LiquidacionesPage() {
             </div>
 
             {hayMas && (
-              <div style={{ textAlign: 'center', marginTop: '20px' }}>
-                <button
-                  onClick={verMas}
-                  disabled={cargandoMas}
-                  style={{
-                    padding: '10px 24px',
-                    backgroundColor: 'white',
-                    color: '#2563eb',
-                    border: '1px solid #2563eb',
-                    borderRadius: '4px',
-                    cursor: cargandoMas ? 'wait' : 'pointer',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  {cargandoMas ? 'Cargando...' : `Ver más (${total - liquidaciones.length} restantes)`}
-                </button>
-              </div>
+              <VerMas restantes={total - liquidaciones.length} cargando={cargandoMas} onClick={verMas} />
             )}
           </>
         )}

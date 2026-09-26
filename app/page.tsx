@@ -4,6 +4,7 @@ import { Header } from '@/components/Layout/Header'
 import { useCart } from '@/hooks/useCart'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { pesos } from '@/lib/formato'
 
 interface Producto {
   id: string
@@ -96,13 +97,6 @@ export default function Catalogo() {
   // estaba puesto. También cancela un "Ver más" a medias al cambiar de
   // filtro, para no añadir productos de la búsqueda anterior a la nueva.
   const consultaEnCurso = useRef<AbortController | null>(null)
-
-  // Al cambiar de filtro o de búsqueda se vuelve a empezar desde la primera
-  // tanda: si no, se pediría la página 3 de un listado que ahora tiene dos.
-  useEffect(() => {
-    cargarProductos({ reiniciar: true })
-    return () => consultaEnCurso.current?.abort()
-  }, [categoriaFiltro, tiendaFiltro, busqueda])
 
   // Los filtros se piden aparte de los productos —la portada trae solo unos
   // pocos por tienda— y se rehacen cada vez que cambia una selección, para
@@ -206,6 +200,17 @@ export default function Catalogo() {
     }
   }
 
+  // Al cambiar de filtro o de búsqueda se vuelve a empezar desde la primera
+  // tanda: si no, se pediría la página 3 de un listado que ahora tiene dos.
+  // Depende solo de los filtros a propósito: cargarProductos cambia en cada
+  // render (lee `productos` para el "Ver más"), y ponerla aquí volvería a
+  // cargar sin fin.
+  useEffect(() => {
+    cargarProductos({ reiniciar: true })
+    return () => consultaEnCurso.current?.abort()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoriaFiltro, tiendaFiltro, busqueda])
+
   /** Lanza la búsqueda. Menos de tres letras no se busca. */
   const buscar = () => {
     const texto = textoBusqueda.trim()
@@ -227,15 +232,6 @@ export default function Catalogo() {
 
   // La búsqueda la hace el servidor, así que lo que llega ya viene filtrado.
   const productosFiltrados = productos
-
-  const formatearPrecio = (precio: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(precio)
-  }
 
   const abrirModalAgregar = (producto: Producto) => {
     setDetalle(null)
@@ -297,6 +293,9 @@ export default function Catalogo() {
       document.removeEventListener('keydown', onKeyDown)
       document.body.style.overflow = overflowPrevio
     }
+    // confirmarAgregar se rehace en cada render; lo que lee (la cantidad y el
+    // producto) ya está en la lista, así que Enter siempre usa lo actual.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalAbierto, cantidadModal, productoSeleccionado])
 
   // La ficha ampliada solo se cierra con Escape: aquí Enter no confirma nada.
@@ -578,7 +577,7 @@ export default function Catalogo() {
                   {/* Precio y botón, fuera del área que abre la ficha */}
                   <div className="px-4 pb-4 border-t pt-3">
                     <p className="text-2xl font-bold text-red-600 mb-3">
-                      {formatearPrecio(producto.precioUnitario)}
+                      {pesos(producto.precioUnitario)}
                     </p>
                     <button
                       onClick={() => abrirModalAgregar(producto)}
@@ -774,7 +773,7 @@ export default function Catalogo() {
                     <div className="flex justify-between py-2">
                       <dt className="text-gray-500">🏷️ Precio</dt>
                       <dd className="font-bold text-red-600 text-lg">
-                        {formatearPrecio(detalle.precioUnitario)}
+                        {pesos(detalle.precioUnitario)}
                         <span className="text-sm font-normal text-gray-600"> / m²</span>
                       </dd>
                     </div>
@@ -835,7 +834,7 @@ export default function Catalogo() {
               <div className="px-6 pb-6">
                 <p className="mb-5">
                   <span className="font-bold text-red-600 text-lg">
-                    {formatearPrecio(productoSeleccionado.precioUnitario)}
+                    {pesos(productoSeleccionado.precioUnitario)}
                   </span>
                   <span className="text-sm text-gray-600"> por m²</span>
                 </p>
@@ -877,7 +876,7 @@ export default function Catalogo() {
                 <div className="flex justify-between items-center bg-gray-50 rounded-lg px-4 py-3 mb-5">
                   <span className="text-sm text-gray-600">Total</span>
                   <span className="text-xl font-bold text-red-600">
-                    {formatearPrecio(
+                    {pesos(
                       (parseFloat(cantidadModal) || 0) * productoSeleccionado.precioUnitario
                     )}
                   </span>

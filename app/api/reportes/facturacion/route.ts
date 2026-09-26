@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Error en reportes de facturación:', error)
     return NextResponse.json(
-      { error: error.message || 'Error al generar reporte' },
+      { error: 'Error al generar reporte' },
       { status: 500 }
     )
   }

@@ -37,6 +37,12 @@ jobs:
       - name: Revisar tipos
         run: npx tsc --noEmit
 
+      # Los errores detienen la CI; las advertencias no. Entre las advertencias
+      # quedan, documentados en eslint.config.mjs, los `any` heredados y el
+      # patrón de cargar datos en useEffect (auditoría ECC, puntos 9 y 10).
+      - name: Lint
+        run: npm run lint
+
       # Compila igual que Vercel: si el type-check falla aquí, el deploy
       # también habría fallado. Las claves son de relleno porque las
       # NEXT_PUBLIC_* se inyectan en el bundle y el build no consulta la BD.

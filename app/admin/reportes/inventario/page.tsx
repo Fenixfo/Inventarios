@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { PermissionProtector } from '@/components/PermissionProtector'
 import { POR_PAGINA } from '@/lib/paginacion'
+import { VerMas } from '@/components/Common/VerMas'
+import { pesos } from '@/lib/formato'
 
 type Seccion = 'stockBajo' | 'sinMovimiento'
 
@@ -131,25 +133,14 @@ export default function ReportesInventarioPage() {
     const cargados = reporte ? reporte[seccion].length : 0
     if (cargados >= total) return null
 
+    // Mientras carga una sección, la otra también espera: así no se mezclan
+    // dos respuestas si se cambian los estados en medio.
     return (
-      <div style={{ textAlign: 'center', marginTop: '15px' }}>
-        <button
-          onClick={() => verMas(seccion)}
-          disabled={cargandoMas !== null}
-          style={{
-            padding: '8px 20px',
-            backgroundColor: 'white',
-            color: '#2563eb',
-            border: '1px solid #2563eb',
-            borderRadius: '4px',
-            cursor: cargandoMas ? 'wait' : 'pointer',
-            fontWeight: 'bold',
-            fontSize: '13px',
-          }}
-        >
-          {cargandoMas === seccion ? 'Cargando...' : `Ver más (${total - cargados} restantes)`}
-        </button>
-      </div>
+      <VerMas
+        restantes={total - cargados}
+        cargando={cargandoMas !== null}
+        onClick={() => verMas(seccion)}
+      />
     )
   }
 
@@ -161,18 +152,11 @@ export default function ReportesInventarioPage() {
     cargarReporte(nuevosEstados)
   }
 
+  // Una vez al abrir; los cambios de estados recargan desde su propio botón.
   useEffect(() => {
     cargarReporte()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  const formatearDinero = (valor: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(valor)
-  }
 
   return (
     <PermissionProtector requiredPermission="reportes">
@@ -297,7 +281,7 @@ export default function ReportesInventarioPage() {
             <div style={{ backgroundColor: '#ede9fe', padding: '20px', borderRadius: '8px', borderLeft: '4px solid #a855f7' }}>
               <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '12px' }}>VALOR INVENTARIO (AL COSTO)</p>
               <p style={{ margin: 0, fontSize: '20px', fontWeight: 'bold', color: '#7c3aed', fontFamily: 'monospace' }}>
-                {formatearDinero(reporte.metricas.valorInventario)}
+                {pesos(reporte.metricas.valorInventario)}
               </p>
               {/* Un producto sin costo cargado no suma, y la cifra se queda
                   corta sin explicación si no se avisa. */}
@@ -376,8 +360,8 @@ export default function ReportesInventarioPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {reporte.rotacion.map((prod, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                  {reporte.rotacion.map((prod) => (
+                    <tr key={prod.nombre} style={{ borderBottom: '1px solid #eee' }}>
                       <td style={{ padding: '10px', fontSize: '12px' }}>{prod.nombre}</td>
                       <td style={{ padding: '10px', textAlign: 'right', fontSize: '12px', fontFamily: 'monospace' }}>
                         {Number(prod.cantidad).toFixed(2)} m²
@@ -392,7 +376,7 @@ export default function ReportesInventarioPage() {
                           color: '#10b981',
                         }}
                       >
-                        {formatearDinero(prod.ingresos)}
+                        {pesos(prod.ingresos)}
                       </td>
                     </tr>
                   ))}
@@ -435,7 +419,7 @@ export default function ReportesInventarioPage() {
                           fontWeight: 'bold',
                         }}
                       >
-                        {formatearDinero(Number(producto.precioUnitario))}
+                        {pesos(Number(producto.precioUnitario))}
                       </td>
                     </tr>
                   ))}

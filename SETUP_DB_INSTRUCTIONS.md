@@ -29,20 +29,14 @@ DIRECT_URL="postgresql://postgres.axehyjwscvjyyrhfllhc:abc123DefGhi456@aws-0-us-
 
 ---
 
-## Paso 3: Ejecutar el setup
+## Paso 3: Crear la base
 
-Una vez actualizado el `.env`, ejecuta:
+> El script `scripts/setup-db.js` que se usaba aquí se retiró el 2026-09-26: creaba las 9 tablas
+> del esquema inicial y quedó muy atrás del actual.
 
-```bash
-node scripts/setup-db.js
-```
-
-Debería:
-- ✓ Conectar a Supabase
-- ✓ Crear 9 tablas
-- ✓ Crear índices
-- ✓ Configurar RLS policies
-- ✓ Mostrar lista de tablas creadas
+Hoy la base se define en `prisma/schema.prisma`, y los cambios se aplican con los SQL de
+`docs/sql/`, ejecutados en el editor SQL de Supabase. Todas las tablas deben quedar con RLS
+activado (ver `docs/sql/activar_rls.sql`).
 
 ---
 

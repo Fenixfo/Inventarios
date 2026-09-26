@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { exigirTienda, veTodasLasFacturas, puede } from '@/lib/permisos'
 import { leerPagina, MINIMO_BUSQUEDA } from '@/lib/paginacion'
 import { costoAlFacturar } from '@/lib/liquidacion'
+import { facturaEditada, facturaNueva, leerCuerpo } from '@/lib/esquemas'
 
 const ESTADOS = ['pendiente', 'pagado', 'entregado', 'anulado', 'liquidado']
 
@@ -119,7 +120,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(facturas)
   } catch (error) {
     return NextResponse.json(
-      { error: 'Error fetching facturas' },
+      { error: 'No se pudieron obtener las facturas' },
       { status: 500 }
     )
   }
@@ -130,13 +131,15 @@ export async function POST(request: NextRequest) {
     const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, 'facturas.crear')
     if (sinPermiso) return sinPermiso
 
-    const data = await request.json()
+    // Validado antes de tocar la base: números de verdad, sin negativos y
+    // con al menos un producto. Lo que no está en el esquema se descarta.
+    const { datos: data, error: invalido } = await leerCuerpo(request, facturaNueva)
+    if (invalido) return invalido
 
     // La factura nace sin abono: registrar un anticipo al crearla es, en el
     // fondo, lo mismo que abonarla, así que exige el mismo permiso. Sin él,
     // el vendedor sigue pudiendo facturar, solo que queda pendiente.
-    const anticipoSolicitado = data.anticipo ? parseFloat(data.anticipo) : 0
-    if (anticipoSolicitado > 0 && !puede(usuario, 'facturas.abonar', tiendaId)) {
+    if (data.anticipo > 0 && !puede(usuario, 'facturas.abonar', tiendaId)) {
       return NextResponse.json(
         { error: 'No tienes permiso para registrar un anticipo' },
         { status: 403 }
@@ -148,7 +151,7 @@ export async function POST(request: NextRequest) {
     const numeroFactura = `${datePrefix}-${String(sequence).padStart(3, '0')}`
 
     const factura = await prisma.$transaction(async (tx) => {
-      const lineas: any[] = data.items || []
+      const lineas = data.items
 
       // Los productos se leen antes de crear la factura: con el mismo stock
       // se decide el costo que se guarda en cada línea y lo que se descuenta
@@ -165,7 +168,7 @@ export async function POST(request: NextRequest) {
       // con el tiempo, así que se guarda el de hoy. Lo que se vende sin stock
       // queda sin costo hasta la liquidación (TASK-67).
       const costos = costoAlFacturar(
-        lineas.map((i) => ({ productoId: i.productoId, cantidadM2: parseFloat(i.cantidadM2) })),
+        lineas.map((i) => ({ productoId: i.productoId, cantidadM2: i.cantidadM2 })),
         new Map(
           productos.map((p) => [
             p.id,
@@ -180,27 +183,31 @@ export async function POST(request: NextRequest) {
           // La tienda y el autor salen de la sesión. El usuarioId que
           // llegaba en el cuerpo permitía facturar a nombre de otro.
           tiendaId,
-          clienteId: data.clienteId || null,
+          clienteId: data.clienteId ?? null,
           usuarioId: usuario.id,
-          terminoPago: data.terminoPago || null,
-          metodoPago: data.metodoPago || null,
-          anticipo: data.anticipo ? parseFloat(data.anticipo) : 0,
-          contraEntrega: data.contraEntrega ? parseFloat(data.contraEntrega) : 0,
-          subtotal: parseFloat(data.subtotal || 0),
-          descuentoPorcentaje: data.descuentoPorcentaje ? parseFloat(data.descuentoPorcentaje) : 0,
-          descuentoMonto: data.descuentoMonto ? parseFloat(data.descuentoMonto) : 0,
-          impuesto: parseFloat(data.impuesto || 0),
-          total: parseFloat(data.total || 0),
-          estado: 'pendiente',
-          esBodega: Boolean(data.esBodega),
-          observaciones: data.observaciones || null,
+          terminoPago: data.terminoPago,
+          metodoPago: data.metodoPago,
+          anticipo: data.anticipo,
+          contraEntrega: data.contraEntrega,
+          subtotal: data.subtotal,
+          descuentoPorcentaje: data.descuentoPorcentaje,
+          descuentoMonto: data.descuentoMonto,
+          impuesto: data.impuesto,
+          total: data.total,
+          // Si el anticipo ya cubre el total, nace pagada. Antes quedaba
+          // pendiente y la pantalla la pasaba a pagada al abrirla.
+          ...(data.total > 0 && data.anticipo >= data.total
+            ? { estado: 'pagado', fechaPago: new Date() }
+            : { estado: 'pendiente' }),
+          esBodega: data.esBodega,
+          observaciones: data.observaciones,
           items: {
-            create: lineas.map((item: any, i: number) => ({
-              productoId: item.productoId || null,
-              productoNombre: item.productoNombre || null,
-              cantidadM2: parseFloat(item.cantidadM2),
-              precioUnitario: parseFloat(item.precioUnitario),
-              subtotal: parseFloat(item.subtotal),
+            create: lineas.map((item, i) => ({
+              productoId: item.productoId ?? null,
+              productoNombre: item.productoNombre,
+              cantidadM2: item.cantidadM2,
+              precioUnitario: item.precioUnitario,
+              subtotal: item.subtotal,
               costoUnitario: costos[i].costoUnitario,
               cantidadConCosto: costos[i].cantidadConCosto,
             })),
@@ -223,7 +230,7 @@ export async function POST(request: NextRequest) {
       for (const item of lineas) {
         if (!item.productoId) continue
         const acumulado = cantidadPorProducto.get(item.productoId) || 0
-        cantidadPorProducto.set(item.productoId, acumulado + parseFloat(item.cantidadM2))
+        cantidadPorProducto.set(item.productoId, acumulado + item.cantidadM2)
       }
 
       // `productos` ya viene filtrado por tienda: si en los items viniera el
@@ -273,7 +280,11 @@ export async function POST(request: NextRequest) {
     try {
       await prisma.auditoria.create({
         data: {
-          usuarioId: data.usuarioId || null,
+          // Quién y dónde salen de la sesión. Antes el autor venía del
+          // cuerpo (casi siempre vacío) y faltaba la tienda, así que estos
+          // registros no aparecían en la auditoría de ninguna tienda.
+          usuarioId: usuario.id,
+          tiendaId,
           tablaAfectada: 'facturas',
           registroId: factura.id,
           accion: 'CREATE',
@@ -293,7 +304,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('POST error:', error)
     return NextResponse.json(
-      { error: error.message || 'Error creating factura' },
+      { error: 'No se pudo crear la factura' },
       { status: 400 }
     )
   }
@@ -301,7 +312,10 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const data = await request.json()
+    // La pantalla manda la factura entera; el esquema se queda con los
+    // campos editables ya validados y descarta el resto.
+    const { datos: data, error: invalido } = await leerCuerpo(request, facturaEditada)
+    if (invalido) return invalido
     const { id } = data
 
     // Anular es una acción aparte: se puede facturar sin poder deshacer lo
@@ -316,13 +330,6 @@ export async function PUT(request: NextRequest) {
 
     const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, permisoNecesario)
     if (sinPermiso) return sinPermiso
-
-    if (!id) {
-      return NextResponse.json(
-        { error: 'ID is required' },
-        { status: 400 }
-      )
-    }
 
     // Obtener factura anterior, comprobando de paso que sea de esta tienda.
     const facturaBefore = await prisma.factura.findFirst({
@@ -352,35 +359,29 @@ export async function PUT(request: NextRequest) {
 
     // Subir el anticipo desde aquí es lo mismo que abonar: exige el mismo
     // permiso, aunque el estado que se esté pidiendo sea 'pendiente'.
-    const anticipoNuevo = data.anticipo ? parseFloat(data.anticipo) : 0
-    if (anticipoNuevo > Number(facturaBefore.anticipo) && !puede(usuario, 'facturas.abonar', tiendaId)) {
+    if (data.anticipo > Number(facturaBefore.anticipo) && !puede(usuario, 'facturas.abonar', tiendaId)) {
       return NextResponse.json(
         { error: 'No tienes permiso para registrar un anticipo' },
         { status: 403 }
       )
     }
 
-    const updateData: any = {
-      terminoPago: data.terminoPago || null,
-      metodoPago: data.metodoPago || null,
-      anticipo: data.anticipo ? parseFloat(data.anticipo) : 0,
-      contraEntrega: data.contraEntrega ? parseFloat(data.contraEntrega) : 0,
-      subtotal: parseFloat(data.subtotal || 0),
-      descuentoPorcentaje: data.descuentoPorcentaje ? parseFloat(data.descuentoPorcentaje) : 0,
-      descuentoMonto: data.descuentoMonto ? parseFloat(data.descuentoMonto) : 0,
-      impuesto: parseFloat(data.impuesto || 0),
-      total: parseFloat(data.total || 0),
-      estado: data.estado || 'pendiente',
-      observaciones: data.observaciones || null,
-    }
-
-    if (data.estado === 'pagado') {
-      updateData.fechaPago = new Date()
-    }
-
     const factura = await prisma.factura.update({
       where: { id },
-      data: updateData,
+      data: {
+        terminoPago: data.terminoPago,
+        metodoPago: data.metodoPago,
+        anticipo: data.anticipo,
+        contraEntrega: data.contraEntrega,
+        subtotal: data.subtotal,
+        descuentoPorcentaje: data.descuentoPorcentaje,
+        descuentoMonto: data.descuentoMonto,
+        impuesto: data.impuesto,
+        total: data.total,
+        estado: data.estado || 'pendiente',
+        observaciones: data.observaciones,
+        ...(data.estado === 'pagado' ? { fechaPago: new Date() } : {}),
+      },
       include: {
         cliente: true,
         usuario: true,
@@ -396,7 +397,10 @@ export async function PUT(request: NextRequest) {
     try {
       await prisma.auditoria.create({
         data: {
-          usuarioId: data.usuarioId || null,
+          // De la sesión, no del cuerpo; y con la tienda, para que aparezca
+          // en su auditoría.
+          usuarioId: usuario.id,
+          tiendaId,
           tablaAfectada: 'facturas',
           registroId: id,
           accion: 'UPDATE',
@@ -420,7 +424,7 @@ export async function PUT(request: NextRequest) {
   } catch (error: any) {
     console.error('PUT error:', error)
     return NextResponse.json(
-      { error: error.message || 'Error updating factura' },
+      { error: 'No se pudo actualizar la factura' },
       { status: 400 }
     )
   }

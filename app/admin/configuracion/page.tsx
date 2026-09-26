@@ -48,10 +48,6 @@ export default function ConfiguracionPage() {
   const [publica, setPublica] = useState(true)
   const [publicaOriginal, setPublicaOriginal] = useState(true)
 
-  useEffect(() => {
-    cargarConfig()
-  }, [])
-
   const cargarConfig = async () => {
     setLoading(true)
     setError(null)
@@ -82,6 +78,10 @@ export default function ConfiguracionPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    cargarConfig()
+  }, [])
 
   const copiarCodigo = async () => {
     if (!codigoTienda) return

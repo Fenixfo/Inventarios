@@ -4,6 +4,7 @@ import {
   generarPdfFactura,
   nombreArchivoFactura,
   nombreArchivoCotizacion,
+  logoPermitido,
   type FacturaPdf,
 } from '@/lib/factura-pdf'
 
@@ -102,6 +103,25 @@ describe('generarPdfFactura', () => {
   it('no intenta descargar el logo si no hay URL', async () => {
     const bytes = await generarPdfFactura(FACTURA, { nombre_empresa: 'Beraca' })
     expect(esPdf(bytes)).toBe(true)
+  })
+})
+
+// El servidor descarga el logo: solo desde el Storage de Supabase del proyecto.
+describe('logoPermitido', () => {
+  const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://proyecto.supabase.co'
+
+  it('acepta el Storage del proyecto por https', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = supabase
+    expect(logoPermitido(`${supabase}/storage/v1/object/public/imagenes/logo.png`)).toBe(true)
+  })
+
+  it('rechaza otros servidores, direcciones internas y http', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = supabase
+    expect(logoPermitido('https://otro-sitio.com/logo.png')).toBe(false)
+    expect(logoPermitido('http://169.254.169.254/latest/meta-data')).toBe(false)
+    expect(logoPermitido('http://localhost:5432')).toBe(false)
+    expect(logoPermitido(supabase.replace('https:', 'http:') + '/logo.png')).toBe(false)
+    expect(logoPermitido('no es una url')).toBe(false)
   })
 })
 

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { AdminProtector } from '@/components/AdminProtector'
 import { PermisosProvider, usePermisos, invalidarPermisos } from '@/components/PermisosProvider'
 import { MenuTiendas } from '@/components/Layout/MenuTiendas'
@@ -133,13 +134,13 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
           style={{ background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)' }}
         >
           <div className="mb-6 flex items-center justify-between gap-2">
-            <a
+            <Link
               href="/"
               className="flex items-center gap-2 rounded-lg p-2 no-underline transition hover:bg-white/10"
             >
               <span className="rounded-md bg-white px-2 py-1 text-lg">🏠</span>
               <span className="text-base font-bold text-white">Home</span>
-            </a>
+            </Link>
 
             <button
               onClick={() => setMenuAbierto(false)}
@@ -157,7 +158,7 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
                 (item.href !== '/admin' && pathname.startsWith(item.href + '/'))
 
               return (
-                <a
+                <Link
                   key={item.href}
                   href={item.href}
                   className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium text-white no-underline transition hover:bg-blue-500/20 md:hover:translate-x-1 ${
@@ -166,7 +167,7 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
                 >
                   <span>{item.icono || '📌'}</span>
                   {item.label}
-                </a>
+                </Link>
               )
             })}
 

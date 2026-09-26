@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { PrismaClient } from '@prisma/client'
+import { inflateSync } from 'node:zlib'
 
 // Estos tests corren contra la BD real y el servidor de desarrollo.
 // Por decisión del proyecto NO se limpian los datos: quedan como registro
@@ -104,6 +105,34 @@ async function api(ruta: string, init?: RequestInit) {
     data = texto
   }
   return { status: res.status, data, headers: res.headers }
+}
+
+/**
+ * El texto de un PDF generado con pdf-lib, para poder buscar en él.
+ *
+ * pdf-lib comprime el contenido de cada página y escribe el texto como
+ * cadenas hexadecimales (`<50726563…> Tj`). Esto descomprime y decodifica
+ * lo suficiente para comprobar que una frase está en el documento.
+ */
+function textoDelPdf(bytes: Buffer): string {
+  const crudo = bytes.toString('latin1')
+  const partes: string[] = []
+  const flujo = /stream\r?\n([\s\S]*?)\r?\nendstream/g
+  let m: RegExpExecArray | null
+
+  while ((m = flujo.exec(crudo))) {
+    let contenido = m[1]
+    try {
+      contenido = inflateSync(Buffer.from(m[1], 'latin1')).toString('latin1')
+    } catch {
+      // No estaba comprimido.
+    }
+    for (const hex of contenido.match(/<([0-9A-Fa-f]+)>\s*Tj/g) || []) {
+      partes.push(Buffer.from(hex.replace(/[<>\sTj]/g, ''), 'hex').toString('latin1'))
+    }
+  }
+
+  return partes.join(' ')
 }
 
 /**
@@ -891,22 +920,41 @@ describe('POST /api/facturas', () => {
 })
 
 describe('GET /api/facturas/[id]/pdf', () => {
-  it('genera la factura con los datos del cliente y los items', async () => {
-    const factura = await prisma.factura.findFirst({
-      // De la tienda de las pruebas: la más reciente de toda la base puede
-      // ser de otra tienda, y esa responde 404 con toda razón.
-      where: { tiendaId, items: { some: {} } },
-      select: { id: true, numeroFactura: true },
-      orderBy: { fecha: 'desc' },
+  // Antes la descarga devolvía un HTML con los datos del cliente sin escapar,
+  // y la pantalla lo escribía en una pestaña del mismo origen que el panel:
+  // un cliente con código en el nombre lo ejecutaba al abrir la factura.
+  it('una factura con código en los datos sale como PDF, nunca como página', async () => {
+    const cliente = await prisma.cliente.create({
+      data: {
+        tiendaId,
+        nombre: `<img src=x onerror="alert(document.cookie)"> ${MARCA}`,
+        direccion: '<script>alert(1)</script>',
+      },
+    })
+    const factura = await prisma.factura.create({
+      data: {
+        tiendaId,
+        numeroFactura: `XSS-${Date.now()}`,
+        clienteId: cliente.id,
+        subtotal: 1000,
+        total: 1000,
+        observaciones: '<script>alert(2)</script>',
+        items: { create: [{ productoNombre: '<b onmouseover=alert(3)>x</b>', cantidadM2: 1, precioUnitario: 1000, subtotal: 1000 }] },
+      },
     })
 
-    const { status, data } = await api(`/api/facturas/${factura!.id}/pdf`)
+    try {
+      // Sin ?formato: antes era justo la ruta que devolvía el HTML.
+      const res = await fetch(`${BASE}/api/facturas/${factura.id}/pdf`, { headers: HEADERS })
+      const bytes = Buffer.from(await res.arrayBuffer())
 
-    expect(status).toBe(200)
-    expect(typeof data).toBe('string')
-    expect(data).toContain(factura!.numeroFactura)
-    expect(data).toMatch(/@media\s+print/)
-    expect(data).toMatch(/Subtotal/i)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('content-type')).toBe('application/pdf')
+      expect(bytes.subarray(0, 5).toString()).toBe('%PDF-')
+    } finally {
+      await prisma.factura.delete({ where: { id: factura.id } })
+      await prisma.cliente.delete({ where: { id: cliente.id } })
+    }
   })
 
   it('devuelve 404 para una factura inexistente', async () => {
@@ -1098,9 +1146,10 @@ describe('precios de bodega', () => {
 
     if (!factura) return
 
-    const { status, data } = await api(`/api/facturas/${factura.id}/pdf`)
-    expect(status).toBe(200)
-    expect(data).toMatch(/Precio de bodega/i)
+    // La factura ahora sale siempre en PDF: el texto va comprimido dentro.
+    const res = await fetch(`${BASE}/api/facturas/${factura.id}/pdf`, { headers: HEADERS })
+    expect(res.status).toBe(200)
+    expect(textoDelPdf(Buffer.from(await res.arrayBuffer()))).toContain('Precio de bodega')
   })
 
   it('crea un producto con sus tres precios', async () => {
@@ -1312,6 +1361,131 @@ describe('listado de facturas por páginas', () => {
 
     expect(data.facturas.some((f: any) => f.numeroFactura === numero)).toBe(true)
     expect(data.total).toBeLessThanOrEqual(todas.total)
+  })
+})
+
+// Auditoría ECC, paso 6. Las pantallas buscan en el servidor en vez de bajar
+// el catálogo o los clientes completos.
+describe('búsquedas mientras se escribe', () => {
+  it('productos: como mucho 10, con las columnas del formulario', async () => {
+    const { status, data } = await api('/api/productos/buscar?q=')
+    expect(status).toBe(200)
+    expect(data.productos.length).toBeLessThanOrEqual(10)
+    if (data.productos[0]) {
+      expect(Object.keys(data.productos[0]).sort()).toEqual(
+        ['id', 'm2PorCaja', 'nombre', 'precioBodega', 'precioUnitario', 'sku', 'stockActual'].sort()
+      )
+    }
+  })
+
+  it('productos: cada palabra por separado, en cualquier orden y sin tildes', async () => {
+    const { data: todos } = await api('/api/productos/buscar?q=')
+    const conDosPalabras = todos.productos.find((p: any) => p.nombre.trim().split(/\s+/).length >= 2)
+    if (!conDosPalabras) return
+
+    const [a, b] = conDosPalabras.nombre.trim().split(/\s+/)
+    const alReves = `${b} ${a}`.toUpperCase()
+    const { data } = await api(`/api/productos/buscar?q=${encodeURIComponent(alReves)}`)
+
+    expect(data.productos.some((p: any) => p.id === conDosPalabras.id)).toBe(true)
+  })
+
+  it('productos: también por SKU', async () => {
+    const { data: todos } = await api('/api/productos/buscar?q=')
+    const producto = todos.productos[0]
+    if (!producto) return
+
+    const { data } = await api(`/api/productos/buscar?q=${encodeURIComponent(producto.sku)}`)
+    expect(data.productos.some((p: any) => p.id === producto.id)).toBe(true)
+  })
+
+  it('clientes: por cédula o nombre, como mucho 10', async () => {
+    const { data: lista } = await api('/api/clientes?limite=10&desde=0')
+    const cliente = lista.clientes.find((c: any) => (c.cedulaCc || '').length >= 2)
+    if (!cliente) return
+
+    const { status, data } = await api(`/api/clientes/buscar?q=${encodeURIComponent(cliente.cedulaCc)}`)
+    expect(status).toBe(200)
+    expect(data.clientes.length).toBeLessThanOrEqual(10)
+    expect(data.clientes.some((c: any) => c.id === cliente.id)).toBe(true)
+    expect(data.clientes[0]).toHaveProperty('direccion')
+  })
+
+  it('clientes: con menos de 2 caracteres no busca', async () => {
+    const { data } = await api('/api/clientes/buscar?q=1')
+    expect(data.clientes).toEqual([])
+  })
+
+  it('las dos exigen sesión', async () => {
+    expect((await fetch(`${BASE}/api/productos/buscar?q=a`)).status).toBe(401)
+    expect((await fetch(`${BASE}/api/clientes/buscar?q=ab`)).status).toBe(401)
+  })
+})
+
+// Auditoría ECC, paso 4. El paso a "pagado" lo decide el servidor al abonar,
+// no un efecto de la pantalla al abrir la factura.
+describe('abonos y estado pagado', () => {
+  const creadas: string[] = []
+
+  const facturar = async (anticipo = 0) => {
+    const { status, data } = await api('/api/facturas', {
+      method: 'POST',
+      body: JSON.stringify({
+        subtotal: 1000,
+        total: 1000,
+        anticipo,
+        observaciones: `${MARCA} abonos`,
+        items: [{ productoNombre: 'Personalizado', cantidadM2: 1, precioUnitario: 1000, subtotal: 1000 }],
+      }),
+    })
+    expect(status).toBe(201)
+    creadas.push(data.id)
+    return data
+  }
+
+  const abonar = (facturaId: string, monto: number) =>
+    api('/api/abonos', { method: 'POST', body: JSON.stringify({ facturaId, monto }) })
+
+  it('un abono parcial la deja pendiente; el que completa el total la paga', async () => {
+    const factura = await facturar()
+
+    const parcial = await abonar(factura.id, 400)
+    expect(parcial.status).toBe(201)
+    expect(parcial.data.estado).toBe('pendiente')
+
+    const final = await abonar(factura.id, 600)
+    expect(final.data.estado).toBe('pagado')
+
+    const guardada = await prisma.factura.findUnique({ where: { id: factura.id } })
+    expect(guardada!.estado).toBe('pagado')
+    expect(guardada!.fechaPago).not.toBeNull()
+  })
+
+  it('con un anticipo que cubre el total, nace pagada', async () => {
+    const factura = await facturar(1000)
+    expect(factura.estado).toBe('pagado')
+  })
+
+  it('una factura anulada no admite abonos', async () => {
+    const factura = await facturar()
+    await prisma.factura.update({ where: { id: factura.id }, data: { estado: 'anulado' } })
+
+    const { status } = await abonar(factura.id, 100)
+    expect(status).toBe(409)
+  })
+
+  it('un monto que no es número se rechaza con el campo que está mal', async () => {
+    const factura = await facturar()
+    const { status, data } = await api('/api/abonos', {
+      method: 'POST',
+      body: JSON.stringify({ facturaId: factura.id, monto: 'mucho' }),
+    })
+    expect(status).toBe(400)
+    expect(data.error).toMatch(/^monto:/)
+  })
+
+  afterAll(async () => {
+    await prisma.factura.deleteMany({ where: { id: { in: creadas } } }).catch(() => {})
   })
 })
 

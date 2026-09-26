@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase-client'
 import { apiFetch } from '@/lib/api-client'
 import { precioAplicable, tienePrecioBodega } from '@/lib/precios'
 import { usePermisos } from '@/components/PermisosProvider'
+import { pesos } from '@/lib/formato'
+import { useBusquedaRemota } from '@/lib/use-busqueda-remota'
 
 interface Producto {
   id: string
@@ -28,6 +29,8 @@ interface Cliente {
 }
 
 interface FacturaItem {
+  /** Solo para la pantalla: identifica la línea al quitar otras. El servidor lo descarta. */
+  clave: string
   productoId?: string
   productoNombre: string
   cantidadM2: number
@@ -52,12 +55,13 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
   // el servidor rechaza igual si alguien lo manda por fuera de la pantalla.
   // Una cotización nunca lleva abono.
   const puedeAbonar = !esCotizacion && puede('facturas.abonar')
-  const [productos, setProductos] = useState<Producto[]>([])
-  const [clientes, setClientes] = useState<Cliente[]>([])
-  const [loading, setLoading] = useState(true)
+  // Los productos ya elegidos, por id. Antes se bajaba el catálogo entero al
+  // abrir el formulario; ahora se busca en el servidor mientras se escribe, y
+  // aquí se recuerdan los agregados para recalcular precios de bodega y
+  // avisar de stock al guardar.
+  const [productosElegidos, setProductosElegidos] = useState<Map<string, Producto>>(new Map())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [usuarioId, setUsuarioId] = useState<string | null>(null)
 
   // Cliente
   const [clienteId, setClienteId] = useState('')
@@ -66,7 +70,8 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
   const [clienteTelefono, setClienteTelefono] = useState('')
   const [clienteDireccion, setClienteDireccion] = useState('')
   const [cedulaBusqueda, setCedulaBusqueda] = useState('')
-  const [sugerenciasClientes, setSugerenciasClientes] = useState<Cliente[]>([])
+  // Por cédula o nombre, en el servidor: antes se bajaban todos los clientes.
+  const { resultados: sugerenciasClientes } = useBusquedaRemota<Cliente>('/api/clientes/buscar', 'clientes', cedulaBusqueda, 2)
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
 
   // Factura
@@ -87,56 +92,13 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
   const [newItemCantidad, setNewItemCantidad] = useState('')
   const [newItemPrecio, setNewItemPrecio] = useState('')
   const [productoSearchText, setProductoSearchText] = useState('')
-  const [sugerenciasProductos, setSugerenciasProductos] = useState<Producto[]>([])
+  const { resultados: sugerenciasProductos } = useBusquedaRemota<Producto>('/api/productos/buscar', 'productos', productoSearchText, 1)
   const [mostrarSugerenciasProductos, setMostrarSugerenciasProductos] = useState(false)
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Obtener usuario actual
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user?.id) {
-          setUsuarioId(session.user.id)
-        }
-
-        const [productosRes, clientesRes] = await Promise.all([
-          apiFetch('/api/productos'),
-          apiFetch('/api/clientes'),
-        ])
-
-        if (!productosRes.ok || !clientesRes.ok) throw new Error('Error fetching data')
-
-        const productosData = await productosRes.json()
-        const clientesData = await clientesRes.json()
-
-        setProductos(productosData)
-        setClientes(clientesData)
-      } catch (err: any) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [])
-
   const handleCedulaBusqueda = (valor: string) => {
     setCedulaBusqueda(valor)
-
-    if (valor.trim() === '') {
-      setSugerenciasClientes([])
-      setMostrarSugerencias(false)
-      return
-    }
-
-    const sugerencias = clientes.filter(c =>
-      c.cedulaCc?.toLowerCase().includes(valor.toLowerCase())
-    )
-
-    setSugerenciasClientes(sugerencias)
-    setMostrarSugerencias(true)
+    setMostrarSugerencias(valor.trim() !== '')
   }
 
   const crearClienteNuevo = (cedula: string) => {
@@ -147,7 +109,6 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
     setClienteDireccion('')
     setCedulaBusqueda(cedula)
     setTerminoPago('')
-    setSugerenciasClientes([])
     setMostrarSugerencias(false)
   }
 
@@ -159,34 +120,19 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
     setClienteDireccion(cliente.direccion || '')
     setCedulaBusqueda(cliente.cedulaCc || '')
     setTerminoPago(cliente.terminoPago || '')
-    setSugerenciasClientes([])
     setMostrarSugerencias(false)
   }
 
   const handleBuscarProducto = (texto: string) => {
     setProductoSearchText(texto)
-
-    if (texto.trim() === '') {
-      setSugerenciasProductos([])
-      setMostrarSugerenciasProductos(false)
-      return
-    }
-
-    const textoLower = texto.toLowerCase()
-    const sugerencias = productos.filter(p =>
-      p.sku.toLowerCase().includes(textoLower) ||
-      p.nombre.toLowerCase().includes(textoLower)
-    )
-
-    setSugerenciasProductos(sugerencias)
-    setMostrarSugerenciasProductos(true)
+    setMostrarSugerenciasProductos(texto.trim() !== '')
   }
 
   const seleccionarProducto = (producto: Producto) => {
     setProductoSeleccionado(producto)
     setNewItemProductoId(producto.id)
     setProductoSearchText(`${producto.sku} - ${producto.nombre}`)
-    setSugerenciasProductos([])
+    setProductosElegidos((previos) => new Map(previos).set(producto.id, producto))
     setMostrarSugerenciasProductos(false)
   }
 
@@ -194,7 +140,6 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
     setProductoSeleccionado(null)
     setNewItemProductoId('')
     setProductoSearchText(nombre)
-    setSugerenciasProductos([])
     setMostrarSugerenciasProductos(false)
   }
 
@@ -213,7 +158,7 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
       // Los productos escritos a mano no tienen lista de precios.
       if (!item.productoId) return item
 
-      const producto = productos.find((p) => p.id === item.productoId)
+      const producto = productosElegidos.get(item.productoId ?? '')
       if (!producto) return item
 
       const precio = precioDe(producto, bodega)
@@ -232,7 +177,7 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
 
   const addItem = () => {
     if (newItemProductoId && newItemCantidad) {
-      const producto = productos.find(p => p.id === newItemProductoId)
+      const producto = productosElegidos.get(newItemProductoId)
       if (!producto) {
         alert('Producto no encontrado')
         return
@@ -243,6 +188,7 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
       const subtotal = cantidad * precio
 
       setItems([...items, {
+        clave: crypto.randomUUID(),
         productoId: producto.id,
         productoNombre: producto.nombre,
         cantidadM2: cantidad,
@@ -265,6 +211,7 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
       const subtotal = cantidad * precio
 
       setItems([...items, {
+        clave: crypto.randomUUID(),
         productoNombre: productoSearchText,
         cantidadM2: cantidad,
         precioUnitario: precio,
@@ -315,20 +262,11 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
     e.currentTarget.blur()
   }
 
-  const formatearDinero = (valor: number): string => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(valor)
-  }
-
   const calculateTotals = () => {
     const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0)
 
     // Usar descuentoMonto si es > 0, de lo contrario calcular desde porcentaje
-    let finalDescuentoMonto = descuentoMonto > 0 ? descuentoMonto : (subtotal * descuentoPorcentaje) / 100
+    const finalDescuentoMonto = descuentoMonto > 0 ? descuentoMonto : (subtotal * descuentoPorcentaje) / 100
 
     const base = subtotal - finalDescuentoMonto
     const impuestoMonto = (base * impuesto) / 100
@@ -380,7 +318,7 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
     let advertencia = ''
     if (!esCotizacion) items.forEach(item => {
       if (item.productoId) {
-        const producto = productos.find(p => p.id === item.productoId)
+        const producto = productosElegidos.get(item.productoId ?? '')
         if (producto && item.cantidadM2 > producto.stockActual) {
           advertencia += `\n- ${item.productoNombre}: Stock disponible ${producto.stockActual} m², se venderán ${item.cantidadM2} m²`
         }
@@ -421,7 +359,6 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          usuarioId,
           clienteId: finalClienteId || null,
           esBodega,
           terminoPago,
@@ -455,8 +392,6 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
       setSaving(false)
     }
   }
-
-  if (loading) return <div style={{ padding: '20px' }}>Cargando...</div>
 
   return (
     <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '20px' }}>
@@ -673,7 +608,7 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
                   <div style={{ fontWeight: 'bold' }}>{producto.nombre}</div>
                   <div style={{ fontSize: '12px', color: '#666' }}>
                     SKU: {producto.sku} | Stock: {producto.stockActual}m² |{' '}
-                    {formatearDinero(precioDe(producto))}
+                    {pesos(precioDe(producto))}
                     {esBodega && !tienePrecioBodega(producto) && ' (sin precio de bodega)'}
                   </div>
                 </div>
@@ -761,7 +696,7 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
             </thead>
             <tbody>
               {items.map((item, index) => (
-                <tr key={index} style={{ borderBottom: '1px solid #eee' }}>
+                <tr key={item.clave} style={{ borderBottom: '1px solid #eee' }}>
                   <td style={{ padding: '10px', fontSize: '12px' }}>{item.productoNombre}</td>
                   <td style={{ padding: '10px', textAlign: 'right' }}>
                     <input
@@ -785,7 +720,7 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
                       style={{ width: '70px', padding: '4px', borderRadius: '3px', border: '1px solid #ddd', textAlign: 'right' }}
                     />
                   </td>
-                  <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatearDinero(item.subtotal)}</td>
+                  <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold', fontFamily: 'monospace' }}>{pesos(item.subtotal)}</td>
                   <td style={{ padding: '10px', textAlign: 'center' }}>
                     <button
                       type="button"
@@ -859,23 +794,23 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
         <div style={{ backgroundColor: 'white', padding: '15px', borderRadius: '4px', border: '1px solid #ddd', marginBottom: '15px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '14px', fontFamily: 'monospace' }}>
             <span>Subtotal:</span>
-            <span>{formatearDinero(subtotal)}</span>
+            <span>{pesos(subtotal)}</span>
           </div>
           {finalDescuentoMonto > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '14px', color: '#dc2626', fontFamily: 'monospace' }}>
               <span>Descuento ({descuentoPorcentaje.toFixed(2)}%):</span>
-              <span>-{formatearDinero(finalDescuentoMonto)}</span>
+              <span>-{pesos(finalDescuentoMonto)}</span>
             </div>
           )}
           {impuestoMonto > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '14px', color: '#2563eb', fontFamily: 'monospace' }}>
               <span>Impuesto ({impuesto.toFixed(2)}%):</span>
-              <span>+{formatearDinero(impuestoMonto)}</span>
+              <span>+{pesos(impuestoMonto)}</span>
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '18px', borderTop: '2px solid #ddd', paddingTop: '10px', color: '#2563eb', fontFamily: 'monospace', marginBottom: '15px' }}>
             <span>TOTAL:</span>
-            <span>{formatearDinero(total)}</span>
+            <span>{pesos(total)}</span>
           </div>
 
           {puedeAbonar && (
@@ -897,14 +832,14 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
                 min="0"
                 max={total + 10000}
                 placeholder="0.00"
-                title={`Máximo permitido: ${formatearDinero(total + 10000)}`}
+                title={`Máximo permitido: ${pesos(total + 10000)}`}
                 style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box', fontFamily: 'monospace' }}
               />
               {abono > 0 && (
                 <div style={{ marginTop: '8px', padding: '10px', backgroundColor: '#f0f9ff', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace' }}>
-                  <div>Abono: {formatearDinero(abono)}</div>
+                  <div>Abono: {pesos(abono)}</div>
                   <div style={{ color: abono > total ? '#dc2626' : '#10b981', fontWeight: 'bold' }}>
-                    Saldo pendiente: {formatearDinero(Math.max(0, total - abono))}
+                    Saldo pendiente: {pesos(Math.max(0, total - abono))}
                   </div>
                   {abono > total && (
                     <div style={{ color: '#f59e0b', marginTop: '5px', fontSize: '11px' }}>
@@ -986,20 +921,20 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
 
             {/* Vista previa del cambio, para no decidir a ciegas. */}
             <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', marginBottom: '18px', maxHeight: '220px', overflowY: 'auto', fontSize: '13px' }}>
-              {items.filter((i) => i.productoId).map((item, i) => {
-                const producto = productos.find((p) => p.id === item.productoId)
+              {items.filter((i) => i.productoId).map((item) => {
+                const producto = productosElegidos.get(item.productoId ?? '')
                 const nuevo = producto ? precioDe(producto, preguntaBodega) : item.precioUnitario
 
                 return (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: '6px' }}>
+                  <div key={item.clave} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: '6px' }}>
                     <span style={{ color: '#4b5563' }}>{item.productoNombre}</span>
                     <span style={{ whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
-                      {formatearDinero(item.precioUnitario)}
+                      {pesos(item.precioUnitario)}
                       {nuevo !== item.precioUnitario && (
                         <>
                           {' → '}
                           <strong style={{ color: nuevo < item.precioUnitario ? '#059669' : '#dc2626' }}>
-                            {formatearDinero(nuevo)}
+                            {pesos(nuevo)}
                           </strong>
                         </>
                       )}

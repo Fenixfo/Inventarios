@@ -92,8 +92,10 @@ export async function GET(request: NextRequest) {
     })
     return NextResponse.json(productos)
   } catch (error) {
+    // El detalle queda en el log del servidor; al navegador va un texto genérico.
+    console.error('Error en /api/productos:', error)
     return NextResponse.json(
-      { error: 'Error fetching productos' },
+      { error: 'No se pudieron obtener los productos' },
       { status: 500 }
     )
   }
@@ -151,7 +153,7 @@ export async function POST(request: NextRequest) {
 
     console.error('Error creando producto:', error)
     return NextResponse.json(
-      { error: error.message || 'Error creating producto' },
+      { error: 'No se pudo crear el producto' },
       { status: 400 }
     )
   }
@@ -235,7 +237,7 @@ export async function PUT(request: NextRequest) {
 
     console.error('PUT error:', error)
     return NextResponse.json(
-      { error: error.message || 'Error updating producto' },
+      { error: 'No se pudo actualizar el producto' },
       { status: 400 }
     )
   }

@@ -3,7 +3,6 @@
 import { apiFetch } from '@/lib/api-client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase-client'
 import { PermissionProtector } from '@/components/PermissionProtector'
 import { soloFecha } from '@/lib/fechas'
 
@@ -22,18 +21,6 @@ export default function SolicitudesAccesoPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [procesando, setProcesando] = useState<string | null>(null)
-  const [adminUserId, setAdminUserId] = useState<string | null>(null)
-
-  useEffect(() => {
-    const getAdminUserId = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user?.id) {
-        setAdminUserId(session.user.id)
-      }
-    }
-    getAdminUserId()
-    cargarSolicitudes()
-  }, [])
 
   const cargarSolicitudes = async () => {
     try {
@@ -48,13 +35,19 @@ export default function SolicitudesAccesoPage() {
     }
   }
 
+  // Quién aprueba o rechaza lo saca el servidor del token: el adminId que se
+  // mandaba en el cuerpo, y la consulta de sesión para obtenerlo, sobraban.
+  useEffect(() => {
+    cargarSolicitudes()
+  }, [])
+
   const aprobar = async (id: string) => {
     setProcesando(id)
     try {
       const res = await apiFetch(`/api/solicitudes-acceso/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: 'aprobado', adminId: adminUserId }),
+        body: JSON.stringify({ estado: 'aprobado' }),
       })
       if (!res.ok) throw new Error('Error al aprobar')
       setSolicitudes(solicitudes.filter((s) => s.id !== id))
@@ -71,7 +64,7 @@ export default function SolicitudesAccesoPage() {
       const res = await apiFetch(`/api/solicitudes-acceso/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: 'rechazado', adminId: adminUserId }),
+        body: JSON.stringify({ estado: 'rechazado' }),
       })
       if (!res.ok) throw new Error('Error al rechazar')
       setSolicitudes(solicitudes.filter((s) => s.id !== id))

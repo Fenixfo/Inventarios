@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { PermissionProtector } from '@/components/PermissionProtector'
 import { BuscadorEnter } from '@/components/Common/BuscadorEnter'
 import { useListaPaginada } from '@/lib/use-lista-paginada'
+import { pesos } from '@/lib/formato'
+import { VerMas } from '@/components/Common/VerMas'
 
 interface Cliente {
   id: string
@@ -85,7 +87,7 @@ export default function ClientesPage() {
                     <td style={{ padding: '10px' }}>{cliente.telefono || '-'}</td>
                     <td style={{ padding: '10px' }}>{cliente.cedulaCc || '-'}</td>
                     <td style={{ padding: '10px' }}>{cliente.terminoPago || '-'}</td>
-                    <td style={{ padding: '10px', textAlign: 'right' }}>${Number(cliente.limiteCredito).toFixed(2)}</td>
+                    <td style={{ padding: '10px', textAlign: 'right' }}>{pesos(cliente.limiteCredito)}</td>
                     <td style={{ padding: '10px', textAlign: 'center' }}>
                       <Link href={`/admin/clientes/${cliente.id}`} style={{
                         color: '#2563eb',
@@ -101,23 +103,7 @@ export default function ClientesPage() {
           </div>
 
           {hayMas && (
-            <div style={{ textAlign: 'center', marginTop: '20px' }}>
-              <button
-                onClick={verMas}
-                disabled={cargandoMas}
-                style={{
-                  padding: '10px 24px',
-                  backgroundColor: 'white',
-                  color: '#2563eb',
-                  border: '1px solid #2563eb',
-                  borderRadius: '4px',
-                  cursor: cargandoMas ? 'wait' : 'pointer',
-                  fontWeight: 'bold',
-                }}
-              >
-                {cargandoMas ? 'Cargando...' : `Ver más (${total - clientes.length} restantes)`}
-              </button>
-            </div>
+            <VerMas restantes={total - clientes.length} cargando={cargandoMas} onClick={verMas} />
           )}
         </>
       )}

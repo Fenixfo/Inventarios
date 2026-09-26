@@ -6,7 +6,9 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
 import { PermissionProtector } from '@/components/PermissionProtector'
+import { diaColombiano } from '@/lib/fechas'
 import { usePermisos } from '@/components/PermisosProvider'
+import { pesos } from '@/lib/formato'
 
 interface ReporteFacturacion {
   periodo: {
@@ -45,10 +47,10 @@ export default function ReportesPage() {
   const [inicializado, setInicializado] = useState(false)
 
   // Obtener mes actual en formato YYYY-MM
+  // El mes de Colombia, no el del reloj del dispositivo: el resto de la app
+  // ya usa esa hora, y en la noche del último día del mes no coincidían.
   useEffect(() => {
-    const hoy = new Date()
-    const mes = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`
-    setMesSeleccionado(mes)
+    setMesSeleccionado(diaColombiano(new Date()).slice(0, 7))
   }, [])
 
   const cargarReporte = async (p: string = periodo, mes?: string, estadosFiltro: string[] = estados) => {
@@ -95,21 +97,14 @@ export default function ReportesPage() {
   }
 
   // Cargar reporte inicial
+  // Una vez al abrir; el resto de cambios recargan desde sus controles.
   useEffect(() => {
     if (!inicializado) {
       cargarReporte('hoy')
       setInicializado(true)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inicializado])
-
-  const formatearDinero = (valor: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(valor)
-  }
 
   return (
     <PermissionProtector requiredPermission="reportes">
@@ -267,7 +262,7 @@ export default function ReportesPage() {
             <div style={{ backgroundColor: '#f0f9ff', padding: '20px', borderRadius: '8px', borderLeft: '4px solid #0ea5e9' }}>
               <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '12px' }}>TOTAL VENDIDO</p>
               <p style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: '#0369a1', fontFamily: 'monospace' }}>
-                {formatearDinero(reporte.metricas.totalVendido)}
+                {pesos(reporte.metricas.totalVendido)}
               </p>
             </div>
 
@@ -281,7 +276,7 @@ export default function ReportesPage() {
             <div style={{ backgroundColor: '#fef3c7', padding: '20px', borderRadius: '8px', borderLeft: '4px solid #f59e0b' }}>
               <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '12px' }}>PROMEDIO POR FACTURA</p>
               <p style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: '#92400e', fontFamily: 'monospace' }}>
-                {formatearDinero(reporte.metricas.promedioPorFactura)}
+                {pesos(reporte.metricas.promedioPorFactura)}
               </p>
             </div>
 
@@ -292,7 +287,7 @@ export default function ReportesPage() {
                   {reporte.metricas.clienteTop.nombre}
                 </p>
                 <p style={{ margin: 0, fontSize: '12px', color: '#ec4899' }}>
-                  {formatearDinero(reporte.metricas.clienteTop.total)} ({reporte.metricas.clienteTop.cantidad} facturas)
+                  {pesos(reporte.metricas.clienteTop.total)} ({reporte.metricas.clienteTop.cantidad} facturas)
                 </p>
               </div>
             )}
@@ -309,11 +304,11 @@ export default function ReportesPage() {
                 </tr>
               </thead>
               <tbody>
-                {reporte.ventasPorDia.map((dia, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                {reporte.ventasPorDia.map((dia) => (
+                  <tr key={dia.fecha} style={{ borderBottom: '1px solid #eee' }}>
                     <td style={{ padding: '10px', fontSize: '12px' }}>{dia.fecha}</td>
                     <td style={{ padding: '10px', textAlign: 'right', fontSize: '12px', fontFamily: 'monospace', fontWeight: 'bold' }}>
-                      {formatearDinero(dia.total)}
+                      {pesos(dia.total)}
                     </td>
                   </tr>
                 ))}
@@ -333,14 +328,14 @@ export default function ReportesPage() {
                 </tr>
               </thead>
               <tbody>
-                {reporte.productosTop.map((prod, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                {reporte.productosTop.map((prod) => (
+                  <tr key={prod.nombre} style={{ borderBottom: '1px solid #eee' }}>
                     <td style={{ padding: '10px', fontSize: '12px' }}>{prod.nombre}</td>
                     <td style={{ padding: '10px', textAlign: 'right', fontSize: '12px', fontFamily: 'monospace' }}>
                       {Number(prod.cantidad).toFixed(2)}
                     </td>
                     <td style={{ padding: '10px', textAlign: 'right', fontSize: '12px', fontFamily: 'monospace', fontWeight: 'bold', color: '#10b981' }}>
-                      {formatearDinero(prod.ingresos)}
+                      {pesos(prod.ingresos)}
                     </td>
                   </tr>
                 ))}

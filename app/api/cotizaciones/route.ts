@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { exigirTienda, puede } from '@/lib/permisos'
 import { leerPagina, MINIMO_BUSQUEDA } from '@/lib/paginacion'
 import { diaColombiano } from '@/lib/fechas'
+import { cotizacionNueva, leerCuerpo } from '@/lib/esquemas'
 
 /**
  * Cotizaciones: como una factura, pero sin vender. No descuentan inventario,
@@ -67,12 +68,11 @@ export async function POST(request: NextRequest) {
     const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, 'cotizaciones.crear')
     if (sinPermiso) return sinPermiso
 
-    const data = await request.json()
-    const items: any[] = Array.isArray(data.items) ? data.items : []
-
-    if (items.length === 0) {
-      return NextResponse.json({ error: 'Agrega al menos un producto' }, { status: 400 })
-    }
+    // Validado antes de tocar la base: números de verdad, sin negativos y
+    // con al menos un producto.
+    const { datos: data, error: invalido } = await leerCuerpo(request, cotizacionNueva)
+    if (invalido) return invalido
+    const items = data.items
 
     // El cliente y los productos tienen que ser de esta tienda. Un cliente
     // ajeno se rechaza; un producto ajeno se guarda solo con su nombre, sin
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const idsPedidos = items.map((i) => i.productoId).filter(Boolean)
+    const idsPedidos = items.map((i) => i.productoId).filter(Boolean) as string[]
     const propios = new Set(
       (
         await prisma.producto.findMany({
@@ -117,23 +117,23 @@ export async function POST(request: NextRequest) {
             // La tienda y el autor salen de la sesión, nunca del cuerpo.
             tiendaId,
             usuarioId: usuario.id,
-            clienteId: data.clienteId || null,
-            terminoPago: data.terminoPago || null,
-            metodoPago: data.metodoPago || null,
-            subtotal: parseFloat(data.subtotal || 0),
-            descuentoPorcentaje: data.descuentoPorcentaje ? parseFloat(data.descuentoPorcentaje) : 0,
-            descuentoMonto: data.descuentoMonto ? parseFloat(data.descuentoMonto) : 0,
-            impuesto: parseFloat(data.impuesto || 0),
-            total: parseFloat(data.total || 0),
-            esBodega: Boolean(data.esBodega),
-            observaciones: data.observaciones || null,
+            clienteId: data.clienteId ?? null,
+            terminoPago: data.terminoPago,
+            metodoPago: data.metodoPago,
+            subtotal: data.subtotal,
+            descuentoPorcentaje: data.descuentoPorcentaje,
+            descuentoMonto: data.descuentoMonto,
+            impuesto: data.impuesto,
+            total: data.total,
+            esBodega: data.esBodega,
+            observaciones: data.observaciones,
             items: {
               create: items.map((item) => ({
                 productoId: item.productoId && propios.has(item.productoId) ? item.productoId : null,
-                productoNombre: item.productoNombre || null,
-                cantidadM2: parseFloat(item.cantidadM2),
-                precioUnitario: parseFloat(item.precioUnitario),
-                subtotal: parseFloat(item.subtotal),
+                productoNombre: item.productoNombre,
+                cantidadM2: item.cantidadM2,
+                precioUnitario: item.precioUnitario,
+                subtotal: item.subtotal,
               })),
             },
           },
@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Error creando cotización:', error)
     return NextResponse.json(
-      { error: error.message || 'Error al crear la cotización' },
+      { error: 'Error al crear la cotización' },
       { status: 400 }
     )
   }

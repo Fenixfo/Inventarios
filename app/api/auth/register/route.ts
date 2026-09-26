@@ -77,14 +77,14 @@ export async function POST(request: NextRequest) {
       await supabase.auth.admin.deleteUser(authData.user!.id)
 
       return NextResponse.json(
-        { error: 'Error al crear usuario en la base de datos: ' + dbError.message },
+        { error: 'Error al crear el usuario en la base de datos' },
         { status: 500 }
       )
     }
   } catch (error: any) {
     console.error('Error en registro:', error)
     return NextResponse.json(
-      { error: error.message || 'Error al registrarse' },
+      { error: 'Error al registrarse' },
       { status: 500 }
     )
   }

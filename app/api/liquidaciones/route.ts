@@ -6,10 +6,10 @@ import {
   cantidadPendiente,
   costoDeItem,
   ESTADOS_LIQUIDABLES,
-  porcentajeValido,
   totalesDeLiquidacion,
   ventaSinImpuesto,
 } from '@/lib/liquidacion'
+import { leerCuerpo, liquidacionNueva } from '@/lib/esquemas'
 
 /**
  * Liquidaciones de vendedores: el cierre de sus facturas cobradas.
@@ -18,10 +18,6 @@ import {
  * la venta sin impuesto menos el costo, y al vendedor se le paga un
  * porcentaje. Las facturas quedan en estado "liquidado" y ya no cambian.
  */
-
-const MAXIMO_FACTURAS = 100
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function GET(request: NextRequest) {
   try {
@@ -78,28 +74,12 @@ export async function POST(request: NextRequest) {
     const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, 'liquidaciones.crear')
     if (sinPermiso) return sinPermiso
 
-    const data = await request.json()
-    const vendedorId: string = data.vendedorId
-    const facturaIds: string[] = Array.isArray(data.facturaIds) ? [...new Set(data.facturaIds as string[])] : []
-    const porcentaje = Number(data.porcentaje)
-    const costos: Record<string, number> = data.costos && typeof data.costos === 'object' ? data.costos : {}
-
-    if (!vendedorId || facturaIds.length === 0) {
-      return NextResponse.json({ error: 'Elige un vendedor y al menos una factura' }, { status: 400 })
-    }
-    // Las columnas son uuid: un valor inventado hacía fallar la consulta con un 500.
-    if (![vendedorId, ...facturaIds].every((valor) => UUID.test(String(valor)))) {
-      return NextResponse.json({ error: 'Vendedor o facturas no válidos' }, { status: 400 })
-    }
-    if (facturaIds.length > MAXIMO_FACTURAS) {
-      return NextResponse.json(
-        { error: `Como máximo ${MAXIMO_FACTURAS} facturas por liquidación` },
-        { status: 400 }
-      )
-    }
-    if (!porcentajeValido(porcentaje)) {
-      return NextResponse.json({ error: 'El porcentaje debe estar entre 0 y 100' }, { status: 400 })
-    }
+    // Identificadores uuid (uno inventado hacía fallar la consulta con un
+    // 500), de 1 a 100 facturas sin repetir, porcentaje de 0 a 100 y costos
+    // sin negativos.
+    const { datos: data, error: invalido } = await leerCuerpo(request, liquidacionNueva)
+    if (invalido) return invalido
+    const { vendedorId, facturaIds, porcentaje, costos } = data
 
     // Todo se comprueba en el servidor: que las facturas sean de la tienda,
     // del vendedor elegido, estén cobradas y no liquidadas ya.
@@ -180,7 +160,7 @@ export async function POST(request: NextRequest) {
           creadaPor: usuario.id,
           porcentaje,
           ...totales,
-          observaciones: data.observaciones?.trim() || null,
+          observaciones: data.observaciones,
         },
         select: { id: true },
       })

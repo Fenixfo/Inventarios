@@ -74,8 +74,10 @@ export async function GET(request: NextRequest) {
     })
     return NextResponse.json(clientes)
   } catch (error) {
+    // El detalle queda en el log del servidor; al navegador va un texto genérico.
+    console.error('Error en /api/clientes:', error)
     return NextResponse.json(
-      { error: 'Error fetching clientes' },
+      { error: 'No se pudieron obtener los clientes' },
       { status: 500 }
     )
   }
@@ -119,7 +121,7 @@ export async function POST(request: NextRequest) {
 
     console.error('Error creando cliente:', error)
     return NextResponse.json(
-      { error: error.message || 'Error creating cliente' },
+      { error: 'No se pudo crear el cliente' },
       { status: 400 }
     )
   }
@@ -170,7 +172,7 @@ export async function PUT(request: NextRequest) {
   } catch (error: any) {
     console.error('PUT error:', error)
     return NextResponse.json(
-      { error: error.message || 'Error updating cliente' },
+      { error: 'No se pudo actualizar el cliente' },
       { status: 400 }
     )
   }

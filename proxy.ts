@@ -14,7 +14,10 @@ const RUTAS_PUBLICAS = [
   '/api/configuracion/publica',
 ]
 
-export function middleware(request: NextRequest) {
+// Antes era `middleware.ts`: Next.js 16 lo declaró obsoleto y lo renombró a
+// `proxy`, con el mismo comportamiento. Una diferencia: el proxy corre en
+// Node.js por defecto, no en Edge.
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // El límite de peticiones se aplica antes que nada: si no, un anónimo

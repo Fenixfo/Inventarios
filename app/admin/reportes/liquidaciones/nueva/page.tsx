@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { apiFetch } from '@/lib/api-client'
 import { fechaYHora } from '@/lib/fechas'
 import { PermissionProtector } from '@/components/PermissionProtector'
+import { pesos } from '@/lib/formato'
 import {
   costoDeItem,
   PORCENTAJE_POR_DEFECTO,
@@ -43,14 +44,6 @@ interface Factura {
   total: number
   items: Item[]
 }
-
-const pesos = (valor: number) =>
-  new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(valor)
 
 const celda = { padding: '6px 8px', fontSize: '12px' }
 
@@ -153,13 +146,11 @@ export default function NuevaLiquidacionPage() {
   const elegidas = facturas.filter((f) => seleccionadas.has(f.id))
   const incompletas = elegidas.filter((f) => costoDe(f) === null)
 
-  const totales = useMemo(
-    () =>
-      totalesDeLiquidacion(
-        elegidas.map((f) => ({ venta: f.venta, costo: costoDe(f) ?? 0 })),
-        porcentajeValido(pct) ? pct : 0
-      ),
-    [elegidas, costos, porcentaje]
+  // Se calcula en cada render: son unas pocas facturas y memorizarlo no
+  // servía, porque `elegidas` es una lista nueva cada vez.
+  const totales = totalesDeLiquidacion(
+    elegidas.map((f) => ({ venta: f.venta, costo: costoDe(f) ?? 0 })),
+    porcentajeValido(pct) ? pct : 0
   )
 
   const puedeGuardar =

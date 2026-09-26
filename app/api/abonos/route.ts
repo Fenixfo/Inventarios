@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { exigirTienda } from '@/lib/permisos'
+import { abonoNuevo, leerCuerpo } from '@/lib/esquemas'
+
 export async function POST(request: NextRequest) {
   try {
     const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, 'facturas.abonar')
     if (sinPermiso) return sinPermiso
 
-    const { facturaId, monto } = await request.json()
-
-    if (!facturaId || !monto || monto <= 0) {
-      return NextResponse.json(
-        { error: 'Datos inválidos' },
-        { status: 400 }
-      )
-    }
+    // Un monto en texto o un id inventado antes llegaban a la base; ahora se
+    // rechazan aquí con el campo que está mal.
+    const { datos, error: invalido } = await leerCuerpo(request, abonoNuevo)
+    if (invalido) return invalido
+    const { facturaId, monto } = datos
 
     // El abono se registra a nombre de quien lo hace, que sale del token.
     // Antes venía en ?email=, así que cualquiera podía apuntarle un cobro a
@@ -41,13 +40,40 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const abono = await prisma.abono.create({
-      data: {
-        facturaId,
-        monto: Number(monto),
-        fecha: new Date(),
-        usuarioId,
-      },
+    // Una anulada no se cobra: el abono quedaría sumando a una venta que no existe.
+    if (factura.estado === 'anulado') {
+      return NextResponse.json(
+        { error: 'La factura está anulada y no admite abonos' },
+        { status: 409 }
+      )
+    }
+
+    // El abono y, si con él se completa el total, el paso a "pagado", en la
+    // misma operación. Antes lo decidía la pantalla con un efecto al abrir la
+    // factura: lo disparaba quien la estuviera mirando, dos pestañas abiertas
+    // lo mandaban dos veces, y sin permiso de abonar no ocurría nunca.
+    const { abono, estado } = await prisma.$transaction(async (tx) => {
+      const abono = await tx.abono.create({
+        data: {
+          facturaId,
+          monto,
+          fecha: new Date(),
+          usuarioId,
+        },
+      })
+
+      if (factura.estado !== 'pendiente') return { abono, estado: factura.estado }
+
+      const { _sum } = await tx.abono.aggregate({ where: { facturaId }, _sum: { monto: true } })
+      const abonado = Number(factura.anticipo) + Number(_sum.monto || 0)
+
+      if (abonado < Number(factura.total)) return { abono, estado: factura.estado }
+
+      await tx.factura.update({
+        where: { id: facturaId },
+        data: { estado: 'pagado', fechaPago: new Date() },
+      })
+      return { abono, estado: 'pagado' }
     })
 
     // Registrar en auditoría
@@ -55,6 +81,8 @@ export async function POST(request: NextRequest) {
       await prisma.auditoria.create({
         data: {
           usuarioId,
+          // Sin la tienda, el registro no aparecía en la auditoría de ninguna.
+          tiendaId,
           tablaAfectada: 'abonos',
           registroId: abono.id,
           accion: 'CREATE',
@@ -70,14 +98,16 @@ export async function POST(request: NextRequest) {
       console.error('Error registrando auditoría:', auditError)
     }
 
+    // `estado` le dice a la pantalla si con este abono la factura quedó pagada.
     return NextResponse.json({
       monto: Number(abono.monto),
       fecha: abono.fecha.toISOString(),
+      estado,
     }, { status: 201 })
-  } catch (error: any) {
-    console.error('Error al crear abono:', error.message, error.stack)
+  } catch (error) {
+    console.error('Error al crear abono:', error)
     return NextResponse.json(
-      { error: error.message || 'Error al crear abono' },
+      { error: 'Error al crear abono' },
       { status: 500 }
     )
   }

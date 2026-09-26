@@ -1,13 +1,14 @@
 'use client'
 
 import { apiFetch } from '@/lib/api-client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { PermissionProtector } from '@/components/PermissionProtector'
-import { SelectorProducto } from '@/components/Common/SelectorProducto'
+import { SelectorProducto, type ProductoOpcion } from '@/components/Common/SelectorProducto'
 import { fechaYHora } from '@/lib/fechas'
 import { useListaPaginada } from '@/lib/use-lista-paginada'
 import { supabase } from '@/lib/supabase-client'
 import Link from 'next/link'
+import { VerMas } from '@/components/Common/VerMas'
 
 interface Movimiento {
   id: string
@@ -20,13 +21,6 @@ interface Movimiento {
   fechaMovimiento: string
   producto: { sku: string; nombre: string } | null
   usuario: { email: string } | null
-}
-
-interface Producto {
-  id: string
-  sku: string
-  nombre: string
-  stockActual: number
 }
 
 const COLORES_TIPO: Record<string, string> = {
@@ -42,7 +36,9 @@ const ICONOS_TIPO: Record<string, string> = {
 }
 
 export default function InventarioPage() {
-  const [productos, setProductos] = useState<Producto[]>([])
+  // El producto elegido en el formulario, con su stock, para la vista previa
+  // del movimiento. Antes se bajaba el catálogo entero para buscarlo.
+  const [productoSeleccionado, setProductoSeleccionado] = useState<ProductoOpcion | null>(null)
 
   const [filtroProducto, setFiltroProducto] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('')
@@ -75,28 +71,6 @@ export default function InventarioPage() {
   const [guardando, setGuardando] = useState(false)
   const [errorForm, setErrorForm] = useState<string | null>(null)
   const [exito, setExito] = useState<string | null>(null)
-
-  useEffect(() => {
-    cargarProductos()
-  }, [])
-
-  const cargarProductos = async () => {
-    try {
-      const res = await apiFetch('/api/productos')
-      if (!res.ok) return
-      const data = await res.json()
-      setProductos(
-        data.map((p: any) => ({
-          id: p.id,
-          sku: p.sku,
-          nombre: p.nombre,
-          stockActual: Number(p.stockActual),
-        }))
-      )
-    } catch {
-      // El selector queda vacío; la tabla de movimientos sigue siendo usable.
-    }
-  }
 
   const registrarMovimiento = async () => {
     setErrorForm(null)
@@ -132,7 +106,10 @@ export default function InventarioPage() {
       setFormCantidad('')
       setFormMotivo('')
       recargar()
-      await cargarProductos()
+      // El stock nuevo lo dice la respuesta: sin volver a pedir el catálogo.
+      setProductoSeleccionado((previo) =>
+        previo && previo.id === formProducto ? { ...previo, stockActual: Number(data.stockDespues) } : previo
+      )
     } catch (err: any) {
       setErrorForm(err.message)
     } finally {
@@ -149,7 +126,6 @@ export default function InventarioPage() {
 
   const hayFiltros = filtroProducto || filtroTipo || filtroDesde || filtroHasta
 
-  const productoSeleccionado = productos.find((p) => p.id === formProducto)
 
   const inputStyle = {
     padding: '8px 12px',
@@ -198,9 +174,9 @@ export default function InventarioPage() {
                   Producto
                 </label>
                 <SelectorProducto
-                  productos={productos}
                   value={formProducto}
                   onChange={setFormProducto}
+                  onElegir={setProductoSeleccionado}
                   placeholder="Selecciona..."
                   mostrarStock
                   ancho="100%"
@@ -305,7 +281,6 @@ export default function InventarioPage() {
                 Producto
               </label>
               <SelectorProducto
-                productos={productos}
                 value={filtroProducto}
                 onChange={setFiltroProducto}
                 placeholder="Todos"
@@ -451,23 +426,7 @@ export default function InventarioPage() {
         )}
 
         {!loading && hayMas && (
-          <div style={{ textAlign: 'center', marginTop: '20px' }}>
-            <button
-              onClick={verMas}
-              disabled={cargandoMas}
-              style={{
-                padding: '10px 24px',
-                backgroundColor: 'white',
-                color: '#2563eb',
-                border: '1px solid #2563eb',
-                borderRadius: '6px',
-                cursor: cargandoMas ? 'wait' : 'pointer',
-                fontWeight: 'bold',
-              }}
-            >
-              {cargandoMas ? 'Cargando...' : `Ver más (${total - movimientos.length} restantes)`}
-            </button>
-          </div>
+          <VerMas restantes={total - movimientos.length} cargando={cargandoMas} onClick={verMas} />
         )}
       </div>
     </PermissionProtector>

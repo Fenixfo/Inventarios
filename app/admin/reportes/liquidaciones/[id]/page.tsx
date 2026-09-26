@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation'
 import { apiFetch } from '@/lib/api-client'
 import { fechaYHora } from '@/lib/fechas'
 import { PermissionProtector } from '@/components/PermissionProtector'
+import { pesos } from '@/lib/formato'
 
 interface Detalle {
   id: string
@@ -28,14 +29,6 @@ interface Detalle {
     ganancia: number
   }[]
 }
-
-const pesos = (valor: number) =>
-  new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(valor)
 
 export default function LiquidacionPage() {
   const params = useParams()

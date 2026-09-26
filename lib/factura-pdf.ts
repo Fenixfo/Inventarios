@@ -1,6 +1,7 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib'
 import { fechaYHora } from '@/lib/fechas'
 import { montoEnPalabras } from '@/lib/numero-a-palabras'
+import { pesos } from '@/lib/formato'
 
 /**
  * Genera la factura como archivo PDF de verdad.
@@ -66,15 +67,6 @@ export interface EmpresaPdf {
   logo_url?: string | null
 }
 
-function pesos(valor: number | string): string {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(Number(valor))
-}
-
 /**
  * Las fuentes estándar del PDF usan WinAnsi, que no conoce todos los
  * caracteres que puede traer un nombre de producto. Se sustituye lo que no
@@ -128,7 +120,25 @@ function escribir(
 }
 
 /** Descarga el logo. pdf-lib solo entiende PNG y JPG, no WebP. */
+/**
+ * El logo lo descarga el servidor, así que solo desde el Storage de Supabase
+ * del proyecto, que es donde lo sube la pantalla de configuración. Una URL
+ * cualquiera escrita a mano haría que el servidor consultara direcciones
+ * internas o ajenas en su nombre.
+ */
+export function logoPermitido(url: string): boolean {
+  try {
+    const destino = new URL(url)
+    const supabase = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://sin-configurar.invalid')
+    return destino.protocol === 'https:' && destino.host === supabase.host
+  } catch {
+    return false
+  }
+}
+
 async function cargarLogo(pdf: PDFDocument, url: string) {
+  if (!logoPermitido(url)) return null
+
   try {
     const res = await fetch(url)
     if (!res.ok) return null

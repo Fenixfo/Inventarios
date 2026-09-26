@@ -6,6 +6,8 @@ import { PermissionProtector } from '@/components/PermissionProtector'
 import { BuscadorEnter } from '@/components/Common/BuscadorEnter'
 import { fechaYHora } from '@/lib/fechas'
 import { useListaPaginada } from '@/lib/use-lista-paginada'
+import { pesos } from '@/lib/formato'
+import { VerMas } from '@/components/Common/VerMas'
 
 interface Factura {
   id: string
@@ -151,7 +153,7 @@ export default function FacturasPage() {
                     <td style={{ padding: '10px' }}><strong>{factura.numeroFactura}</strong></td>
                     <td style={{ padding: '10px' }}>{factura.cliente?.nombre || 'Cliente General'}</td>
                     <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>{fechaYHora(factura.fecha)}</td>
-                    <td style={{ padding: '10px', textAlign: 'right' }}>${Number(factura.total).toFixed(2)}</td>
+                    <td style={{ padding: '10px', textAlign: 'right' }}>{pesos(factura.total)}</td>
                     <td style={{ padding: '10px', textAlign: 'center' }}>
                       <span style={{
                         padding: '4px 8px',
@@ -179,23 +181,7 @@ export default function FacturasPage() {
           </div>
 
           {hayMas && (
-            <div style={{ textAlign: 'center', marginTop: '20px' }}>
-              <button
-                onClick={verMas}
-                disabled={cargandoMas}
-                style={{
-                  padding: '10px 24px',
-                  backgroundColor: 'white',
-                  color: '#2563eb',
-                  border: '1px solid #2563eb',
-                  borderRadius: '4px',
-                  cursor: cargandoMas ? 'wait' : 'pointer',
-                  fontWeight: 'bold',
-                }}
-              >
-                {cargandoMas ? 'Cargando...' : `Ver más (${total - facturas.length} restantes)`}
-              </button>
-            </div>
+            <VerMas restantes={total - facturas.length} cargando={cargandoMas} onClick={verMas} />
           )}
         </>
       )}

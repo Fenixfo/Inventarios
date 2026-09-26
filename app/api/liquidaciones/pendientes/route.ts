@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { exigirTienda } from '@/lib/permisos'
 import { cantidadPendiente, ESTADOS_LIQUIDABLES, ventaSinImpuesto } from '@/lib/liquidacion'
+import { esUuid } from '@/lib/formato'
 
 /**
  * Lo que queda por liquidar en la tienda.
@@ -13,8 +14,6 @@ import { cantidadPendiente, ESTADOS_LIQUIDABLES, ventaSinImpuesto } from '@/lib/
 
 /** Tope por vendedor: una liquidación con cientos de facturas no se revisa bien. */
 const MAXIMO_FACTURAS = 100
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function GET(request: NextRequest) {
   try {
@@ -49,7 +48,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    if (!UUID.test(vendedorId)) {
+    if (!esUuid(vendedorId)) {
       return NextResponse.json({ facturas: [], total: 0 })
     }
 

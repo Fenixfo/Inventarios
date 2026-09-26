@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { PermissionProtector } from '@/components/PermissionProtector'
 import { BuscadorEnter } from '@/components/Common/BuscadorEnter'
 import { useListaPaginada } from '@/lib/use-lista-paginada'
+import { pesos } from '@/lib/formato'
+import { VerMas } from '@/components/Common/VerMas'
 
 interface Producto {
   id: string
@@ -120,10 +122,10 @@ export default function ProductosPage() {
                         <td style={{ ...celda, whiteSpace: 'nowrap', color: producto.dimensiones ? 'inherit' : '#9ca3af' }}>
                           {producto.dimensiones || '—'}
                         </td>
-                        <td style={{ ...celda, textAlign: 'right' }}>${Number(producto.precioUnitario).toFixed(2)}</td>
+                        <td style={{ ...celda, textAlign: 'right' }}>{pesos(producto.precioUnitario)}</td>
                         <td style={{ ...celda, textAlign: 'right', color: producto.precioBodega ? 'inherit' : '#9ca3af' }}>
                           {producto.precioBodega
-                            ? `$${Number(producto.precioBodega).toFixed(2)}`
+                            ? pesos(producto.precioBodega)
                             : '—'}
                         </td>
                         <td style={{ ...celda, textAlign: 'right' }}>
@@ -174,23 +176,7 @@ export default function ProductosPage() {
             </div>
 
             {hayMas && (
-              <div style={{ textAlign: 'center', marginTop: '20px' }}>
-                <button
-                  onClick={verMas}
-                  disabled={cargandoMas}
-                  style={{
-                    padding: '10px 24px',
-                    backgroundColor: 'white',
-                    color: '#2563eb',
-                    border: '1px solid #2563eb',
-                    borderRadius: '4px',
-                    cursor: cargandoMas ? 'wait' : 'pointer',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  {cargandoMas ? 'Cargando...' : `Ver más (${total - productos.length} restantes)`}
-                </button>
-              </div>
+              <VerMas restantes={total - productos.length} cargando={cargandoMas} onClick={verMas} />
             )}
           </>
         )}
