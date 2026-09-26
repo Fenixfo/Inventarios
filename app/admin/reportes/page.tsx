@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
 import { PermissionProtector } from '@/components/PermissionProtector'
+import { usePermisos } from '@/components/PermisosProvider'
 
 interface ReporteFacturacion {
   periodo: {
@@ -34,6 +35,7 @@ interface ReporteFacturacion {
 }
 
 export default function ReportesPage() {
+  const { puede } = usePermisos()
   const [periodo, setPeriodo] = useState('hoy')
   const [mesSeleccionado, setMesSeleccionado] = useState<string>('')
   const [reporte, setReporte] = useState<ReporteFacturacion | null>(null)
@@ -152,6 +154,22 @@ export default function ReportesPage() {
           }}>
             📦 Inventario
           </Link>
+          {puede('liquidaciones.ver') && (
+            <Link href="/admin/reportes/liquidaciones" style={{
+              padding: '10px 20px',
+              backgroundColor: '#e5e7eb',
+              color: '#374151',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'normal',
+              fontSize: '14px',
+              textDecoration: 'none',
+              display: 'inline-block'
+            }}>
+              💼 Liquidaciones
+            </Link>
+          )}
         </div>
       </div>
 

@@ -18,7 +18,14 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const categoria = searchParams.get('categoria')
-    const tienda = searchParams.get('tienda')
+    // La columna es uuid: un valor inventado en la URL hacía fallar la
+    // consulta con un 500. Se trata como una tienda que no existe.
+    const tiendaPedida = searchParams.get('tienda')
+    const tienda = tiendaPedida && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tiendaPedida)
+      ? tiendaPedida
+      : tiendaPedida
+        ? '00000000-0000-0000-0000-000000000000'
+        : null
 
     const visibles = {
       activo: true,

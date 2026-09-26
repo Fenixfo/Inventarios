@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { exigirTienda } from '@/lib/permisos'
+import { leerPagina } from '@/lib/paginacion'
 
 const TIPOS_VALIDOS = ['entrada', 'salida', 'ajuste'] as const
 
@@ -30,8 +31,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const productoId = searchParams.get('productoId')
     const tipo = searchParams.get('tipo')
-    const desde = searchParams.get('desde')
-    const hasta = searchParams.get('hasta')
+    // `fechaDesde` y no `desde`: `desde` es el punto de la página en todos
+    // los listados del panel.
+    const fechaDesde = searchParams.get('fechaDesde')
+    const fechaHasta = searchParams.get('fechaHasta')
 
     // Los movimientos no guardan la tienda: se filtran por la del producto
     // al que pertenecen, que es quien la tiene.
@@ -40,40 +43,63 @@ export async function GET(request: NextRequest) {
     if (productoId) where.productoId = productoId
     if (tipo && TIPOS_VALIDOS.includes(tipo as any)) where.tipo = tipo
 
-    if (desde || hasta) {
+    // Los días son los de Colombia. Con `new Date('2026-09-24')` el día
+    // empezaba a medianoche UTC, las 7 p. m. del 23 aquí, y el servidor
+    // (en UTC) cerraba el "hasta" cinco horas antes de tiempo.
+    const esDia = (texto: string | null) => Boolean(texto && /^\d{4}-\d{2}-\d{2}$/.test(texto))
+
+    if (esDia(fechaDesde) || esDia(fechaHasta)) {
       where.fechaMovimiento = {}
-      if (desde) where.fechaMovimiento.gte = new Date(desde)
-      if (hasta) {
-        const fin = new Date(hasta)
-        fin.setHours(23, 59, 59, 999)
-        where.fechaMovimiento.lte = fin
-      }
+      if (esDia(fechaDesde)) where.fechaMovimiento.gte = new Date(`${fechaDesde}T00:00:00-05:00`)
+      if (esDia(fechaHasta)) where.fechaMovimiento.lte = new Date(`${fechaHasta}T23:59:59.999-05:00`)
+    }
+
+    const incluir = {
+      producto: { select: { sku: true, nombre: true } },
+      usuario: { select: { email: true } },
+    }
+
+    const aRespuesta = (m: any) => ({
+      id: m.id,
+      tipo: m.tipo,
+      cantidad: Number(m.cantidad),
+      stockAntes: Number(m.stockAntes),
+      stockDespues: Number(m.stockDespues),
+      motivo: m.motivo,
+      referenciaTipo: m.referenciaTipo,
+      fechaMovimiento: m.fechaMovimiento,
+      producto: m.producto,
+      usuario: m.usuario,
+    })
+
+    // Con ?limite= responde por páginas, los más recientes primero.
+    if (searchParams.has('limite')) {
+      const { limite, desde } = leerPagina(searchParams)
+
+      const [movimientos, total] = await Promise.all([
+        prisma.inventarioMovimiento.findMany({
+          where,
+          include: incluir,
+          // El id desempata dos movimientos del mismo instante (los de una
+          // factura con varios productos), para no repetirlos entre páginas.
+          orderBy: [{ fechaMovimiento: 'desc' }, { id: 'desc' }],
+          take: limite,
+          skip: desde,
+        }),
+        prisma.inventarioMovimiento.count({ where }),
+      ])
+
+      return NextResponse.json({ movimientos: movimientos.map(aRespuesta), total })
     }
 
     const movimientos = await prisma.inventarioMovimiento.findMany({
       where,
-      include: {
-        producto: { select: { sku: true, nombre: true } },
-        usuario: { select: { email: true } },
-      },
+      include: incluir,
       orderBy: { fechaMovimiento: 'desc' },
       take: 200,
     })
 
-    return NextResponse.json(
-      movimientos.map((m) => ({
-        id: m.id,
-        tipo: m.tipo,
-        cantidad: Number(m.cantidad),
-        stockAntes: Number(m.stockAntes),
-        stockDespues: Number(m.stockDespues),
-        motivo: m.motivo,
-        referenciaTipo: m.referenciaTipo,
-        fechaMovimiento: m.fechaMovimiento,
-        producto: m.producto,
-        usuario: m.usuario,
-      }))
-    )
+    return NextResponse.json(movimientos.map(aRespuesta))
   } catch (error: any) {
     console.error('Error listando movimientos:', error)
     return NextResponse.json(

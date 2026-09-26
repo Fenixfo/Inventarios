@@ -68,6 +68,14 @@ export async function DELETE(
       return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 })
     }
 
+    // Una liquidada ya repartió su ganancia: anularla la dejaría descuadrada.
+    if (facturaBefore.estado === 'liquidado') {
+      return NextResponse.json(
+        { error: 'La factura ya está liquidada y no se puede anular' },
+        { status: 409 }
+      )
+    }
+
     const facturaAfter = await prisma.factura.update({
       where: { id },
       data: { estado: 'anulado' },

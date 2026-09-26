@@ -80,7 +80,9 @@ test.describe('Gestión de productos', () => {
     await page.getByRole('button', { name: /crear|guardar/i }).click()
 
     await page.waitForURL(/\/admin\/productos(\?|$)/, { timeout: 45000 })
-    await expect(page.getByText(sku)).toBeVisible()
+    // Por el nombre: el listado ya no muestra el SKU (TASK-60). Sale entre
+    // los 10 primeros porque el listado va del más reciente al más antiguo.
+    await expect(page.getByRole('cell', { name: `${MARCA} producto`, exact: true })).toBeVisible()
   })
 
   test('la rueda del ratón no altera el campo m² por caja', async ({ page }) => {
@@ -262,6 +264,40 @@ test.describe('Facturación', () => {
     expect(context.pages().length).toBe(paginasAntes + 1)
     await expect(pdf.getByText(/FACTURA/i).first()).toBeVisible()
 
+    await pdf.close()
+  })
+
+  test('el PDF de una cotización también se abre en una sola pestaña', async ({ page, context }) => {
+    await page.goto('/admin/cotizaciones')
+    await page.waitForLoadState('networkidle')
+
+    const verDetalle = page.getByRole('link', { name: /^ver$/i }).first()
+    if (!(await verDetalle.isVisible().catch(() => false))) {
+      test.skip(true, 'No hay cotizaciones para probar el PDF')
+      return
+    }
+
+    await verDetalle.click()
+    await page.waitForLoadState('networkidle')
+
+    const paginasAntes = context.pages().length
+    const nuevaPagina = context.waitForEvent('page', { timeout: 30000 })
+    const archivo = page.waitForResponse(
+      (r) => /\/api\/cotizaciones\/[^/]+\/pdf$/.test(new URL(r.url()).pathname),
+      { timeout: 30000 }
+    )
+
+    await page.getByRole('button', { name: /descargar pdf/i }).click()
+
+    // La pestaña se abre en el mismo clic y el PDF se genera bien. No se
+    // mira el contenido de la pestaña: Chromium sin ventana no trae visor
+    // de PDF y cancela esa navegación, aunque en un navegador normal se ve.
+    const pdf = await nuevaPagina
+    const respuesta = await archivo
+
+    expect(respuesta.status()).toBe(200)
+    expect(respuesta.headers()['content-type']).toBe('application/pdf')
+    expect(context.pages().length).toBe(paginasAntes + 1)
     await pdf.close()
   })
 })

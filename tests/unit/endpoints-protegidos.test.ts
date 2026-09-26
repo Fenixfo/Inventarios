@@ -119,11 +119,18 @@ describe('endpoints protegidos', () => {
       'facturas/route.ts',
       'facturas/[id]/route.ts',
       'facturas/[id]/pdf/route.ts',
+      'cotizaciones/route.ts',
+      'cotizaciones/[id]/route.ts',
+      'cotizaciones/[id]/pdf/route.ts',
       'abonos/route.ts',
       'abonos/[id]/route.ts',
       'inventario/movimientos/route.ts',
       'reportes/inventario/route.ts',
       'reportes/facturacion/route.ts',
+      'tablero/route.ts',
+      'liquidaciones/route.ts',
+      'liquidaciones/[id]/route.ts',
+      'liquidaciones/pendientes/route.ts',
       'auditoria/route.ts',
       'usuarios/route.ts',
       'usuarios/permisos/route.ts',
@@ -135,6 +142,32 @@ describe('endpoints protegidos', () => {
     })
 
     expect(sinTienda, 'Estas rutas no filtran por tienda').toEqual([])
+  })
+
+  // Facturas y cotizaciones distinguen alcance: sin `ver_todas`, cada quien
+  // ve solo las suyas. Filtrar por tienda no basta; cada ruta que abre una
+  // sola (el detalle, su PDF, sus abonos) tiene que comprobarlo también.
+  // Ya pasó: el PDF y los abonos de una factura ajena se podían abrir con
+  // el enlace.
+  it('las rutas que abren una factura o cotización respetan ver_todas', () => {
+    const CON_ALCANCE: Record<string, string> = {
+      'facturas/[id]/route.ts': 'veTodasLasFacturas(',
+      'facturas/[id]/pdf/route.ts': 'veTodasLasFacturas(',
+      'abonos/[id]/route.ts': 'veTodasLasFacturas(',
+      'cotizaciones/route.ts': "'cotizaciones.ver_todas'",
+      'cotizaciones/[id]/route.ts': "'cotizaciones.ver_todas'",
+      'cotizaciones/[id]/pdf/route.ts': "'cotizaciones.ver_todas'",
+    }
+
+    const sinAlcance = Object.entries(CON_ALCANCE).filter(([ruta, marca]) => {
+      const encontrada = rutas.find((r) => r.relativa === ruta)
+      return !encontrada || !encontrada.contenido.includes(marca)
+    })
+
+    expect(
+      sinAlcance.map(([ruta]) => ruta),
+      'Estas rutas no comprueban si la persona puede ver las de toda la tienda'
+    ).toEqual([])
   })
 
   it('ninguna ruta acepta la tienda desde la petición', () => {

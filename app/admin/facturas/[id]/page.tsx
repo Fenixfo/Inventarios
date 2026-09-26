@@ -382,6 +382,8 @@ export default function FacturaPage() {
         return { bg: '#0891b2', text: 'white' }
       case 'anulado':
         return { bg: '#ef4444', text: 'white' }
+      case 'liquidado':
+        return { bg: '#6366f1', text: 'white' }
       case 'pendiente':
       default:
         return { bg: '#f59e0b', text: 'white' }

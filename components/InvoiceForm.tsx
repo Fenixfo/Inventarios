@@ -36,12 +36,22 @@ interface FacturaItem {
   esPersonalizado?: boolean
 }
 
-export default function InvoiceForm() {
+interface Props {
+  /**
+   * `cotizacion` usa el mismo formulario para cotizar: sin abono inicial,
+   * sin aviso de stock (no se vende nada) y guarda en /api/cotizaciones.
+   */
+  modo?: 'factura' | 'cotizacion'
+}
+
+export default function InvoiceForm({ modo = 'factura' }: Props) {
   const router = useRouter()
   const { puede } = usePermisos()
+  const esCotizacion = modo === 'cotizacion'
   // Sin este permiso la factura nace sin abono: el campo ni se muestra, y
   // el servidor rechaza igual si alguien lo manda por fuera de la pantalla.
-  const puedeAbonar = puede('facturas.abonar')
+  // Una cotización nunca lleva abono.
+  const puedeAbonar = !esCotizacion && puede('facturas.abonar')
   const [productos, setProductos] = useState<Producto[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
@@ -365,8 +375,10 @@ export default function InvoiceForm() {
       return
     }
 
+    // El aviso de stock solo tiene sentido al vender: cotizar no descuenta
+    // nada del inventario.
     let advertencia = ''
-    items.forEach(item => {
+    if (!esCotizacion) items.forEach(item => {
       if (item.productoId) {
         const producto = productos.find(p => p.id === item.productoId)
         if (producto && item.cantidadM2 > producto.stockActual) {
@@ -405,7 +417,7 @@ export default function InvoiceForm() {
         finalClienteId = clienteData.id
       }
 
-      const res = await apiFetch('/api/facturas', {
+      const res = await apiFetch(esCotizacion ? '/api/cotizaciones' : '/api/facturas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -419,14 +431,24 @@ export default function InvoiceForm() {
           descuentoMonto: finalDescuentoMonto,
           impuesto: impuestoMonto,
           total,
-          anticipo: abono,
+          ...(esCotizacion ? {} : { anticipo: abono }),
           observaciones,
           items,
         }),
       })
 
-      if (!res.ok) throw new Error('Error creating factura')
-      router.push('/admin/facturas')
+      if (!res.ok) {
+        const datos = await res.json().catch(() => ({}))
+        throw new Error(datos.error || (esCotizacion ? 'Error al guardar la cotización' : 'Error creating factura'))
+      }
+
+      if (esCotizacion) {
+        // A la cotización recién guardada, para verla o compartirla.
+        const creada = await res.json()
+        router.push(`/admin/cotizaciones/${creada.id}`)
+      } else {
+        router.push('/admin/facturas')
+      }
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -935,7 +957,9 @@ export default function InvoiceForm() {
             fontWeight: 'bold',
           }}
         >
-          {saving ? 'Creando factura...' : 'Crear Factura'}
+          {esCotizacion
+            ? saving ? 'Guardando cotización...' : 'Guardar Cotización'
+            : saving ? 'Creando factura...' : 'Crear Factura'}
         </button>
       </div>
 

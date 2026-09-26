@@ -2,10 +2,12 @@
 
 import { apiFetch } from '@/lib/api-client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase-client'
 import { PermissionProtector } from '@/components/PermissionProtector'
+import { POR_PAGINA } from '@/lib/paginacion'
+
+type Seccion = 'stockBajo' | 'sinMovimiento'
 
 interface ReporteInventario {
   metricas: {
@@ -50,20 +52,30 @@ export default function ReportesInventarioPage() {
   const [error, setError] = useState<string | null>(null)
   const [estados, setEstados] = useState<string[]>(['pagado', 'entregado'])
 
+  // Stock bajo y sin movimiento llegan de a 10; "Ver más" trae los 10
+  // siguientes de esa sección. Antes llegaban enteras (85 y 175 en Beraca).
+  const [cargandoMas, setCargandoMas] = useState<Seccion | null>(null)
+
+  // Sube con cada recarga del reporte: un "Ver más" que llegue después de
+  // cambiar los estados es de la consulta anterior y se descarta.
+  const vuelta = useRef(0)
+
+  const parametros = (estadosFiltro: string[]) => {
+    const params = new URLSearchParams()
+    if (estadosFiltro.length > 0) params.set('estados', estadosFiltro.join(','))
+    return params
+  }
+
   const cargarReporte = async (estadosFiltro: string[] = estados) => {
+    vuelta.current += 1
     setLoading(true)
     setError(null)
 
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const email = session?.user?.email
-
-      const estadosParam = estadosFiltro.length > 0 ? `&estados=${estadosFiltro.join(',')}` : ''
-      const url = email
-        ? `/api/reportes/inventario?email=${encodeURIComponent(email)}${estadosParam}`
-        : `/api/reportes/inventario${estadosParam}`
-
-      const res = await apiFetch(url)
+      // Antes la URL se armaba a mano y, sin correo en la sesión, quedaba
+      // `/api/reportes/inventario&estados=…` sin el `?`: el filtro de
+      // estados se perdía. El correo tampoco hacía falta: sale del token.
+      const res = await apiFetch(`/api/reportes/inventario?${parametros(estadosFiltro).toString()}`)
       if (!res.ok) {
         if (res.status === 403) {
           setError('No tienes permiso para ver reportes')
@@ -80,6 +92,65 @@ export default function ReportesInventarioPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const verMas = async (seccion: Seccion) => {
+    if (!reporte) return
+
+    const miVuelta = vuelta.current
+    setCargandoMas(seccion)
+
+    try {
+      const params = parametros(estados)
+      params.set('seccion', seccion)
+      params.set('limite', String(POR_PAGINA))
+      params.set('desde', String(reporte[seccion].length))
+
+      const res = await apiFetch(`/api/reportes/inventario?${params.toString()}`)
+      if (!res.ok) throw new Error('No se pudieron cargar más productos')
+
+      const datos = await res.json()
+      if (miVuelta !== vuelta.current) return
+
+      setReporte((previo) => {
+        if (!previo) return previo
+        // Sin repetir: si algo cambió entre páginas, el último de la
+        // anterior puede volver a salir en esta.
+        const vistos = new Set(previo[seccion].map((p) => p.id))
+        const nuevos = (datos[seccion] || []).filter((p: { id: string }) => !vistos.has(p.id))
+        return { ...previo, [seccion]: [...previo[seccion], ...nuevos] }
+      })
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setCargandoMas(null)
+    }
+  }
+
+  const botonVerMas = (seccion: Seccion, total: number) => {
+    const cargados = reporte ? reporte[seccion].length : 0
+    if (cargados >= total) return null
+
+    return (
+      <div style={{ textAlign: 'center', marginTop: '15px' }}>
+        <button
+          onClick={() => verMas(seccion)}
+          disabled={cargandoMas !== null}
+          style={{
+            padding: '8px 20px',
+            backgroundColor: 'white',
+            color: '#2563eb',
+            border: '1px solid #2563eb',
+            borderRadius: '4px',
+            cursor: cargandoMas ? 'wait' : 'pointer',
+            fontWeight: 'bold',
+            fontSize: '13px',
+          }}
+        >
+          {cargandoMas === seccion ? 'Cargando...' : `Ver más (${total - cargados} restantes)`}
+        </button>
+      </div>
+    )
   }
 
   const handleEstadoChange = (estado: string) => {
@@ -243,7 +314,7 @@ export default function ReportesInventarioPage() {
           {reporte.stockBajo.length > 0 && (
             <div style={{ marginBottom: '30px' }}>
               <h2 style={{ fontSize: '16px', marginBottom: '15px', color: '#ef4444' }}>
-                ⚠️ Productos con Stock Bajo ({reporte.stockBajo.length})
+                ⚠️ Productos con Stock Bajo ({reporte.stockBajo.length}/{reporte.metricas.productosStockBajo})
               </h2>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -257,8 +328,8 @@ export default function ReportesInventarioPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {reporte.stockBajo.map((producto, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                  {reporte.stockBajo.map((producto) => (
+                    <tr key={producto.id} style={{ borderBottom: '1px solid #eee' }}>
                       <td style={{ padding: '10px', fontSize: '12px' }}>{producto.nombre}</td>
                       <td style={{ padding: '10px', fontSize: '12px' }}>{producto.sku}</td>
                       <td style={{ padding: '10px', fontSize: '12px' }}>{producto.categoria}</td>
@@ -284,6 +355,7 @@ export default function ReportesInventarioPage() {
                   ))}
                 </tbody>
               </table>
+              {botonVerMas('stockBajo', reporte.metricas.productosStockBajo)}
             </div>
           )}
 
@@ -333,7 +405,7 @@ export default function ReportesInventarioPage() {
           {reporte.sinMovimiento.length > 0 && (
             <div>
               <h2 style={{ fontSize: '16px', marginBottom: '15px', color: '#f59e0b' }}>
-                🔇 Productos Sin Movimiento en 30 Días ({reporte.sinMovimiento.length})
+                🔇 Productos Sin Movimiento en 30 Días ({reporte.sinMovimiento.length}/{reporte.metricas.productosSinMovimiento})
               </h2>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -346,8 +418,8 @@ export default function ReportesInventarioPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {reporte.sinMovimiento.map((producto, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                  {reporte.sinMovimiento.map((producto) => (
+                    <tr key={producto.id} style={{ borderBottom: '1px solid #eee' }}>
                       <td style={{ padding: '10px', fontSize: '12px' }}>{producto.nombre}</td>
                       <td style={{ padding: '10px', fontSize: '12px' }}>{producto.sku}</td>
                       <td style={{ padding: '10px', fontSize: '12px' }}>{producto.categoria}</td>
@@ -369,6 +441,7 @@ export default function ReportesInventarioPage() {
                   ))}
                 </tbody>
               </table>
+              {botonVerMas('sinMovimiento', reporte.metricas.productosSinMovimiento)}
             </div>
           )}
         </>

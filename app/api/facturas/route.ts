@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { exigirTienda, veTodasLasFacturas, puede } from '@/lib/permisos'
+import { leerPagina, MINIMO_BUSQUEDA } from '@/lib/paginacion'
+import { costoAlFacturar } from '@/lib/liquidacion'
+
+const ESTADOS = ['pendiente', 'pagado', 'entregado', 'anulado', 'liquidado']
 
 function generateFacturaNumber(): string {
   const today = new Date()
@@ -47,6 +51,47 @@ export async function GET(request: NextRequest) {
     const filtro: any = veTodasLasFacturas(usuario)
       ? { tiendaId }
       : { tiendaId, usuarioId: usuario.id }
+
+    // Con ?limite= responde por páginas, las más recientes primero. La
+    // búsqueda y el estado se suman al alcance de arriba, nunca lo amplían:
+    // quien solo ve las suyas busca entre las suyas.
+    if (searchParams.has('limite')) {
+      const { limite, desde } = leerPagina(searchParams)
+      const busqueda = (searchParams.get('busqueda') || '').trim()
+      const estado = searchParams.get('estado')
+
+      const where: any = { ...filtro }
+      if (estado && ESTADOS.includes(estado)) where.estado = estado
+
+      // Por número de factura, nombre del cliente o cédula.
+      if (busqueda.length >= MINIMO_BUSQUEDA) {
+        where.OR = [
+          { numeroFactura: { contains: busqueda, mode: 'insensitive' } },
+          { cliente: { nombre: { contains: busqueda, mode: 'insensitive' } } },
+          { cliente: { cedulaCc: { contains: busqueda } } },
+        ]
+      }
+
+      const [facturas, total] = await Promise.all([
+        prisma.factura.findMany({
+          where,
+          select: {
+            id: true,
+            numeroFactura: true,
+            fecha: true,
+            total: true,
+            estado: true,
+            cliente: { select: { nombre: true, cedulaCc: true } },
+          },
+          orderBy: [{ fecha: 'desc' }, { id: 'desc' }],
+          take: limite,
+          skip: desde,
+        }),
+        prisma.factura.count({ where }),
+      ])
+
+      return NextResponse.json({ facturas, total })
+    }
 
     // El listado solo necesita la cabecera de cada factura. Traer los items
     // con su producto completo multiplicaba el tiempo de respuesta por tres
@@ -103,6 +148,32 @@ export async function POST(request: NextRequest) {
     const numeroFactura = `${datePrefix}-${String(sequence).padStart(3, '0')}`
 
     const factura = await prisma.$transaction(async (tx) => {
+      const lineas: any[] = data.items || []
+
+      // Los productos se leen antes de crear la factura: con el mismo stock
+      // se decide el costo que se guarda en cada línea y lo que se descuenta
+      // del inventario. Solo los de esta tienda: un id ajeno se ignora.
+      const idsPedidos = [...new Set(lineas.map((i) => i.productoId).filter(Boolean))] as string[]
+      const productos = idsPedidos.length
+        ? await tx.producto.findMany({
+            where: { id: { in: idsPedidos }, tiendaId },
+            select: { id: true, stockActual: true, costo: true },
+          })
+        : []
+
+      // El costo de lo vendido, para poder liquidar después: el costo cambia
+      // con el tiempo, así que se guarda el de hoy. Lo que se vende sin stock
+      // queda sin costo hasta la liquidación (TASK-67).
+      const costos = costoAlFacturar(
+        lineas.map((i) => ({ productoId: i.productoId, cantidadM2: parseFloat(i.cantidadM2) })),
+        new Map(
+          productos.map((p) => [
+            p.id,
+            { stockActual: Number(p.stockActual), costo: p.costo === null ? null : Number(p.costo) },
+          ])
+        )
+      )
+
       const nuevaFactura = await tx.factura.create({
         data: {
           numeroFactura,
@@ -124,13 +195,15 @@ export async function POST(request: NextRequest) {
           esBodega: Boolean(data.esBodega),
           observaciones: data.observaciones || null,
           items: {
-            create: data.items?.map((item: any) => ({
+            create: lineas.map((item: any, i: number) => ({
               productoId: item.productoId || null,
               productoNombre: item.productoNombre || null,
               cantidadM2: parseFloat(item.cantidadM2),
               precioUnitario: parseFloat(item.precioUnitario),
               subtotal: parseFloat(item.subtotal),
-            })) || [],
+              costoUnitario: costos[i].costoUnitario,
+              cantidadConCosto: costos[i].cantidadConCosto,
+            })),
           },
         },
         include: {
@@ -147,20 +220,15 @@ export async function POST(request: NextRequest) {
       // Descontar stock de los productos del catálogo.
       // Los items personalizados no tienen productoId y no afectan inventario.
       const cantidadPorProducto = new Map<string, number>()
-      for (const item of data.items || []) {
+      for (const item of lineas) {
         if (!item.productoId) continue
         const acumulado = cantidadPorProducto.get(item.productoId) || 0
         cantidadPorProducto.set(item.productoId, acumulado + parseFloat(item.cantidadM2))
       }
 
-      if (cantidadPorProducto.size > 0) {
-        // Solo productos de esta tienda: si en los items viniera el id de
-        // un producto ajeno, se ignora en vez de descontarle stock.
-        const productos = await tx.producto.findMany({
-          where: { id: { in: Array.from(cantidadPorProducto.keys()) }, tiendaId },
-          select: { id: true, stockActual: true },
-        })
-
+      // `productos` ya viene filtrado por tienda: si en los items viniera el
+      // id de un producto ajeno, no está ahí y no se le descuenta stock.
+      if (productos.length > 0) {
         const movimientos = productos.map((producto) => {
           const cantidad = cantidadPorProducto.get(producto.id)!
           const stockAntes = Number(producto.stockActual)
@@ -263,6 +331,23 @@ export async function PUT(request: NextRequest) {
 
     if (!facturaBefore) {
       return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 })
+    }
+
+    // Liquidada es el final: su ganancia ya se repartió con el vendedor, y
+    // cambiarle montos o estado descuadraría esa liquidación.
+    if (facturaBefore.estado === 'liquidado') {
+      return NextResponse.json(
+        { error: 'La factura ya está liquidada y no se puede modificar' },
+        { status: 409 }
+      )
+    }
+
+    // "Liquidado" solo se pone desde una liquidación, que calcula el pago.
+    if (data.estado === 'liquidado') {
+      return NextResponse.json(
+        { error: 'Las facturas se liquidan desde Reportes → Liquidaciones' },
+        { status: 400 }
+      )
     }
 
     // Subir el anticipo desde aquí es lo mismo que abonar: exige el mismo

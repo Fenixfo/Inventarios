@@ -1,22 +1,11 @@
 'use client'
 
-import { apiFetch } from '@/lib/api-client'
-
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase-client'
 import { PermissionProtector } from '@/components/PermissionProtector'
+import { BuscadorEnter } from '@/components/Common/BuscadorEnter'
 import { fechaYHora } from '@/lib/fechas'
-
-interface FacturaItem {
-  id: string
-  producto: {
-    nombre: string
-  }
-  cantidadM2: number
-  precioUnitario: number
-  subtotal: number
-}
+import { useListaPaginada } from '@/lib/use-lista-paginada'
 
 interface Factura {
   id: string
@@ -24,84 +13,50 @@ interface Factura {
   cliente?: {
     nombre: string
     cedulaCc?: string
-  }
+  } | null
   fecha: string
   total: number
   estado: string
-  items: FacturaItem[]
 }
 
+const getStatusColor = (estado: string) => {
+  switch (estado) {
+    case 'pagado':
+      return '#10b981'
+    case 'entregado':
+      return '#0891b2'
+    case 'anulado':
+      return '#ef4444'
+    // El final de una factura cobrada: ya se repartió la ganancia.
+    case 'liquidado':
+      return '#6366f1'
+    case 'pendiente':
+    default:
+      return '#f59e0b'
+  }
+}
+
+const formatearEstado = (estado: string) => estado.charAt(0).toUpperCase() + estado.slice(1)
+
 export default function FacturasPage() {
-  const [facturas, setFacturas] = useState<Factura[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [busqueda, setBusqueda] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchFacturas = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        const email = session?.user?.email
+  // Las 10 más recientes y el resto con "Ver más". La búsqueda y el estado
+  // van al servidor y se suman; quien solo puede ver sus facturas busca
+  // entre las suyas, porque ese alcance lo pone el servidor.
+  const { items: facturas, total, cargando, cargandoMas, error, verMas, hayMas } =
+    useListaPaginada<Factura>('/api/facturas', 'facturas', {
+      busqueda,
+      estado: estadoFiltro || '',
+    })
 
-        const url = email
-          ? `/api/facturas?email=${encodeURIComponent(email)}`
-          : '/api/facturas'
-
-        const res = await apiFetch(url)
-        if (!res.ok) throw new Error('Error fetching facturas')
-        const data = await res.json()
-        setFacturas(data)
-      } catch (err: any) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchFacturas()
-  }, [])
-
-  if (loading) return <div style={{ padding: '20px' }}>Cargando...</div>
-  if (error) return <div style={{ padding: '20px', color: 'red' }}>Error: {error}</div>
-
-  const getStatusColor = (estado: string) => {
-    switch (estado) {
-      case 'pagado':
-        return '#10b981'
-      case 'entregado':
-        return '#0891b2'
-      case 'anulado':
-        return '#ef4444'
-      case 'pendiente':
-      default:
-        return '#f59e0b'
-    }
-  }
-
-  const formatearEstado = (estado: string) => {
-    return estado.charAt(0).toUpperCase() + estado.slice(1)
-  }
-
-  // Filtrar facturas por búsqueda y estado
-  const facturasFiltradas = facturas.filter((factura) => {
-    // Filtro de búsqueda
-    const termino = busqueda.toLowerCase()
-    const numeroMatch = factura.numeroFactura.toLowerCase().includes(termino)
-    const cedulaMatch = factura.cliente?.cedulaCc?.toLowerCase().includes(termino)
-    const clienteMatch = factura.cliente?.nombre?.toLowerCase().includes(termino)
-    const busquedaValida = !busqueda || numeroMatch || cedulaMatch || clienteMatch
-
-    // Filtro de estado
-    const estadoValido = !estadoFiltro || factura.estado === estadoFiltro
-
-    return busquedaValida && estadoValido
-  })
+  const hayFiltros = Boolean(busqueda || estadoFiltro)
 
   return (
     <PermissionProtector requiredPermission="facturas">
       <div style={{ padding: '20px' }}>
-      <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0 }}>Facturas</h1>
         <Link href="/admin/facturas/nueva" style={{
           padding: '10px 20px',
@@ -116,7 +71,7 @@ export default function FacturasPage() {
 
       {/* Filtros por estado */}
       <div style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}>
           <button
             onClick={() => setEstadoFiltro(null)}
             style={{
@@ -132,7 +87,7 @@ export default function FacturasPage() {
           >
             Todos
           </button>
-          {['pendiente', 'entregado', 'pagado'].map((estado) => (
+          {['pendiente', 'entregado', 'pagado', 'liquidado'].map((estado) => (
             <button
               key={estado}
               onClick={() => setEstadoFiltro(estado)}
@@ -154,79 +109,97 @@ export default function FacturasPage() {
       </div>
 
       {/* Buscador */}
-      <div style={{ marginBottom: '20px' }}>
-        <input
-          type="text"
-          placeholder="Buscar por número de factura o cédula del cliente..."
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          style={{
-            width: '100%',
-            maxWidth: '500px',
-            padding: '10px 12px',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
-            fontSize: '14px',
-            boxSizing: 'border-box',
-          }}
+      <div style={{ marginBottom: '20px', maxWidth: '500px' }}>
+        <BuscadorEnter
+          onBuscar={setBusqueda}
+          etiqueta="Buscar"
+          placeholder="Número de factura, cliente o cédula"
         />
-        {(busqueda || estadoFiltro) && (
-          <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#666' }}>
-            Se encontraron {facturasFiltradas.length} resultado(s)
-            {estadoFiltro && ` (${formatearEstado(estadoFiltro)})`}
-          </p>
-        )}
       </div>
 
-      {facturasFiltradas.length === 0 ? (
-        <p style={{ color: '#666' }}>No hay facturas registradas</p>
+      {error && <p style={{ color: '#dc2626' }}>Error: {error}</p>}
+
+      {cargando ? (
+        <p style={{ color: '#666' }}>Cargando...</p>
+      ) : facturas.length === 0 ? (
+        <p style={{ color: '#666' }}>
+          {hayFiltros ? 'No hay facturas que coincidan con la búsqueda' : 'No hay facturas registradas'}
+        </p>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #ddd' }}>
-              <th style={{ padding: '10px', textAlign: 'left' }}>Número</th>
-              <th style={{ padding: '10px', textAlign: 'left' }}>Cliente</th>
-              <th style={{ padding: '10px', textAlign: 'left' }}>Fecha y hora</th>
-              <th style={{ padding: '10px', textAlign: 'right' }}>Total</th>
-              <th style={{ padding: '10px', textAlign: 'center' }}>Estado</th>
-              <th style={{ padding: '10px', textAlign: 'center' }}>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {facturasFiltradas.map((factura) => (
-              <tr key={factura.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '10px' }}><strong>{factura.numeroFactura}</strong></td>
-                <td style={{ padding: '10px' }}>{factura.cliente?.nombre || 'Cliente General'}</td>
-                <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>{fechaYHora(factura.fecha)}</td>
-                <td style={{ padding: '10px', textAlign: 'right' }}>${Number(factura.total).toFixed(2)}</td>
-                <td style={{ padding: '10px', textAlign: 'center' }}>
-                  <span style={{
-                    padding: '4px 8px',
-                    backgroundColor: getStatusColor(factura.estado),
-                    color: 'white',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    fontWeight: 'bold'
-                  }}>
-                    {formatearEstado(factura.estado)}
-                  </span>
-                </td>
-                <td style={{ padding: '10px', textAlign: 'center' }}>
-                  <Link href={`/admin/facturas/${factura.id}`} style={{
-                    color: '#2563eb',
-                    textDecoration: 'none',
-                    marginRight: '10px'
-                  }}>
-                    Ver
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <>
+          <p style={{ color: '#6b7280', fontSize: '13px', margin: '0 0 10px 0' }}>
+            {hayFiltros
+              ? `Mostrando ${facturas.length} de ${total} que coinciden${estadoFiltro ? ` (${formatearEstado(estadoFiltro)})` : ''}`
+              : `Mostrando las ${facturas.length} más recientes de ${total}`}
+          </p>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #ddd' }}>
+                  <th style={{ padding: '10px', textAlign: 'left' }}>Número</th>
+                  <th style={{ padding: '10px', textAlign: 'left' }}>Cliente</th>
+                  <th style={{ padding: '10px', textAlign: 'left' }}>Fecha y hora</th>
+                  <th style={{ padding: '10px', textAlign: 'right' }}>Total</th>
+                  <th style={{ padding: '10px', textAlign: 'center' }}>Estado</th>
+                  <th style={{ padding: '10px', textAlign: 'center' }}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {facturas.map((factura) => (
+                  <tr key={factura.id} style={{ borderBottom: '1px solid #eee' }}>
+                    <td style={{ padding: '10px' }}><strong>{factura.numeroFactura}</strong></td>
+                    <td style={{ padding: '10px' }}>{factura.cliente?.nombre || 'Cliente General'}</td>
+                    <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>{fechaYHora(factura.fecha)}</td>
+                    <td style={{ padding: '10px', textAlign: 'right' }}>${Number(factura.total).toFixed(2)}</td>
+                    <td style={{ padding: '10px', textAlign: 'center' }}>
+                      <span style={{
+                        padding: '4px 8px',
+                        backgroundColor: getStatusColor(factura.estado),
+                        color: 'white',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: 'bold'
+                      }}>
+                        {formatearEstado(factura.estado)}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px', textAlign: 'center' }}>
+                      <Link href={`/admin/facturas/${factura.id}`} style={{
+                        color: '#2563eb',
+                        textDecoration: 'none',
+                      }}>
+                        Ver
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {hayMas && (
+            <div style={{ textAlign: 'center', marginTop: '20px' }}>
+              <button
+                onClick={verMas}
+                disabled={cargandoMas}
+                style={{
+                  padding: '10px 24px',
+                  backgroundColor: 'white',
+                  color: '#2563eb',
+                  border: '1px solid #2563eb',
+                  borderRadius: '4px',
+                  cursor: cargandoMas ? 'wait' : 'pointer',
+                  fontWeight: 'bold',
+                }}
+              >
+                {cargandoMas ? 'Cargando...' : `Ver más (${total - facturas.length} restantes)`}
+              </button>
+            </div>
+          )}
+        </>
       )}
       </div>
     </PermissionProtector>
   )
 }
-

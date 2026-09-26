@@ -100,4 +100,17 @@ describe('mensajeFactura', () => {
     expect(mensaje).toContain('20260923-002')
     expect(mensaje).not.toContain('Cliente:')
   })
+
+  // Cotizaciones: el mismo resumen, sin nada de pagos.
+  it('como cotización se titula así y no habla de abonos ni saldo', () => {
+    const mensaje = mensajeFactura(
+      { ...factura, numeroFactura: 'COT-20260925-001' },
+      { tipo: 'cotizacion', totalAbonado: 100000, saldoPendiente: 45000 }
+    )
+
+    expect(mensaje).toContain('*Cotización COT-20260925-001*')
+    expect(mensaje).toMatch(/TOTAL/)
+    expect(mensaje).not.toMatch(/Abonado|Saldo pendiente|cancelada|Gracias por su compra/)
+    expect(mensaje).toContain('Quedamos atentos a su confirmación.')
+  })
 })

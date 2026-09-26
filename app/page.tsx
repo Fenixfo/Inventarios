@@ -2,7 +2,7 @@
 
 import { Header } from '@/components/Layout/Header'
 import { useCart } from '@/hooks/useCart'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 
 interface Producto {
@@ -46,9 +46,9 @@ const TANDA_SIGUIENTE = 3
  * mirando un mensaje de error. El estado va en el mensaje para que, si
  * vuelve a fallar, se sepa por qué.
  */
-async function pedirCatalogo(params: URLSearchParams) {
+async function pedirCatalogo(params: URLSearchParams, signal?: AbortSignal) {
   const intentar = async () => {
-    const res = await fetch(`/api/productos/catalogo?${params.toString()}`)
+    const res = await fetch(`/api/productos/catalogo?${params.toString()}`, { signal })
     if (!res.ok) throw new Error(`Error al cargar productos (${res.status})`)
     return res.json()
   }
@@ -56,7 +56,10 @@ async function pedirCatalogo(params: URLSearchParams) {
   try {
     return await intentar()
   } catch (primerFallo) {
+    // Una consulta cancelada no se reintenta: ya hay otra más nueva en camino.
+    if (signal?.aborted) throw primerFallo
     await new Promise((seguir) => setTimeout(seguir, 600))
+    if (signal?.aborted) throw primerFallo
     return intentar()
   }
 }
@@ -87,26 +90,41 @@ export default function Catalogo() {
   // pop-up de cantidad, que sigue saliendo desde el botón del carrito.
   const [detalle, setDetalle] = useState<Producto | null>(null)
 
+  // La consulta de productos en curso. Cada una nueva cancela la anterior:
+  // sin esto, si se cambiaba de categoría rápido y la primera respuesta
+  // llegaba de última, se mostraban los productos de un filtro que ya no
+  // estaba puesto. También cancela un "Ver más" a medias al cambiar de
+  // filtro, para no añadir productos de la búsqueda anterior a la nueva.
+  const consultaEnCurso = useRef<AbortController | null>(null)
+
   // Al cambiar de filtro o de búsqueda se vuelve a empezar desde la primera
   // tanda: si no, se pediría la página 3 de un listado que ahora tiene dos.
   useEffect(() => {
     cargarProductos({ reiniciar: true })
+    return () => consultaEnCurso.current?.abort()
   }, [categoriaFiltro, tiendaFiltro, busqueda])
 
   // Los filtros se piden aparte de los productos —la portada trae solo unos
   // pocos por tienda— y se rehacen cada vez que cambia una selección, para
   // que cada lista muestre solo lo que combina con la otra.
   useEffect(() => {
+    // Igual que con los productos: al cambiar la selección, la consulta
+    // anterior se cancela para que no pise a la nueva si llega después.
+    const control = new AbortController()
+
     const cargarFiltros = async () => {
       try {
         const params = new URLSearchParams()
         if (categoriaFiltro) params.set('categoria', categoriaFiltro)
         if (tiendaFiltro) params.set('tienda', tiendaFiltro)
 
-        const res = await fetch(`/api/productos/catalogo/filtros?${params.toString()}`)
+        const res = await fetch(`/api/productos/catalogo/filtros?${params.toString()}`, {
+          signal: control.signal,
+        })
         if (!res.ok) return
 
         const datos = await res.json()
+        if (control.signal.aborted) return
         const nuevasCategorias: string[] = datos.categorias || []
         const nuevasTiendas: TiendaCatalogo[] = datos.tiendas || []
 
@@ -123,10 +141,12 @@ export default function Catalogo() {
         }
       } catch {
         // Sin filtros el catálogo sigue viéndose; solo no se puede acotar.
+        // Una cancelación también cae aquí, y tampoco hay nada que mostrar.
       }
     }
 
     cargarFiltros()
+    return () => control.abort()
   }, [categoriaFiltro, tiendaFiltro])
 
   /**
@@ -136,6 +156,16 @@ export default function Catalogo() {
    * que ya se está viendo, que es lo que hace el botón "Ver más".
    */
   const cargarProductos = async ({ reiniciar = false } = {}) => {
+    // Empezar de cero cancela lo que hubiera en curso. "Ver más" se cuelga
+    // de la consulta actual, para que un cambio de filtro también lo corte.
+    if (reiniciar) {
+      consultaEnCurso.current?.abort()
+      consultaEnCurso.current = new AbortController()
+    } else if (!consultaEnCurso.current || consultaEnCurso.current.signal.aborted) {
+      consultaEnCurso.current = new AbortController()
+    }
+    const { signal } = consultaEnCurso.current
+
     if (reiniciar) setLoading(true)
     else setCargandoMas(true)
     setError(null)
@@ -157,16 +187,22 @@ export default function Catalogo() {
         params.set('desde', String(desde))
       }
 
-      const datos = await pedirCatalogo(params)
+      const datos = await pedirCatalogo(params, signal)
+      if (signal.aborted) return
 
       setProductos(reiniciar ? datos.productos : [...productos, ...datos.productos])
       setTotal(datos.total)
     } catch (err: any) {
+      // Cancelada a propósito: no es un error, y la consulta que la
+      // reemplazó ya está mostrando su propio estado de carga.
+      if (signal.aborted) return
       setError(err.message)
       console.error('Error:', err)
     } finally {
-      setLoading(false)
-      setCargandoMas(false)
+      if (!signal.aborted) {
+        setLoading(false)
+        setCargandoMas(false)
+      }
     }
   }
 

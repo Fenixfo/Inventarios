@@ -1,15 +1,78 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { exigirTienda } from '@/lib/permisos'
+import { leerBusqueda, leerPagina } from '@/lib/paginacion'
+
+/**
+ * Lo que muestra la tabla de /admin/productos, y nada más. El listado
+ * completo sin página sigue devolviendo todas las columnas, porque de él
+ * dependen la factura, el inventario y los formularios de producto.
+ */
+const SELECCION_LISTADO = {
+  id: true,
+  nombre: true,
+  categoria: true,
+  dimensiones: true,
+  precioUnitario: true,
+  precioBodega: true,
+  stockActual: true,
+  // No se muestra como columna, pero decide el aviso de "stock bajo".
+  stockMinimo: true,
+  m2PorCaja: true,
+} as const
+
 export async function GET(request: NextRequest) {
   try {
+    // Facturar y cotizar necesitan el catálogo aunque no se administren productos.
     const { tiendaId, error: sinPermiso } = await exigirTienda(request, [
       'productos.ver',
       'facturas.crear',
+      'cotizaciones.crear',
     ])
     if (sinPermiso) return sinPermiso
 
     const { searchParams } = new URL(request.url)
+
+    // Con ?limite= responde por páginas: los más recientes primero.
+    if (searchParams.has('limite')) {
+      const { limite, desde } = leerPagina(searchParams)
+      const busqueda = leerBusqueda(searchParams)
+      const categoria = searchParams.get('categoria')
+
+      const where: any = { activo: true, tiendaId }
+      if (busqueda) where.nombreBusqueda = { contains: busqueda }
+      if (categoria) where.categoria = categoria
+
+      const [productos, total, categorias] = await Promise.all([
+        prisma.producto.findMany({
+          where,
+          select: SELECCION_LISTADO,
+          // El id desempata: con dos creados en el mismo instante, sin él el
+          // orden podría cambiar entre páginas y repetir o saltarse uno.
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: limite,
+          skip: desde,
+        }),
+        prisma.producto.count({ where }),
+        // Las categorías para el filtro, solo con la primera página: ya no
+        // se pueden sacar de lo cargado, porque son solo 10.
+        desde === 0
+          ? prisma.producto.findMany({
+              where: { activo: true, tiendaId },
+              select: { categoria: true },
+              distinct: ['categoria'],
+              orderBy: { categoria: 'asc' },
+            })
+          : Promise.resolve(null),
+      ])
+
+      return NextResponse.json({
+        productos,
+        total,
+        ...(categorias && { categorias: categorias.map((c) => c.categoria) }),
+      })
+    }
+
     const sku = searchParams.get('sku')
 
     if (sku) {

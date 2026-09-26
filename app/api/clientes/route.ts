@@ -1,10 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { exigirTienda } from '@/lib/permisos'
+import { leerPagina, MINIMO_BUSQUEDA } from '@/lib/paginacion'
+
+/** Lo que muestra la tabla de /admin/clientes. */
+const SELECCION_LISTADO = {
+  id: true,
+  nombre: true,
+  email: true,
+  telefono: true,
+  cedulaCc: true,
+  terminoPago: true,
+  limiteCredito: true,
+} as const
+
 export async function GET(request: NextRequest) {
   try {
-    const { tiendaId, error: sinPermiso } = await exigirTienda(request, ['clientes.ver', 'facturas.crear'])
+    // Facturar y cotizar necesitan buscar al cliente aunque no se administren clientes.
+    const { tiendaId, error: sinPermiso } = await exigirTienda(request, [
+      'clientes.ver',
+      'facturas.crear',
+      'cotizaciones.crear',
+    ])
     if (sinPermiso) return sinPermiso
+
+    const { searchParams } = new URL(request.url)
+
+    // ¿Ya hay un cliente con esta cédula? Los formularios lo preguntan al
+    // salir del campo, y antes bajaban todos los clientes para mirarlo.
+    // Sin filtrar por activo: el índice único también cuenta los inactivos.
+    const cedula = searchParams.get('cedula')?.trim()
+    if (cedula) {
+      const coincidencias = await prisma.cliente.findMany({
+        where: { tiendaId, cedulaCc: cedula },
+        select: { id: true, cedulaCc: true },
+      })
+      return NextResponse.json(coincidencias)
+    }
+
+    // Con ?limite= responde por páginas, los más recientes primero.
+    if (searchParams.has('limite')) {
+      const { limite, desde } = leerPagina(searchParams)
+      const busqueda = (searchParams.get('busqueda') || '').trim()
+
+      const where: any = { activo: true, tiendaId }
+
+      // Por nombre o por cédula. Sin distinguir mayúsculas; las tildes sí
+      // cuentan, porque clientes no tiene columna de búsqueda como productos.
+      if (busqueda.length >= MINIMO_BUSQUEDA) {
+        where.OR = [
+          { nombre: { contains: busqueda, mode: 'insensitive' } },
+          { cedulaCc: { contains: busqueda } },
+        ]
+      }
+
+      const [clientes, total] = await Promise.all([
+        prisma.cliente.findMany({
+          where,
+          select: SELECCION_LISTADO,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: limite,
+          skip: desde,
+        }),
+        prisma.cliente.count({ where }),
+      ])
+
+      return NextResponse.json({ clientes, total })
+    }
 
     const clientes = await prisma.cliente.findMany({
       where: { activo: true, tiendaId },
@@ -21,7 +83,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, ['clientes.crear', 'facturas.crear'])
+    const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, [
+      'clientes.crear',
+      'facturas.crear',
+      'cotizaciones.crear',
+    ])
     if (sinPermiso) return sinPermiso
 
     const data = await request.json()

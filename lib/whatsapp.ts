@@ -78,15 +78,24 @@ function pesos(valor: number | string): string {
  */
 export function mensajeFactura(
   factura: FacturaParaMensaje,
-  opciones: { empresa?: string; totalAbonado?: number; saldoPendiente?: number } = {}
+  opciones: {
+    empresa?: string
+    totalAbonado?: number
+    saldoPendiente?: number
+    /** Una cotización no lleva abonos ni saldo: no se ha vendido nada. */
+    tipo?: 'factura' | 'cotizacion'
+  } = {}
 ): string {
-  const { empresa = 'Beraca', totalAbonado, saldoPendiente } = opciones
+  const { empresa = 'Beraca', tipo = 'factura' } = opciones
+  const esCotizacion = tipo === 'cotizacion'
+  const totalAbonado = esCotizacion ? undefined : opciones.totalAbonado
+  const saldoPendiente = esCotizacion ? undefined : opciones.saldoPendiente
 
   const fecha = fechaYHora(factura.fecha)
 
   const lineas = [
     `*${empresa.toUpperCase()}*`,
-    `*Factura ${factura.numeroFactura}*`,
+    `*${esCotizacion ? 'Cotización' : 'Factura'} ${factura.numeroFactura}*`,
     `Fecha: ${fecha}`,
   ]
 
@@ -116,7 +125,10 @@ export function mensajeFactura(
     )
   }
 
-  lineas.push('', 'Gracias por su compra.')
+  lineas.push(
+    '',
+    esCotizacion ? 'Quedamos atentos a su confirmación.' : 'Gracias por su compra.'
+  )
 
   return lineas.join('\n')
 }

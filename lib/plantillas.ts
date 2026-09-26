@@ -42,6 +42,8 @@ export const PLANTILLAS: Plantilla[] = [
       'clientes.editar',
       'facturas.ver',
       'facturas.crear',
+      'cotizaciones.ver',
+      'cotizaciones.crear',
     ],
   },
   {
@@ -71,7 +73,9 @@ export const MODULOS: { modulo: string; nombre: string; icono: string }[] = [
   { modulo: 'inventario', nombre: 'Inventario', icono: '🔄' },
   { modulo: 'clientes', nombre: 'Clientes', icono: '👥' },
   { modulo: 'facturas', nombre: 'Facturas', icono: '📄' },
+  { modulo: 'cotizaciones', nombre: 'Cotizaciones', icono: '📝' },
   { modulo: 'reportes', nombre: 'Reportes', icono: '📈' },
+  { modulo: 'liquidaciones', nombre: 'Liquidaciones', icono: '💼' },
   { modulo: 'auditoria', nombre: 'Auditoría', icono: '🔍' },
   { modulo: 'usuarios', nombre: 'Usuarios', icono: '👨‍💼' },
   { modulo: 'configuracion', nombre: 'Configuración', icono: '⚙️' },

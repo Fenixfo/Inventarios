@@ -80,9 +80,10 @@ export default function EditClientePage() {
     }
 
     try {
-      const res = await apiFetch('/api/clientes')
+      // Solo los que tengan esa cédula, no la lista entera de clientes.
+      const res = await apiFetch(`/api/clientes?cedula=${encodeURIComponent(formData.cedulaCc.trim())}`)
       const clientes = await res.json()
-      const exists = clientes.some((c: Cliente) => c.cedulaCc === formData.cedulaCc && c.id !== id)
+      const exists = clientes.some((c: Cliente) => c.id !== id)
       if (exists) {
         setCedulaError('Esta cédula ya existe')
       } else {

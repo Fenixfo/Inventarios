@@ -28,6 +28,9 @@ model Usuario {
   productosCreados Producto[]
   clientesCreados Cliente[]
   facturasCreadas Factura[]
+  cotizacionesCreadas Cotizacion[]
+  liquidacionesRecibidas Liquidacion[] @relation("LiquidacionVendedor")
+  liquidacionesHechas    Liquidacion[] @relation("LiquidacionAutor")
   abonos    Abono[]
   movimientosInventario InventarioMovimiento[]
   auditoria Auditoria[]
@@ -69,6 +72,8 @@ model Tienda {
   productos   Producto[]
   clientes    Cliente[]
   facturas    Factura[]
+  cotizaciones Cotizacion[]
+  liquidaciones Liquidacion[]
   auditoria   Auditoria[]
   configuracion Configuracion[]
 
@@ -230,6 +235,7 @@ model Producto {
 
   // Relations
   facturasItems FacturaItem[]
+  cotizacionesItems CotizacionItem[]
   movimientosInventario InventarioMovimiento[]
 
   // El SKU es único por tienda solo entre los productos activos: un producto
@@ -272,6 +278,7 @@ model Cliente {
 
   // Relations
   facturas  Factura[]
+  cotizaciones Cotizacion[]
 
   @@unique([tiendaId, cedulaCc], map: "clientes_tienda_cedula_key")
   @@index([cedulaCc])
@@ -323,6 +330,10 @@ model Factura {
   /// después por qué dos facturas del mismo producto valen distinto.
   esBodega    Boolean  @default(false) @map("es_bodega")
 
+  /// En qué liquidación quedó, si ya se liquidó (estado "liquidado").
+  liquidacionId String?      @map("liquidacion_id") @db.Uuid
+  liquidacion   Liquidacion? @relation(fields: [liquidacionId], references: [id])
+
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -373,11 +384,119 @@ model FacturaItem {
   precioUnitario Decimal @map("precio_unitario") @db.Decimal(10, 2)
   subtotal    Decimal  @db.Decimal(12, 2)
 
+  /// El costo del producto al facturar; se guarda porque el costo cambia.
+  costoUnitario     Decimal? @map("costo_unitario") @db.Decimal(10, 2)
+  /// Cuánto de lo vendido había en inventario: eso se vende a costoUnitario.
+  /// El resto se vendió sin stock y su costo se pone al liquidar.
+  cantidadConCosto  Decimal  @default(0) @map("cantidad_con_costo") @db.Decimal(12, 2)
+  /// El costo de lo que se vendió sin stock, puesto al liquidar.
+  costoLiquidacion  Decimal? @map("costo_liquidacion") @db.Decimal(10, 2)
+
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   @@index([facturaId])
   @@index([productoId])
   @@map("facturas_items")
+}
+
+/// Cierre de facturas cobradas de un vendedor: se calcula la ganancia (venta
+/// sin impuesto − costo) y se le paga un porcentaje. Las facturas quedan en
+/// estado "liquidado". Tabla creada con docs/sql/liquidaciones.sql.
+model Liquidacion {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  tiendaId      String   @map("tienda_id") @db.Uuid
+  tienda        Tienda   @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+
+  vendedorId    String   @map("vendedor_id") @db.Uuid
+  vendedor      Usuario  @relation("LiquidacionVendedor", fields: [vendedorId], references: [id])
+
+  creadaPor     String?  @map("creada_por") @db.Uuid
+  autor         Usuario? @relation("LiquidacionAutor", fields: [creadaPor], references: [id])
+
+  fecha         DateTime @default(now()) @db.Timestamptz
+  /// El que se usó en esta liquidación (30 por defecto, editable).
+  porcentaje    Decimal  @db.Decimal(5, 2)
+
+  totalVenta    Decimal  @map("total_venta") @db.Decimal(14, 2)
+  totalCosto    Decimal  @map("total_costo") @db.Decimal(14, 2)
+  totalGanancia Decimal  @map("total_ganancia") @db.Decimal(14, 2)
+  pagoVendedor  Decimal  @map("pago_vendedor") @db.Decimal(14, 2)
+
+  observaciones String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  facturas      Factura[]
+
+  @@index([tiendaId])
+  @@index([vendedorId])
+  @@index([fecha])
+  @@map("liquidaciones")
+}
+
+/// Una factura que no se vende: guarda cliente, productos y precios, pero no
+/// descuenta inventario ni lleva abonos ni estados de pago. Va en tablas
+/// aparte para que ningún reporte, saldo o consecutivo de facturas la cuente.
+/// Tablas creadas con docs/sql/cotizaciones.sql.
+model Cotizacion {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  /// Único dentro de la tienda, con su propio consecutivo (COT-AAAAMMDD-001).
+  numeroCotizacion String  @map("numero_cotizacion") @db.VarChar(50)
+
+  clienteId       String?  @map("cliente_id") @db.Uuid
+  cliente         Cliente? @relation(fields: [clienteId], references: [id])
+
+  tiendaId        String?  @map("tienda_id") @db.Uuid
+  tienda          Tienda?  @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+
+  usuarioId       String?  @map("usuario_id") @db.Uuid
+  usuario         Usuario? @relation(fields: [usuarioId], references: [id])
+
+  fecha           DateTime @default(now()) @db.Timestamptz
+  terminoPago     String?  @map("termino_pago") @db.VarChar(50)
+  metodoPago      String?  @map("metodo_pago") @db.VarChar(50)
+
+  subtotal        Decimal  @db.Decimal(12, 2)
+  descuentoPorcentaje Decimal @default(0) @map("descuento_porcentaje") @db.Decimal(5, 2)
+  descuentoMonto  Decimal  @default(0) @map("descuento_monto") @db.Decimal(12, 2)
+  impuesto        Decimal  @default(0) @db.Decimal(12, 2)
+  total           Decimal  @db.Decimal(12, 2)
+
+  esBodega        Boolean  @default(false) @map("es_bodega")
+  observaciones   String?  @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  items           CotizacionItem[]
+
+  @@unique([tiendaId, numeroCotizacion], map: "cotizaciones_tienda_numero_key")
+  @@index([clienteId])
+  @@index([usuarioId])
+  @@index([fecha])
+  @@map("cotizaciones")
+}
+
+model CotizacionItem {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  cotizacionId  String     @map("cotizacion_id") @db.Uuid
+  cotizacion    Cotizacion @relation(fields: [cotizacionId], references: [id], onDelete: Cascade)
+
+  productoId    String?   @map("producto_id") @db.Uuid
+  producto      Producto? @relation(fields: [productoId], references: [id], onDelete: SetNull)
+
+  productoNombre String?  @map("producto_nombre") @db.VarChar(255)
+  cantidadM2    Decimal   @map("cantidad_m2") @db.Decimal(12, 2)
+  precioUnitario Decimal  @map("precio_unitario") @db.Decimal(10, 2)
+  subtotal      Decimal   @db.Decimal(12, 2)
+
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([cotizacionId])
+  @@index([productoId])
+  @@map("cotizaciones_items")
 }
 
 model InventarioMovimiento {

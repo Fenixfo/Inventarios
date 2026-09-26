@@ -226,6 +226,30 @@ describe('GET /api/productos/catalogo', () => {
     expect(total).toBeGreaterThanOrEqual(data.length)
   })
 
+  it('limitePorTienda tiene tope: pedir 9999 no trae el catálogo entero', async () => {
+    // Antes no tenía tope y una URL escrita a mano devolvía todo de una vez.
+    const { status, productos: data } = await catalogo('/api/productos/catalogo?limitePorTienda=9999')
+    const { productos: portada } = await catalogo('/api/productos/catalogo?limitePorTienda=5')
+
+    expect(status).toBe(200)
+
+    const porTienda = new Map<string, number>()
+    data.forEach((p: any) => porTienda.set(p.tienda?.id, (porTienda.get(p.tienda?.id) || 0) + 1))
+    for (const cuantos of porTienda.values()) expect(cuantos).toBeLessThanOrEqual(5)
+
+    expect(data.length).toBe(portada.length)
+  })
+
+  it('una tienda inventada en la URL responde vacío, no con error', async () => {
+    const { status, productos } = await catalogo('/api/productos/catalogo?tienda=abc&limitePorTienda=5')
+    expect(status).toBe(200)
+    expect(productos).toEqual([])
+
+    const filtros = await api('/api/productos/catalogo/filtros?tienda=abc')
+    expect(filtros.status).toBe(200)
+    expect(filtros.data.categorias).toEqual([])
+  })
+
   it('los filtros del catálogo no dependen de lo que quepa en la portada', async () => {
     // Si se armaran con la muestra, faltarían categorías que sí existen y no
     // habría forma de llegar a ellas.
@@ -289,9 +313,10 @@ describe('GET /api/productos/catalogo', () => {
   })
 
   it('no se puede pedir el catálogo entero con un límite grande', async () => {
-    // Una URL escrita a mano no debería poder vaciar la base de una vez.
+    // Una URL escrita a mano no debería poder vaciar la base de una vez. El
+    // tope es la primera tanda de la portada: 9.
     const { productos } = await catalogo('/api/productos/catalogo?limite=99999')
-    expect(productos.length).toBeLessThanOrEqual(60)
+    expect(productos.length).toBeLessThanOrEqual(9)
   })
 
   it('al elegir una tienda, solo quedan las categorías de esa tienda', async () => {
@@ -390,17 +415,19 @@ describe('GET /api/productos/catalogo', () => {
 
     if (!sinFoto) return
 
-    const termino = sinFoto.nombre.split(/\s+/)[0]
+    // El nombre completo y no una palabra suelta: una tanda trae como mucho
+    // 9, y con una palabra común el producto podría quedar en la siguiente.
+    const termino = sinFoto.nombre.trim()
     if (termino.length < 3) return
 
     const { productos } = await catalogo(
-      `/api/productos/catalogo?busqueda=${encodeURIComponent(termino)}&limite=60`
+      `/api/productos/catalogo?busqueda=${encodeURIComponent(termino)}`
     )
 
     expect(productos.some((p) => p.id === sinFoto.id)).toBe(true)
 
-    // Y sin buscar, ese mismo producto no aparece.
-    const { productos: vitrina } = await catalogo('/api/productos/catalogo?limite=60')
+    // Y sin buscar, ese mismo producto no aparece en la vitrina de su tienda.
+    const { productos: vitrina } = await catalogo('/api/productos/catalogo?limitePorTienda=5')
     expect(vitrina.some((p) => p.id === sinFoto.id)).toBe(false)
   })
 
@@ -412,7 +439,7 @@ describe('GET /api/productos/catalogo', () => {
     if (!categoria) return
 
     const { productos } = await catalogo(
-      `/api/productos/catalogo?categoria=${encodeURIComponent(categoria)}&busqueda=gris&limite=60`
+      `/api/productos/catalogo?categoria=${encodeURIComponent(categoria)}&busqueda=gris`
     )
 
     productos.forEach((p) => {
@@ -637,6 +664,40 @@ describe('GET /api/inventario/movimientos', () => {
     const { status } = await api('/api/inventario/movimientos?tipo=loquesea')
     expect(status).toBe(200)
   })
+
+  // TASK-61. De 10 en 10, los más recientes primero.
+  it('por páginas: 10, el total y del más reciente al más antiguo', async () => {
+    const { status, data } = await api('/api/inventario/movimientos?limite=10&desde=0')
+
+    expect(status).toBe(200)
+    expect(data.movimientos.length).toBeLessThanOrEqual(10)
+    expect(data.total).toBeGreaterThanOrEqual(data.movimientos.length)
+
+    const fechas = data.movimientos.map((m: any) => new Date(m.fechaMovimiento).getTime())
+    expect([...fechas].sort((a, b) => b - a)).toEqual(fechas)
+
+    if (data.total > 10) {
+      const { data: segunda } = await api('/api/inventario/movimientos?limite=10&desde=10')
+      const ids = new Set(data.movimientos.map((m: any) => m.id))
+      expect(segunda.movimientos.some((m: any) => ids.has(m.id))).toBe(false)
+    }
+  })
+
+  it('por páginas: los filtros se aplican en el servidor', async () => {
+    const { data } = await api('/api/inventario/movimientos?limite=10&desde=0&tipo=entrada')
+    data.movimientos.forEach((m: any) => expect(m.tipo).toBe('entrada'))
+  })
+
+  it('el filtro de fecha corta los días en hora de Colombia', async () => {
+    // Un movimiento de las 8 p. m. del día de hoy ya es mañana en UTC: con el
+    // corte en UTC, filtrar "hasta hoy" lo dejaba fuera.
+    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+    const { data } = await api(`/api/inventario/movimientos?limite=50&desde=0&fechaHasta=${hoy}`)
+    const { data: todos } = await api('/api/inventario/movimientos?limite=50&desde=0')
+
+    // Nada del futuro, así que "hasta hoy" tiene que traer lo mismo que sin filtro.
+    expect(data.total).toBe(todos.total)
+  })
 })
 
 describe('POST /api/facturas', () => {
@@ -832,7 +893,9 @@ describe('POST /api/facturas', () => {
 describe('GET /api/facturas/[id]/pdf', () => {
   it('genera la factura con los datos del cliente y los items', async () => {
     const factura = await prisma.factura.findFirst({
-      where: { items: { some: {} } },
+      // De la tienda de las pruebas: la más reciente de toda la base puede
+      // ser de otra tienda, y esa responde 404 con toda razón.
+      where: { tiendaId, items: { some: {} } },
       select: { id: true, numeroFactura: true },
       orderBy: { fecha: 'desc' },
     })
@@ -854,7 +917,9 @@ describe('GET /api/facturas/[id]/pdf', () => {
   it('con formato=pdf devuelve el archivo, no la página', async () => {
     // Es el que se comparte por WhatsApp: tiene que ser un PDF de verdad.
     const factura = await prisma.factura.findFirst({
-      where: { items: { some: {} } },
+      // De la tienda de las pruebas: la más reciente de toda la base puede
+      // ser de otra tienda, y esa responde 404 con toda razón.
+      where: { tiendaId, items: { some: {} } },
       select: { id: true, numeroFactura: true },
       orderBy: { fecha: 'desc' },
     })
@@ -1078,6 +1143,493 @@ describe('precios de bodega', () => {
 
     expect(status).toBe(201)
     expect(data.precioBodega).toBeNull()
+  })
+})
+
+// TASK-60. /admin/productos trae de 10 en 10 y solo las columnas que muestra.
+describe('listado de productos por páginas', () => {
+  it('trae 10, el total y solo las columnas de la tabla', async () => {
+    const { status, data } = await api('/api/productos?limite=10&desde=0')
+
+    expect(status).toBe(200)
+    expect(data.productos.length).toBeLessThanOrEqual(10)
+    expect(data.total).toBeGreaterThanOrEqual(data.productos.length)
+    expect(Array.isArray(data.categorias)).toBe(true)
+
+    if (data.productos.length > 0) {
+      expect(Object.keys(data.productos[0]).sort()).toEqual(
+        [
+          'categoria',
+          'dimensiones',
+          'id',
+          'm2PorCaja',
+          'nombre',
+          'precioBodega',
+          'precioUnitario',
+          'stockActual',
+          'stockMinimo',
+        ].sort()
+      )
+    }
+  })
+
+  it('la segunda página no repite la primera', async () => {
+    const primera = await api('/api/productos?limite=10&desde=0')
+    if (primera.data.total <= 10) return
+
+    const segunda = await api('/api/productos?limite=10&desde=10')
+    const ids = new Set(primera.data.productos.map((p: any) => p.id))
+
+    expect(segunda.data.productos.length).toBeGreaterThan(0)
+    expect(segunda.data.productos.some((p: any) => ids.has(p.id))).toBe(false)
+    // Las categorías solo vienen con la primera.
+    expect(segunda.data.categorias).toBeUndefined()
+  })
+
+  it('la búsqueda filtra en toda la tienda, sin tildes', async () => {
+    const { data: todos } = await api('/api/productos?limite=10&desde=0')
+    if (todos.productos.length === 0) return
+
+    // Tres letras de un nombre real, con mayúsculas para probar que no importan.
+    const trozo = todos.productos[0].nombre
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-zA-Z]/g, '')
+      .slice(0, 3)
+      .toUpperCase()
+    if (trozo.length < 3) return
+
+    const { data } = await api(`/api/productos?limite=10&desde=0&busqueda=${encodeURIComponent(trozo)}`)
+    const normal = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+    expect(data.productos.length).toBeGreaterThan(0)
+    expect(data.productos.every((p: any) => normal(p.nombre).includes(trozo.toLowerCase()))).toBe(true)
+  })
+
+  it('con menos de 3 letras no filtra', async () => {
+    const { data: todos } = await api('/api/productos?limite=10&desde=0')
+    const { data } = await api('/api/productos?limite=10&desde=0&busqueda=po')
+    expect(data.total).toBe(todos.total)
+  })
+
+  it('las categorías del formulario llegan solas, sin los productos', async () => {
+    const { status, data } = await api('/api/productos/categorias')
+    const { data: pagina } = await api('/api/productos?limite=10&desde=0')
+
+    expect(status).toBe(200)
+    expect(data.every((c: unknown) => typeof c === 'string')).toBe(true)
+    expect([...data].sort()).toEqual([...pagina.categorias].sort())
+  })
+
+  it('sin ?limite= sigue devolviendo la lista completa, que usa la factura', async () => {
+    const { status, data } = await api('/api/productos')
+    expect(status).toBe(200)
+    expect(Array.isArray(data)).toBe(true)
+  })
+})
+
+// TASK-62. /admin/clientes trae de 10 en 10 y busca en el servidor.
+describe('listado de clientes por páginas', () => {
+  it('trae 10, el total y solo las columnas de la tabla', async () => {
+    const { status, data } = await api('/api/clientes?limite=10&desde=0')
+
+    expect(status).toBe(200)
+    expect(data.clientes.length).toBeLessThanOrEqual(10)
+    expect(data.total).toBeGreaterThanOrEqual(data.clientes.length)
+
+    if (data.clientes.length > 0) {
+      expect(Object.keys(data.clientes[0]).sort()).toEqual(
+        ['cedulaCc', 'email', 'id', 'limiteCredito', 'nombre', 'telefono', 'terminoPago'].sort()
+      )
+    }
+  })
+
+  it('busca por nombre sin distinguir mayúsculas, y por cédula', async () => {
+    const { data: todos } = await api('/api/clientes?limite=10&desde=0')
+    const conCedula = todos.clientes.find((c: any) => (c.cedulaCc || '').length >= 3)
+    if (!conCedula) return
+
+    const trozoNombre = conCedula.nombre.slice(0, 3).toUpperCase()
+    const { data: porNombre } = await api(
+      `/api/clientes?limite=10&desde=0&busqueda=${encodeURIComponent(trozoNombre)}`
+    )
+    expect(porNombre.clientes.every((c: any) =>
+      c.nombre.toLowerCase().includes(trozoNombre.toLowerCase()) ||
+      (c.cedulaCc || '').includes(trozoNombre)
+    )).toBe(true)
+
+    const { data: porCedula } = await api(
+      `/api/clientes?limite=10&desde=0&busqueda=${encodeURIComponent(conCedula.cedulaCc)}`
+    )
+    expect(porCedula.clientes.some((c: any) => c.id === conCedula.id)).toBe(true)
+  })
+
+  it('?cedula= responde solo las coincidencias, no la lista entera', async () => {
+    const { data: todos } = await api('/api/clientes?limite=10&desde=0')
+    const conCedula = todos.clientes.find((c: any) => c.cedulaCc)
+    if (!conCedula) return
+
+    const { data } = await api(`/api/clientes?cedula=${encodeURIComponent(conCedula.cedulaCc)}`)
+    expect(data.length).toBe(1)
+    expect(data[0].id).toBe(conCedula.id)
+
+    const { data: ninguna } = await api('/api/clientes?cedula=no-existe-000')
+    expect(ninguna).toEqual([])
+  })
+})
+
+// TASK-63. /admin/facturas trae de 10 en 10; búsqueda y estado en el servidor.
+describe('listado de facturas por páginas', () => {
+  it('trae 10 y el total, de la más reciente a la más antigua', async () => {
+    const { status, data } = await api('/api/facturas?limite=10&desde=0')
+
+    expect(status).toBe(200)
+    expect(data.facturas.length).toBeLessThanOrEqual(10)
+    expect(data.total).toBeGreaterThanOrEqual(data.facturas.length)
+
+    const fechas = data.facturas.map((f: any) => new Date(f.fecha).getTime())
+    expect([...fechas].sort((a, b) => b - a)).toEqual(fechas)
+  })
+
+  it('el total es el mismo alcance que la lista sin páginas', async () => {
+    // La página no puede ampliar lo que alguien ve: quien no tiene
+    // ver_todas tiene que seguir contando solo las suyas.
+    const { data: pagina } = await api('/api/facturas?limite=10&desde=0')
+    const { data: todas } = await api('/api/facturas')
+    expect(pagina.total).toBe(todas.length)
+  })
+
+  it('filtra por estado en el servidor', async () => {
+    const { data } = await api('/api/facturas?limite=10&desde=0&estado=pendiente')
+    data.facturas.forEach((f: any) => expect(f.estado).toBe('pendiente'))
+  })
+
+  it('busca por número de factura', async () => {
+    const { data: todas } = await api('/api/facturas?limite=10&desde=0')
+    if (todas.facturas.length === 0) return
+
+    const numero = todas.facturas[0].numeroFactura
+    const { data } = await api(`/api/facturas?limite=10&desde=0&busqueda=${encodeURIComponent(numero)}`)
+
+    expect(data.facturas.some((f: any) => f.numeroFactura === numero)).toBe(true)
+    expect(data.total).toBeLessThanOrEqual(todas.total)
+  })
+})
+
+// TASK-67. Liquidación: el costo se guarda al facturar, lo vendido sin stock
+// se completa al liquidar, y la factura queda cerrada.
+describe('liquidaciones', () => {
+  let facturaId: string
+  let liquidacionId: string
+  let vendedorId: string
+  let itemId: string
+  // El producto de pruebas lo usan otras pruebas: se devuelve como estaba.
+  let antes: { stockActual: any; costo: any }
+
+  beforeAll(async () => {
+    antes = (await prisma.producto.findUnique({
+      where: { id: productoId },
+      select: { stockActual: true, costo: true },
+    }))!
+    // El caso planteado: costo 5, y se venden más de las que hay en stock.
+    await prisma.producto.update({ where: { id: productoId }, data: { costo: 5, stockActual: 10 } })
+    const yo = await prisma.usuario.findUnique({ where: { email: process.env.E2E_USER! } })
+    vendedorId = yo!.id
+  }, 60000)
+
+  it('al facturar se guarda el costo de lo que había en stock', async () => {
+    const { status, data } = await api('/api/facturas', {
+      method: 'POST',
+      body: JSON.stringify({
+        subtotal: 375,
+        total: 375,
+        observaciones: `${MARCA} liquidación`,
+        items: [{ productoId, productoNombre: 'Cajas', cantidadM2: 25, precioUnitario: 15, subtotal: 375 }],
+      }),
+    })
+
+    expect(status).toBe(201)
+    facturaId = data.id
+
+    const item = await prisma.facturaItem.findFirst({ where: { facturaId } })
+    itemId = item!.id
+    expect(Number(item!.costoUnitario)).toBe(5)
+    expect(Number(item!.cantidadConCosto)).toBe(10)
+  })
+
+  it('una factura pendiente no se puede liquidar', async () => {
+    const { status } = await api('/api/liquidaciones', {
+      method: 'POST',
+      body: JSON.stringify({ vendedorId, facturaIds: [facturaId], porcentaje: 30, costos: { [itemId]: 5 } }),
+    })
+    expect(status).toBe(409)
+  })
+
+  it('cobrada, aparece en lo pendiente con lo que falta de costo', async () => {
+    await prisma.factura.update({ where: { id: facturaId }, data: { estado: 'pagado' } })
+
+    const { status, data } = await api(`/api/liquidaciones/pendientes?vendedorId=${vendedorId}`)
+    const factura = data.facturas.find((f: any) => f.id === facturaId)
+
+    expect(status).toBe(200)
+    expect(factura).toBeDefined()
+    expect(factura.items[0].pendiente).toBe(15)
+    // El producto existe: se propone su costo actual.
+    expect(factura.items[0].costoSugerido).toBe(5)
+  })
+
+  it('sin el costo de lo vendido sin stock no se liquida', async () => {
+    const { status, data } = await api('/api/liquidaciones', {
+      method: 'POST',
+      body: JSON.stringify({ vendedorId, facturaIds: [facturaId], porcentaje: 30, costos: {} }),
+    })
+    expect(status).toBe(400)
+    expect(data.faltan.length).toBe(1)
+  })
+
+  it('liquida: ganancia = venta − costo, y el 30% para el vendedor', async () => {
+    // Venta 375; costo 10 × 5 + 15 × 6 = 140; ganancia 235; 30% = 70,5.
+    const { status, data } = await api('/api/liquidaciones', {
+      method: 'POST',
+      body: JSON.stringify({ vendedorId, facturaIds: [facturaId], porcentaje: 30, costos: { [itemId]: 6 } }),
+    })
+
+    expect(status).toBe(201)
+    liquidacionId = data.id
+    expect(data).toMatchObject({ totalVenta: 375, totalCosto: 140, totalGanancia: 235, pagoVendedor: 70.5 })
+
+    const factura = await prisma.factura.findUnique({ where: { id: facturaId } })
+    expect(factura!.estado).toBe('liquidado')
+    expect(factura!.liquidacionId).toBe(liquidacionId)
+  })
+
+  it('una factura liquidada ya no cambia ni se liquida dos veces', async () => {
+    const { data: factura } = await api(`/api/facturas/${facturaId}`)
+
+    const editar = await api('/api/facturas', {
+      method: 'PUT',
+      body: JSON.stringify({ ...factura, estado: 'entregado' }),
+    })
+    expect(editar.status).toBe(409)
+
+    const abono = await api('/api/abonos', {
+      method: 'POST',
+      body: JSON.stringify({ facturaId, monto: 1000 }),
+    })
+    expect(abono.status).toBe(409)
+
+    const otra = await api('/api/liquidaciones', {
+      method: 'POST',
+      body: JSON.stringify({ vendedorId, facturaIds: [facturaId], porcentaje: 30, costos: { [itemId]: 6 } }),
+    })
+    expect(otra.status).toBe(409)
+  })
+
+  it('el detalle muestra la factura con su venta, costo y ganancia', async () => {
+    const { status, data } = await api(`/api/liquidaciones/${liquidacionId}`)
+
+    expect(status).toBe(200)
+    expect(data.facturas).toHaveLength(1)
+    expect(data.facturas[0]).toMatchObject({ venta: 375, costo: 140, ganancia: 235 })
+  })
+
+  it('aparece en el listado', async () => {
+    const { data } = await api('/api/liquidaciones?limite=10&desde=0')
+    expect(data.liquidaciones.some((l: any) => l.id === liquidacionId)).toBe(true)
+  })
+
+  afterAll(async () => {
+    if (facturaId) {
+      await prisma.factura.update({ where: { id: facturaId }, data: { liquidacionId: null } }).catch(() => {})
+    }
+    if (liquidacionId) await prisma.liquidacion.delete({ where: { id: liquidacionId } }).catch(() => {})
+    if (facturaId) {
+      await prisma.inventarioMovimiento.deleteMany({ where: { referenciaId: facturaId } }).catch(() => {})
+      await prisma.factura.delete({ where: { id: facturaId } }).catch(() => {})
+    }
+    if (antes) await prisma.producto.update({ where: { id: productoId }, data: antes }).catch(() => {})
+  })
+})
+
+// Reporte de inventario: stock bajo y sin movimiento de 10 en 10.
+describe('GET /api/reportes/inventario por secciones', () => {
+  it('trae 10 de cada sección y el total en las métricas', async () => {
+    const { status, data } = await api('/api/reportes/inventario')
+
+    expect(status).toBe(200)
+    expect(data.stockBajo.length).toBeLessThanOrEqual(10)
+    expect(data.sinMovimiento.length).toBeLessThanOrEqual(10)
+    expect(data.metricas.productosStockBajo).toBeGreaterThanOrEqual(data.stockBajo.length)
+    expect(data.metricas.productosSinMovimiento).toBeGreaterThanOrEqual(data.sinMovimiento.length)
+  })
+
+  it.each(['stockBajo', 'sinMovimiento'])('"Ver más" de %s trae los siguientes sin repetir', async (seccion) => {
+    const { data: reporte } = await api('/api/reportes/inventario')
+    const total = seccion === 'stockBajo'
+      ? reporte.metricas.productosStockBajo
+      : reporte.metricas.productosSinMovimiento
+    if (total <= 10) return
+
+    const { status, data } = await api(`/api/reportes/inventario?seccion=${seccion}&limite=10&desde=10`)
+    const primeros = new Set(reporte[seccion].map((p: any) => p.id))
+
+    expect(status).toBe(200)
+    expect(data.total).toBe(total)
+    expect(data[seccion].length).toBeGreaterThan(0)
+    expect(data[seccion].some((p: any) => primeros.has(p.id))).toBe(false)
+  })
+
+  it('stock bajo va del más crítico al menos, también entre páginas', async () => {
+    const { data: reporte } = await api('/api/reportes/inventario')
+    const { data: siguiente } = await api('/api/reportes/inventario?seccion=stockBajo&limite=10&desde=10')
+    const diferencias = [...reporte.stockBajo, ...siguiente.stockBajo].map((p: any) => p.diferencia)
+
+    expect([...diferencias].sort((a, b) => a - b)).toEqual(diferencias)
+    ;[...reporte.stockBajo, ...siguiente.stockBajo].forEach((p: any) =>
+      expect(p.stockActual).toBeLessThan(p.stockMinimo)
+    )
+  })
+
+  it('no se puede pedir la sección entera con un límite grande', async () => {
+    const { data } = await api('/api/reportes/inventario?seccion=sinMovimiento&limite=99999&desde=0')
+    expect(data.sinMovimiento.length).toBeLessThanOrEqual(50)
+  })
+})
+
+// El tablero de /admin: cifras calculadas en la base, no listas completas.
+describe('GET /api/tablero', () => {
+  it('trae solo las cifras, sin listas de registros', async () => {
+    const { status, data } = await api('/api/tablero')
+
+    expect(status).toBe(200)
+    expect(Object.keys(data).sort()).toEqual(
+      ['alertas', 'facturasHoy', 'stockBajo', 'totalClientes', 'totalProductos'].sort()
+    )
+    expect(data.alertas.length).toBeLessThanOrEqual(5)
+  })
+
+  it('las cifras cuadran con los listados', async () => {
+    const { data } = await api('/api/tablero')
+    const { data: productos } = await api('/api/productos?limite=10&desde=0')
+    const { data: clientes } = await api('/api/clientes?limite=10&desde=0')
+
+    expect(data.totalProductos).toBe(productos.total)
+    expect(data.totalClientes).toBe(clientes.total)
+  })
+
+  it('las alertas son de stock bajo, de la más crítica a la menos', async () => {
+    const { data } = await api('/api/tablero')
+    const deficit = data.alertas.map((a: any) => a.stockActual - a.stockMinimo)
+
+    data.alertas.forEach((a: any) => expect(a.stockActual).toBeLessThan(a.stockMinimo))
+    expect([...deficit].sort((x, y) => x - y)).toEqual(deficit)
+    expect(data.stockBajo).toBeGreaterThanOrEqual(data.alertas.length)
+  })
+
+  it('sin sesión no responde', async () => {
+    const res = await fetch(`${BASE}/api/tablero`)
+    expect(res.status).toBe(401)
+  })
+})
+
+// TASK-64. Cotizar guarda como una factura, pero no toca el inventario.
+describe('cotizaciones', () => {
+  let cotizacionId: string
+
+  it('guardar una cotización no descuenta stock ni crea movimientos', async () => {
+    const { data: pagina } = await api('/api/productos?limite=10&desde=0')
+    const producto = pagina.productos[0]
+    if (!producto) return
+
+    const antes = await prisma.producto.findUnique({
+      where: { id: producto.id },
+      select: { stockActual: true },
+    })
+    const movimientosAntes = await prisma.inventarioMovimiento.count({
+      where: { productoId: producto.id },
+    })
+
+    const { status, data } = await api('/api/cotizaciones', {
+      method: 'POST',
+      body: JSON.stringify({
+        subtotal: 100000,
+        total: 100000,
+        observaciones: `${MARCA} cotización`,
+        // Se ignoran: la cotización no lleva abonos.
+        anticipo: 50000,
+        items: [{
+          productoId: producto.id,
+          productoNombre: producto.nombre,
+          cantidadM2: 10,
+          precioUnitario: 10000,
+          subtotal: 100000,
+        }],
+      }),
+    })
+
+    expect(status).toBe(201)
+    expect(data.numeroCotizacion).toMatch(/^COT-\d{8}-\d{3}$/)
+    cotizacionId = data.id
+
+    const despues = await prisma.producto.findUnique({
+      where: { id: producto.id },
+      select: { stockActual: true },
+    })
+    expect(Number(despues!.stockActual)).toBe(Number(antes!.stockActual))
+    expect(await prisma.inventarioMovimiento.count({ where: { productoId: producto.id } }))
+      .toBe(movimientosAntes)
+  })
+
+  it('queda guardada con sus productos y se puede consultar', async () => {
+    if (!cotizacionId) return
+
+    const { status, data } = await api(`/api/cotizaciones/${cotizacionId}`)
+    expect(status).toBe(200)
+    expect(data.items).toHaveLength(1)
+    expect(Number(data.total)).toBe(100000)
+    expect(data).not.toHaveProperty('anticipo')
+  })
+
+  it('aparece la primera en el listado', async () => {
+    if (!cotizacionId) return
+
+    const { status, data } = await api('/api/cotizaciones?limite=10&desde=0')
+    expect(status).toBe(200)
+    expect(data.cotizaciones[0].id).toBe(cotizacionId)
+    expect(data.total).toBeGreaterThanOrEqual(1)
+  })
+
+  it('se descarga como PDF', async () => {
+    if (!cotizacionId) return
+
+    const res = await fetch(`${BASE}/api/cotizaciones/${cotizacionId}/pdf`, { headers: HEADERS })
+    const bytes = new Uint8Array(await res.arrayBuffer())
+
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('application/pdf')
+    expect(res.headers.get('content-disposition')).toMatch(/Cotizacion-COT-\d{8}-\d{3}\.pdf/)
+    expect(Buffer.from(bytes.slice(0, 5)).toString()).toBe('%PDF-')
+  })
+
+  it('el PDF de una cotización que no existe responde 404', async () => {
+    const { status } = await api('/api/cotizaciones/00000000-0000-0000-0000-000000000000/pdf')
+    expect(status).toBe(404)
+  })
+
+  it('sin productos no se guarda', async () => {
+    const { status } = await api('/api/cotizaciones', {
+      method: 'POST',
+      body: JSON.stringify({ subtotal: 0, total: 0, items: [] }),
+    })
+    expect(status).toBe(400)
+  })
+
+  it('una cotización que no existe responde 404', async () => {
+    const { status } = await api('/api/cotizaciones/00000000-0000-0000-0000-000000000000')
+    expect(status).toBe(404)
+  })
+
+  afterAll(async () => {
+    if (cotizacionId) await prisma.cotizacion.delete({ where: { id: cotizacionId } }).catch(() => {})
   })
 })
 
@@ -1688,6 +2240,7 @@ describe('endpoints sin sesión', () => {
   // Barrido de todo lo que debe responder 401 sin token. Si mañana alguien
   // crea un endpoint y olvida la comprobación, aquí se ve.
   const protegidos = [
+    '/api/cotizaciones',
     '/api/productos',
     '/api/clientes',
     '/api/facturas',

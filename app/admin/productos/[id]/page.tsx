@@ -74,19 +74,16 @@ export default function EditProductoPage() {
     fetchProducto()
   }, [id])
 
-  // Las categorías que ya usa la tienda, para ofrecerlas en el campo.
+  // Las categorías que ya usa la tienda, para ofrecerlas en el campo. Solo
+  // los nombres: antes se bajaban todos los productos para sacarlas.
   useEffect(() => {
     const cargarCategorias = async () => {
       try {
-        const res = await apiFetch('/api/productos')
+        const res = await apiFetch('/api/productos/categorias')
         if (!res.ok) return
 
-        const productos = await res.json()
-        setCategoriasExistentes(
-          Array.from(
-            new Set(productos.map((p: any) => p.categoria).filter(Boolean) as string[])
-          ).sort((a, b) => a.localeCompare(b, 'es'))
-        )
+        const categorias: string[] = await res.json()
+        setCategoriasExistentes(categorias.sort((a, b) => a.localeCompare(b, 'es')))
       } catch {
         // Sin la lista el campo sigue sirviendo: se escribe la categoría.
       }

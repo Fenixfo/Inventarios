@@ -147,10 +147,23 @@ async function cargarLogo(pdf: PDFDocument, url: string) {
   }
 }
 
+export interface OpcionesPdf {
+  /**
+   * Una cotización sale con el mismo formato, pero sin estado, abonos ni
+   * saldo: no se vendió nada, así que no hay nada que cobrar todavía.
+   */
+  tipo?: 'factura' | 'cotizacion'
+}
+
 export async function generarPdfFactura(
   factura: FacturaPdf,
-  config: EmpresaPdf = {}
+  config: EmpresaPdf = {},
+  { tipo = 'factura' }: OpcionesPdf = {}
 ): Promise<Uint8Array> {
+  const esCotizacion = tipo === 'cotizacion'
+  const titulo = esCotizacion ? 'COTIZACIÓN' : 'FACTURA'
+  const tituloCorto = esCotizacion ? 'Cotización' : 'Factura'
+
   const pdf = await PDFDocument.create()
   const pagina = pdf.addPage([A4.ancho, A4.alto])
 
@@ -182,7 +195,7 @@ export async function generarPdfFactura(
   }
 
   escribir(ctx, empresa.nombre, MARGEN, y, { tamano: 18, bold: true })
-  escribir(ctx, 'FACTURA', 0, y, { tamano: 16, bold: true, derecha })
+  escribir(ctx, titulo, 0, y, { tamano: 16, bold: true, derecha })
   y -= 16
 
   if (empresa.eslogan) {
@@ -201,7 +214,9 @@ export async function generarPdfFactura(
   const fecha = fechaYHora(factura.fecha)
   const datosFactura = [
     `Fecha: ${fecha}`,
-    `Estado: ${factura.estado.charAt(0).toUpperCase() + factura.estado.slice(1)}`,
+    esCotizacion || !factura.estado
+      ? ''
+      : `Estado: ${factura.estado.charAt(0).toUpperCase() + factura.estado.slice(1)}`,
     factura.esBodega ? 'Precio de bodega' : '',
   ].filter(Boolean)
 
@@ -297,7 +312,7 @@ export async function generarPdfFactura(
       const nueva = pdf.addPage([A4.ancho, A4.alto])
       ctx.pagina = nueva
       y = A4.alto - MARGEN
-      escribir(ctx, `${empresa.nombre} - Factura ${factura.numeroFactura}`, MARGEN, y, {
+      escribir(ctx, `${empresa.nombre} - ${tituloCorto} ${factura.numeroFactura}`, MARGEN, y, {
         tamano: 9,
         color: GRIS,
       })
@@ -346,16 +361,19 @@ export async function generarPdfFactura(
 
   lineasTotales.push(['TOTAL', pesos(factura.total), true, NEGRO])
 
-  if (totalAbonado > 0) {
-    lineasTotales.push(['Abonado', pesos(totalAbonado), false, VERDE])
-  }
+  // Abonado y saldo son de la venta: una cotización no los tiene.
+  if (!esCotizacion) {
+    if (totalAbonado > 0) {
+      lineasTotales.push(['Abonado', pesos(totalAbonado), false, VERDE])
+    }
 
-  lineasTotales.push([
-    saldo > 0 ? 'SALDO PENDIENTE' : 'PAGADA',
-    saldo > 0 ? pesos(saldo) : pesos(0),
-    true,
-    saldo > 0 ? ROJO : VERDE,
-  ])
+    lineasTotales.push([
+      saldo > 0 ? 'SALDO PENDIENTE' : 'PAGADA',
+      saldo > 0 ? pesos(saldo) : pesos(0),
+      true,
+      saldo > 0 ? ROJO : VERDE,
+    ])
+  }
 
   for (const [etiqueta, valor, bold, color] of lineasTotales) {
     escribir(ctx, etiqueta, 0, y, { tamano: bold ? 11 : 9, bold, color, derecha: derecha - 110 })
@@ -397,7 +415,13 @@ export async function generarPdfFactura(
   }
 
   // --- Pie ---
-  escribir(ctx, 'Gracias por su compra.', MARGEN, MARGEN + 12, { tamano: 9, color: GRIS })
+  escribir(
+    ctx,
+    esCotizacion ? 'Este documento es una cotización, no una factura de venta.' : 'Gracias por su compra.',
+    MARGEN,
+    MARGEN + 12,
+    { tamano: 9, color: GRIS }
+  )
   if (factura.usuario?.email) {
     escribir(ctx, `Atendido por: ${factura.usuario.email}`, 0, MARGEN + 12, {
       tamano: 8,
@@ -412,4 +436,9 @@ export async function generarPdfFactura(
 /** Nombre del archivo tal como lo verá quien lo reciba. */
 export function nombreArchivoFactura(numeroFactura: string): string {
   return `Factura-${numeroFactura}.pdf`
+}
+
+/** El número ya lleva el prefijo: `COT-20260925-001` → `Cotizacion-COT-20260925-001.pdf`. */
+export function nombreArchivoCotizacion(numeroCotizacion: string): string {
+  return `Cotizacion-${numeroCotizacion}.pdf`
 }

@@ -37,8 +37,19 @@ const PERMISOS = [
   { orden: 43, modulo: 'facturas', accion: 'anular', nombre: 'Anular facturas' },
   { orden: 44, modulo: 'facturas', accion: 'abonar', nombre: 'Abonar y cambiar estado (pagada/entregada)' },
 
+  // Cotizaciones siguen el mismo alcance que facturas: cada quien las suyas,
+  // y ver_todas abre la tienda entera.
+  { orden: 45, modulo: 'cotizaciones', accion: 'ver', nombre: 'Ver sus propias cotizaciones' },
+  { orden: 46, modulo: 'cotizaciones', accion: 'ver_todas', nombre: 'Ver las cotizaciones de toda la tienda' },
+  { orden: 47, modulo: 'cotizaciones', accion: 'crear', nombre: 'Crear cotizaciones' },
+
   // Reportes no distingue autoría: quien lo tiene ve las cifras completas.
   { orden: 50, modulo: 'reportes', accion: 'ver', nombre: 'Ver reportes de la tienda' },
+
+  // Liquidar es el cierre de las facturas cobradas de un vendedor y fija lo
+  // que se le paga: va aparte de facturar y de ver reportes.
+  { orden: 55, modulo: 'liquidaciones', accion: 'ver', nombre: 'Ver liquidaciones' },
+  { orden: 56, modulo: 'liquidaciones', accion: 'crear', nombre: 'Liquidar facturas' },
 
   { orden: 60, modulo: 'auditoria', accion: 'ver', nombre: 'Ver auditoría' },
 

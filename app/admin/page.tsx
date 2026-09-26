@@ -1,14 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase-client'
 import { apiFetch } from '@/lib/api-client'
+import { usePermisos } from '@/components/PermisosProvider'
 
+/** `null` cuando la persona no tiene permiso para ver esa cifra. */
 interface Stats {
-  totalProductos: number
-  totalClientes: number
-  facturasHoy: number
-  stockBajo: number
+  totalProductos: number | null
+  totalClientes: number | null
+  facturasHoy: number | null
+  stockBajo: number | null
 }
 
 interface ProductoAlerta {
@@ -21,75 +22,33 @@ interface ProductoAlerta {
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats>({
-    totalProductos: 0,
-    totalClientes: 0,
-    facturasHoy: 0,
-    stockBajo: 0,
+    totalProductos: null,
+    totalClientes: null,
+    facturasHoy: null,
+    stockBajo: null,
   })
   const [productosAlerta, setProductosAlerta] = useState<ProductoAlerta[]>([])
-  const [permisos, setPermisos] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Los permisos ya los cargó el panel al entrar: antes el tablero los
+  // volvía a pedir a /api/debug/usuario-actual en cada visita.
+  const { puede } = usePermisos()
+
   useEffect(() => {
+    // Una sola petición con las cifras ya calculadas. Antes se bajaban las
+    // listas completas de productos, clientes y facturas para contarlas.
     const loadData = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
+        const res = await apiFetch('/api/tablero')
+        if (!res.ok) return
 
-        // Obtener permisos del usuario
-        if (session?.user) {
-          const res = await apiFetch('/api/debug/usuario-actual')
-          if (res.ok) {
-            const usuario = await res.json()
-            // Owner y administrador ven los accesos rápidos completos.
-            setPermisos(
-              usuario.administraTienda
-                ? ['productos.ver', 'clientes.ver', 'facturas.ver', 'reportes.ver']
-                : usuario.permisos || []
-            )
-          }
-        }
-
-        // Las tres consultas son independientes: en secuencia el dashboard
-        // esperaba la suma de las tres en vez de la más lenta.
-        const [productosRes, clientesRes, facturasRes] = await Promise.all([
-          apiFetch('/api/productos'),
-          apiFetch('/api/clientes'),
-          apiFetch('/api/facturas'),
-        ])
-
-        const [productos, clientes, facturas] = await Promise.all([
-          productosRes.ok ? productosRes.json() : [],
-          clientesRes.ok ? clientesRes.json() : [],
-          facturasRes.ok ? facturasRes.json() : [],
-        ])
-
-        // Facturas de hoy
-        const today = new Date().toISOString().split('T')[0]
-        const facturasHoy = facturas.filter((f: any) =>
-          f.fecha.split('T')[0] === today
-        ).length
-
-        // Stock bajo: los más críticos primero (mayor déficit frente al mínimo)
-        const bajos = productos
-          .filter((p: any) => Number(p.stockActual) < Number(p.stockMinimo))
-          .map((p: any) => ({
-            id: p.id,
-            sku: p.sku,
-            nombre: p.nombre,
-            stockActual: Number(p.stockActual),
-            stockMinimo: Number(p.stockMinimo),
-          }))
-          .sort(
-            (a: ProductoAlerta, b: ProductoAlerta) =>
-              a.stockActual - a.stockMinimo - (b.stockActual - b.stockMinimo)
-          )
-
-        setProductosAlerta(bajos)
+        const datos = await res.json()
+        setProductosAlerta(datos.alertas || [])
         setStats({
-          totalProductos: productos.length,
-          totalClientes: clientes.length,
-          facturasHoy,
-          stockBajo: bajos.length,
+          totalProductos: datos.totalProductos,
+          totalClientes: datos.totalClientes,
+          facturasHoy: datos.facturasHoy,
+          stockBajo: datos.stockBajo,
         })
       } catch (error) {
         console.error('Error loading data:', error)
@@ -135,13 +94,13 @@ export default function AdminDashboard() {
       </div>
 
       {/* Alertas de stock bajo */}
-      {productosAlerta.length > 0 && permisos.includes('productos.ver') && (
+      {productosAlerta.length > 0 && puede('productos.ver') && (
         <div className="bg-white rounded-lg shadow mb-8 overflow-hidden border-l-4 border-red-500">
           <div className="flex items-center justify-between px-6 py-4 bg-red-50">
             <h2 className="text-lg font-bold text-red-800">
               ⚠️ Stock bajo mínimo
               <span className="ml-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full">
-                {productosAlerta.length}
+                {stats.stockBajo ?? productosAlerta.length}
               </span>
             </h2>
             <a href="/admin/inventario" className="text-sm text-red-700 hover:text-red-900 font-medium">
@@ -160,7 +119,7 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {productosAlerta.slice(0, 5).map((p) => {
+              {productosAlerta.map((p) => {
                 const faltante = p.stockMinimo - p.stockActual
                 return (
                   <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50">
@@ -196,9 +155,9 @@ export default function AdminDashboard() {
             </tbody>
           </table>
 
-          {productosAlerta.length > 5 && (
+          {(stats.stockBajo ?? 0) > productosAlerta.length && (
             <div className="px-6 py-3 bg-gray-50 text-sm text-gray-600 border-t">
-              y {productosAlerta.length - 5} producto{productosAlerta.length - 5 !== 1 ? 's' : ''} más —{' '}
+              y {(stats.stockBajo ?? 0) - productosAlerta.length} producto{(stats.stockBajo ?? 0) - productosAlerta.length !== 1 ? 's' : ''} más —{' '}
               <a href="/admin/reportes/inventario" className="text-blue-600 hover:text-blue-800 font-medium">
                 ver reporte completo
               </a>
@@ -211,7 +170,7 @@ export default function AdminDashboard() {
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-xl font-bold mb-4">Acciones Rápidas</h2>
           <div className="space-y-2">
-            {permisos.includes('productos.ver') && (
+            {puede('productos.ver') && (
               <a
                 href="/admin/productos/nuevo"
                 className="block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -219,7 +178,7 @@ export default function AdminDashboard() {
                 Nuevo Producto
               </a>
             )}
-            {permisos.includes('clientes.ver') && (
+            {puede('clientes.ver') && (
               <a
                 href="/admin/clientes/nuevo"
                 className="block px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
@@ -227,7 +186,7 @@ export default function AdminDashboard() {
                 Nuevo Cliente
               </a>
             )}
-            {permisos.includes('facturas.ver') && (
+            {puede('facturas.ver') && (
               <a
                 href="/admin/facturas/nueva"
                 className="block px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
@@ -235,7 +194,7 @@ export default function AdminDashboard() {
                 Nueva Factura
               </a>
             )}
-            {permisos.length === 0 && (
+            {!puede('productos.ver') && !puede('clientes.ver') && !puede('facturas.ver') && (
               <p className="text-gray-600 text-sm">No tienes permisos para crear elementos</p>
             )}
           </div>
@@ -251,7 +210,7 @@ function StatCard({
   color,
 }: {
   title: string
-  value: number
+  value: number | null
   color: 'blue' | 'green' | 'purple' | 'red'
 }) {
   const colorClasses = {
@@ -264,7 +223,8 @@ function StatCard({
   return (
     <div className={`${colorClasses[color]} border rounded-lg p-4 sm:p-6`}>
       <p className="text-xs sm:text-sm font-semibold opacity-75">{title}</p>
-      <p className="text-2xl sm:text-3xl font-bold">{value}</p>
+      {/* Sin permiso para esa cifra se muestra un guion, no un cero engañoso. */}
+      <p className="text-2xl sm:text-3xl font-bold">{value ?? '—'}</p>
     </div>
   )
 }

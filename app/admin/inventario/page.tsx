@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { PermissionProtector } from '@/components/PermissionProtector'
 import { SelectorProducto } from '@/components/Common/SelectorProducto'
 import { fechaYHora } from '@/lib/fechas'
+import { useListaPaginada } from '@/lib/use-lista-paginada'
 import { supabase } from '@/lib/supabase-client'
 import Link from 'next/link'
 
@@ -41,15 +42,30 @@ const ICONOS_TIPO: Record<string, string> = {
 }
 
 export default function InventarioPage() {
-  const [movimientos, setMovimientos] = useState<Movimiento[]>([])
   const [productos, setProductos] = useState<Producto[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   const [filtroProducto, setFiltroProducto] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('')
   const [filtroDesde, setFiltroDesde] = useState('')
   const [filtroHasta, setFiltroHasta] = useState('')
+
+  // Los 10 más recientes y el resto con "Ver más". Los filtros van al
+  // servidor, así que miran todos los movimientos de la tienda.
+  const {
+    items: movimientos,
+    total,
+    cargando: loading,
+    cargandoMas,
+    error,
+    verMas,
+    recargar,
+    hayMas,
+  } = useListaPaginada<Movimiento>('/api/inventario/movimientos', 'movimientos', {
+    productoId: filtroProducto,
+    tipo: filtroTipo,
+    fechaDesde: filtroDesde,
+    fechaHasta: filtroHasta,
+  })
 
   const [formAbierto, setFormAbierto] = useState(false)
   const [formProducto, setFormProducto] = useState('')
@@ -63,10 +79,6 @@ export default function InventarioPage() {
   useEffect(() => {
     cargarProductos()
   }, [])
-
-  useEffect(() => {
-    cargarMovimientos()
-  }, [filtroProducto, filtroTipo, filtroDesde, filtroHasta])
 
   const cargarProductos = async () => {
     try {
@@ -83,28 +95,6 @@ export default function InventarioPage() {
       )
     } catch {
       // El selector queda vacío; la tabla de movimientos sigue siendo usable.
-    }
-  }
-
-  const cargarMovimientos = async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      const params = new URLSearchParams()
-      if (filtroProducto) params.set('productoId', filtroProducto)
-      if (filtroTipo) params.set('tipo', filtroTipo)
-      if (filtroDesde) params.set('desde', filtroDesde)
-      if (filtroHasta) params.set('hasta', filtroHasta)
-
-      const res = await apiFetch(`/api/inventario/movimientos?${params.toString()}`)
-      if (!res.ok) throw new Error('Error al cargar movimientos')
-
-      setMovimientos(await res.json())
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -141,7 +131,8 @@ export default function InventarioPage() {
       setExito(`Stock actualizado: ${data.stockAntes} → ${data.stockDespues} m²`)
       setFormCantidad('')
       setFormMotivo('')
-      await Promise.all([cargarMovimientos(), cargarProductos()])
+      recargar()
+      await cargarProductos()
     } catch (err: any) {
       setErrorForm(err.message)
     } finally {
@@ -453,9 +444,29 @@ export default function InventarioPage() {
             </table>
 
             <div style={{ padding: '12px', fontSize: '12px', color: '#6b7280', borderTop: '1px solid #f3f4f6' }}>
-              Mostrando {movimientos.length} movimiento{movimientos.length !== 1 ? 's' : ''}
-              {movimientos.length === 200 && ' (máximo por consulta)'}
+              Mostrando {movimientos.length} de {total} movimiento{total !== 1 ? 's' : ''}
+              {hayFiltros ? ' que coinciden con los filtros' : ', los más recientes primero'}
             </div>
+          </div>
+        )}
+
+        {!loading && hayMas && (
+          <div style={{ textAlign: 'center', marginTop: '20px' }}>
+            <button
+              onClick={verMas}
+              disabled={cargandoMas}
+              style={{
+                padding: '10px 24px',
+                backgroundColor: 'white',
+                color: '#2563eb',
+                border: '1px solid #2563eb',
+                borderRadius: '6px',
+                cursor: cargandoMas ? 'wait' : 'pointer',
+                fontWeight: 'bold',
+              }}
+            >
+              {cargandoMas ? 'Cargando...' : `Ver más (${total - movimientos.length} restantes)`}
+            </button>
           </div>
         )}
       </div>

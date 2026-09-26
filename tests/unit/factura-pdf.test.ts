@@ -1,6 +1,11 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { generarPdfFactura, nombreArchivoFactura, type FacturaPdf } from '@/lib/factura-pdf'
+import {
+  generarPdfFactura,
+  nombreArchivoFactura,
+  nombreArchivoCotizacion,
+  type FacturaPdf,
+} from '@/lib/factura-pdf'
 
 const FACTURA: FacturaPdf = {
   numeroFactura: '20260923-001',
@@ -103,5 +108,32 @@ describe('generarPdfFactura', () => {
 describe('nombreArchivoFactura', () => {
   it('nombra el archivo con el número de la factura', () => {
     expect(nombreArchivoFactura('20260923-001')).toBe('Factura-20260923-001.pdf')
+  })
+})
+
+// Cotizaciones: mismo generador, sin estado, abonos ni saldo.
+describe('PDF de cotización', () => {
+  it('produce un PDF válido sin estado ni abonos', async () => {
+    const bytes = await generarPdfFactura(
+      { ...FACTURA, numeroFactura: 'COT-20260925-001', estado: '', anticipo: 0, abonos: undefined },
+      {},
+      { tipo: 'cotizacion' }
+    )
+
+    expect(esPdf(bytes)).toBe(true)
+  })
+
+  it('sale distinto a la factura del mismo contenido', async () => {
+    // El título, el pie y los totales cambian: si el tipo se ignorara,
+    // los dos archivos serían iguales salvo por la fecha de creación.
+    const base = { ...FACTURA, anticipo: 0, abonos: [] }
+    const factura = await generarPdfFactura(base)
+    const cotizacion = await generarPdfFactura(base, {}, { tipo: 'cotizacion' })
+
+    expect(Math.abs(factura.length - cotizacion.length)).toBeGreaterThan(20)
+  })
+
+  it('nombra el archivo con el número de la cotización', () => {
+    expect(nombreArchivoCotizacion('COT-20260925-001')).toBe('Cotizacion-COT-20260925-001.pdf')
   })
 })

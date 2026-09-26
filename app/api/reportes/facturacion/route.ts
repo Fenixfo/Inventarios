@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { exigirTienda } from '@/lib/permisos'
+import { estadosDeVenta } from '@/lib/liquidacion'
 import { diaColombiano } from '@/lib/fechas'
 export async function GET(request: NextRequest) {
   try {
@@ -48,9 +49,13 @@ export async function GET(request: NextRequest) {
 
     // Determinar qué estados filtrar
     const estadosParam = searchParams.get('estados')
-    const estadosFiltro = estadosParam
+    let estadosFiltro = estadosParam
       ? estadosParam.split(',').filter((s) => ['pagado', 'entregado', 'pendiente'].includes(s))
       : ['pagado', 'entregado']
+
+    // Las liquidadas ya estaban cobradas: cuentan con las pagadas y entregadas
+    // (si no, liquidar haría bajar las ventas del reporte).
+    estadosFiltro = estadosDeVenta(estadosFiltro)
 
     // Obtener facturas en el rango
     const facturas = await prisma.factura.findMany({

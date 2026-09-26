@@ -1,5 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { entero, normalizarBusqueda } from '@/lib/paginacion'
+
+/** La portada enseña como mucho esto de cada tienda, lo pida quien lo pida. */
+const MAXIMO_POR_TIENDA = 5
+
+/** Lo más que devuelve una tanda al filtrar: la primera de la portada (9). */
+const MAXIMO_POR_TANDA = 9
+
+/** Y en total, por si algún día hay cientos de tiendas públicas. */
+const MAXIMO_EN_PORTADA = 300
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
  * Catálogo público: los productos de todas las tiendas que hayan elegido
@@ -41,28 +54,19 @@ function respuestaCacheable(datos: unknown) {
   })
 }
 
-/** Minúsculas y sin tildes, igual que la columna `nombre_busqueda`. */
-function normalizarBusqueda(texto: string): string {
-  return texto
-    .trim()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-}
-
-/** Lee un número de la URL, con tope para que nadie pida el catálogo entero. */
-function entero(valor: string | null, porDefecto: number, maximo: number): number {
-  const n = parseInt(valor || '', 10)
-  if (!Number.isFinite(n) || n < 0) return porDefecto
-  return Math.min(n, maximo)
-}
-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const categoria = searchParams.get('categoria')
     const tienda = searchParams.get('tienda')
     const limitePorTienda = parseInt(searchParams.get('limitePorTienda') || '', 10)
+
+    // La tienda llega en la URL y la columna es uuid: un valor inventado
+    // hacía fallar la consulta con un 500. Una tienda que no existe no tiene
+    // productos, así que se responde vacío.
+    if (tienda && !UUID.test(tienda)) {
+      return respuestaCacheable({ productos: [], total: 0 })
+    }
 
     // Se busca contra la columna que la base mantiene ya normalizada, así
     // que el término se normaliza igual: "Café" y "cafe" acaban siendo lo
@@ -71,9 +75,10 @@ export async function GET(request: NextRequest) {
     const busqueda = normalizarBusqueda(searchParams.get('busqueda') || '')
     const buscando = busqueda.length >= 3
 
-    // Cuántos traer y desde dónde. El tope de 60 es para que una URL a mano
-    // no pueda pedir diez mil productos de una vez.
-    const limite = entero(searchParams.get('limite'), 9, 60)
+    // Cuántos traer y desde dónde. La portada pide 9 al filtrar y 3 por
+    // cada "Ver más", así que el tope es 9: con el de 60 que había, un
+    // ?limite=9999 escrito a mano traía casi una tienda entera de una vez.
+    const limite = entero(searchParams.get('limite'), MAXIMO_POR_TANDA, MAXIMO_POR_TANDA)
     const desde = entero(searchParams.get('desde'), 0, 100_000)
 
     const where: any = {
@@ -114,26 +119,44 @@ export async function GET(request: NextRequest) {
     // ROW_NUMBER() para cortar en la base.
     // Buscando no hay muestra por tienda: se busca en todo lo que cumpla,
     // por tandas como cualquier filtro.
+    //
+    // El corte por tienda se hace en la base con ROW_NUMBER(): antes se leían
+    // todos los productos con foto de todas las tiendas públicas y se
+    // recortaba aquí, así que cada visita a la portada pagaba el catálogo
+    // entero. Y el número por tienda tiene tope: sin él, un
+    // ?limitePorTienda=9999 escrito a mano devolvía todo de una vez.
     if (!buscando && Number.isFinite(limitePorTienda) && limitePorTienda > 0) {
+      const porTienda = Math.min(limitePorTienda, MAXIMO_POR_TIENDA)
+
+      const filas = await prisma.$queryRaw<{ id: string }[]>`
+        SELECT id FROM (
+          SELECT p.id, p.tienda_id,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY p.tienda_id ORDER BY p.created_at DESC, p.id DESC
+                 ) AS n
+            FROM public.productos p
+            JOIN public.tiendas t ON t.id = p.tienda_id
+           WHERE p.activo
+             AND p.stock_actual > 0
+             AND t.activo
+             AND t.publica
+             AND p.imagen_url IS NOT NULL
+             AND p.imagen_url <> ''
+             ${categoria ? Prisma.sql`AND p.categoria = ${categoria}` : Prisma.empty}
+             ${tienda ? Prisma.sql`AND p.tienda_id = ${tienda}::uuid` : Prisma.empty}
+        ) muestra
+        WHERE n <= ${porTienda}
+        ORDER BY tienda_id, n
+        LIMIT ${MAXIMO_EN_PORTADA}`
+
       const productos = await prisma.producto.findMany({
-        where,
+        where: { id: { in: filas.map((f) => f.id) } },
         select: SELECCION,
         orderBy: [{ tiendaId: 'asc' }, { createdAt: 'desc' }],
       })
 
-      const cuantos = new Map<string, number>()
-      const muestra = productos.filter((p) => {
-        const id = p.tienda?.id || 'sin-tienda'
-        const llevados = cuantos.get(id) || 0
-
-        if (llevados >= limitePorTienda) return false
-
-        cuantos.set(id, llevados + 1)
-        return true
-      })
-
       // En la portada no hay "ver más": el aviso invita a filtrar.
-      return respuestaCacheable({ productos: muestra, total: muestra.length })
+      return respuestaCacheable({ productos, total: productos.length })
     }
 
     // Por páginas: se traen `limite` productos y se informa del total, que es

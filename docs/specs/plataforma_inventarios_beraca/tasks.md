@@ -2118,6 +2118,248 @@ una pendiente no", en verde.
 
 ---
 
+### TASK-60: Productos del panel por páginas de 10
+
+- **Cubre:** RNF (rendimiento)
+- **Componente:** app/api/productos, app/admin/productos, lib/paginacion.ts
+- **Tipo:** mejora
+- **Estado:** completada (2026-09-25)
+
+**Descripción:**
+/admin/productos traía todos los productos con todas sus columnas (26, incluido el costo).
+Debe traer los 10 añadidos más recientemente, con "Ver más" de 10 en 10, y buscar por nombre
+en el servidor al pulsar Enter, como el catálogo público.
+
+**Criterio de done:**
+- [x] Los 10 más recientes; "Ver más" trae los 10 siguientes
+- [x] Búsqueda por nombre al pulsar Enter, mínimo 3 letras, en toda la tienda
+- [x] La búsqueda se suma al filtro de categoría
+- [x] Columnas: nombre, categoría, medida, precio público, precio de bodega, stock, m² por caja
+
+**Cómo quedó:**
+`GET /api/productos?limite=10&desde=N&busqueda=&categoria=` responde `{ productos, total,
+categorias }` (las categorías solo con la primera página) con 9 columnas. Sin `?limite=` sigue
+devolviendo la lista completa, porque de ella dependen la factura, el tablero, el inventario y
+los formularios de producto. Piezas reutilizables para las tareas siguientes:
+`lib/paginacion.ts` (lectura de página y búsqueda), `lib/use-lista-paginada.ts` (carga y
+"Ver más") y `components/Common/BuscadorEnter.tsx`. La columna SKU salió de la tabla.
+Pruebas: `tests/unit/paginacion.test.ts` (7) y `tests/integration/api.test.ts` → "listado de
+productos por páginas" (5), en verde.
+
+---
+
+### TASK-61: Movimientos de inventario por páginas de 10
+
+- **Cubre:** RNF (rendimiento)
+- **Componente:** app/api/inventario/movimientos, app/admin/inventario
+- **Tipo:** mejora
+- **Estado:** completada (2026-09-25)
+
+**Criterio de done:**
+- [x] Los 10 más recientes; "Ver más" trae los 10 siguientes
+- [x] Los filtros actuales siguen funcionando, ahora en el servidor
+
+**Cómo quedó:**
+`GET /api/inventario/movimientos?limite=10&desde=N` responde `{ movimientos, total }`. El
+filtro de fechas pasó a llamarse `fechaDesde`/`fechaHasta` (`desde` es el punto de la página
+en todos los listados) y ahora corta los días en hora de Colombia: antes el día empezaba a
+medianoche UTC y un movimiento de las 8 p. m. quedaba en el día siguiente. Tras registrar un
+movimiento, la tabla vuelve a la primera página (`recargar` del hook). Sin `?limite=` sigue la
+respuesta anterior. Pruebas: `tests/integration/api.test.ts` → "GET /api/inventario/movimientos"
+(3 nuevas), en verde.
+
+---
+
+### TASK-62: Clientes por páginas de 10
+
+- **Cubre:** RNF (rendimiento)
+- **Componente:** app/api/clientes, app/admin/clientes
+- **Tipo:** mejora
+- **Estado:** completada (2026-09-25)
+
+**Criterio de done:**
+- [x] Los 10 más recientes; "Ver más" trae los 10 siguientes
+- [x] Búsqueda al pulsar Enter, en el servidor
+
+**Cómo quedó:**
+`GET /api/clientes?limite=10&desde=N&busqueda=` responde `{ clientes, total }` con las 7
+columnas de la tabla. Busca por nombre (sin distinguir mayúsculas; las tildes sí cuentan,
+porque clientes no tiene columna de búsqueda) o por cédula. Nuevo `?cedula=` exacto: los
+formularios de nuevo y editar cliente lo usan para avisar de una cédula repetida, en vez de
+bajar todos los clientes. No filtra por activo, porque el índice único también cuenta los
+inactivos. Sin `?limite=` sigue la lista completa (la usan la factura y el tablero).
+Pruebas: `tests/integration/api.test.ts` → "listado de clientes por páginas" (3), en verde.
+
+---
+
+### TASK-63: Facturas por páginas de 10
+
+- **Cubre:** RNF (rendimiento)
+- **Componente:** app/api/facturas, app/admin/facturas
+- **Tipo:** mejora
+- **Estado:** completada (2026-09-25)
+
+**Criterio de done:**
+- [x] Las 10 más recientes; "Ver más" trae las 10 siguientes
+- [x] Búsqueda y filtro de estado en el servidor
+- [x] Quien no tiene `facturas.ver_todas` sigue viendo solo las suyas
+
+**Cómo quedó:**
+`GET /api/facturas?limite=10&desde=N&busqueda=&estado=` responde `{ facturas, total }`. Busca
+por número de factura, nombre del cliente o cédula (mínimo 3 caracteres, al pulsar Enter).
+La búsqueda y el estado se añaden al filtro de alcance (tienda y, sin `ver_todas`, autor),
+así que solo pueden acotar lo que alguien ve, nunca ampliarlo. Sin `?limite=` sigue la
+respuesta anterior (la usa el tablero).
+Pruebas: `tests/integration/api.test.ts` → "listado de facturas por páginas" (4), en verde.
+
+---
+
+### TASK-64: Módulo de cotizaciones
+
+- **Cubre:** RF-7 (facturación)
+- **Componente:** app/api/cotizaciones, app/admin/cotizaciones, components/InvoiceForm
+- **Tipo:** feature
+- **Estado:** completada (2026-09-25)
+
+**Descripción:**
+Cotizar como se factura, pero sin descontar inventario, sin abonos y sin estados de pago.
+Las cotizaciones solo se guardan para consultarlas.
+
+**Criterio de done:**
+- [x] Tablas `cotizaciones` y `cotizaciones_items`, aparte de las facturas
+- [x] Consecutivo propio por tienda: `COT-AAAAMMDD-001`, con el día de Colombia
+- [x] Mismo formulario de la factura (`InvoiceForm modo="cotizacion"`), sin abono inicial
+      ni aviso de stock
+- [x] Guardar no descuenta stock ni crea movimientos de inventario
+- [x] Listado de 10 en 10 con "Ver más" y búsqueda por número, cliente o cédula; detalle con
+      el total en palabras
+- [x] Permisos `cotizaciones.ver`, `cotizaciones.ver_todas` y `cotizaciones.crear`, con el
+      mismo alcance que facturas; la plantilla Vendedor los incluye (ver y crear)
+- [x] SQL ejecutado y pruebas de integración en verde
+
+**Cómo quedó:**
+Tablas aparte y no una bandera en `facturas`: así ningún reporte, saldo, abono ni el
+consecutivo de facturas puede contar una cotización. Quien solo tenga `cotizaciones.crear`
+puede leer productos y clientes y crear un cliente nuevo desde el formulario, igual que al
+facturar. Entrada "Cotizaciones" en el menú lateral.
+
+Después se añadieron **Descargar PDF** y **Enviar por WhatsApp** en el detalle, reutilizando lo
+de facturas: `GET /api/cotizaciones/[id]/pdf` usa `generarPdfFactura(…, { tipo: 'cotizacion' })`
+(título COTIZACIÓN, sin estado, abonado ni saldo, pie "no es una factura de venta") y
+`mensajeFactura(…, { tipo: 'cotizacion' })` para el resumen de WhatsApp. La ruta del PDF
+aplica el mismo alcance que el detalle (sin `ver_todas`, solo las propias).
+Pruebas: `tests/integration/api.test.ts` → "cotizaciones" (7) y la de 401 sin sesión;
+`tests/unit/factura-pdf.test.ts` (3 nuevas) y `tests/unit/whatsapp.test.ts` (1 nueva), en verde.
+
+---
+
+### TASK-65: Cerrar la API REST de Supabase a la clave pública
+
+- **Cubre:** RNF-3 (seguridad)
+- **Componente:** base de datos (RLS)
+- **Tipo:** seguridad
+- **Estado:** completada (2026-09-25)
+
+**Descripción:**
+Supabase publica cada tabla de `public` en su API REST, y la clave `anon` va en el JavaScript
+que descarga cualquier visitante. Con RLS apagado en las 14 tablas principales, esa clave
+podía leer, crear, modificar y borrar facturas, clientes, productos, usuarios y permisos de
+todas las tiendas, sin pasar por ninguna comprobación de la aplicación. Se detectó al crear
+las tablas de cotizaciones, cuando Supabase avisó de que quedarían sin RLS.
+
+**Criterio de done:**
+- [x] RLS activado en todas las tablas de `public`, sin políticas (anon y authenticated no ven nada)
+- [x] La aplicación sigue funcionando: entra por Prisma como `postgres`, dueño de las tablas
+- [x] Comprobado desde fuera: la clave pública recibe `[]` en todas las tablas
+
+**Cómo quedó:**
+`docs/sql/activar_rls.sql`, ejecutado. La clave anon solo se usa para iniciar sesión, que no
+pasa por estas tablas; revisado que ningún código consulta tablas con el cliente de Supabase.
+**Para tablas nuevas:** crearlas siempre con RLS ("Run and enable RLS" en Supabase), o la API
+REST las vuelve a publicar abiertas.
+
+---
+
+### TASK-67: Liquidaciones de vendedores
+
+- **Cubre:** RF-7 (facturación), RF de reportes
+- **Componente:** app/api/liquidaciones, app/admin/reportes/liquidaciones, lib/liquidacion.ts,
+  app/api/facturas
+- **Tipo:** feature
+- **Estado:** completada (2026-09-25)
+
+**Descripción:**
+Liquidar es el final de una factura cobrada: se calcula la ganancia y se le paga al vendedor un
+porcentaje. La factura no se borra: queda en estado "liquidado".
+
+**Decisiones (confirmadas):**
+- Solo se liquidan facturas **pagadas o entregadas**.
+- Ganancia = **venta sin impuesto** (subtotal − descuento) − costo.
+- **Una liquidación por vendedor**, con varias facturas.
+- Porcentaje **30 por defecto, editable** en cada liquidación; queda guardado el que se usó.
+- Solo dueño, administrador o quien tenga `liquidaciones.ver` / `liquidaciones.crear`.
+
+**Criterio de done:**
+- [x] Al facturar, cada línea guarda `costoUnitario` (el costo de ese momento) y
+      `cantidadConCosto` (lo que había en inventario). Ej.: vende 25, había 10 → 10 con costo, 15
+      pendientes
+- [x] Al liquidar se pide el costo de lo pendiente; se propone el costo actual si el producto
+      existe (aunque tenga stock 0); uno personalizado se escribe a mano
+- [x] Sin todos los costos no se liquida; el servidor lo vuelve a calcular todo
+- [x] Pago = porcentaje de la ganancia total, nunca negativo
+- [x] La factura liquidada no admite cambios, abonos ni anulación, y no se liquida dos veces
+- [x] Los reportes cuentan las liquidadas con las pagadas y entregadas
+- [x] Reportes → Liquidaciones: listado, nueva y detalle; entrada en el menú
+- [x] SQL ejecutado y pruebas de integración en verde
+
+**Cómo quedó:**
+Pruebas: `tests/unit/liquidacion.test.ts` (17) y `tests/integration/api.test.ts` →
+"liquidaciones" (8), más las de facturas y reportes que se tocaron (16), en verde.
+Tabla `liquidaciones`, `facturas.liquidacion_id` y tres columnas en `facturas_items`
+(`costo_unitario`, `cantidad_con_costo`, `costo_liquidacion`). Las facturas de antes no tienen
+costo guardado: salen con todo pendiente y el costo actual como sugerencia. Cálculos en
+`lib/liquidacion.ts` (17 pruebas unitarias).
+
+---
+
+### TASK-68: El PDF de la cotización se abre en una pestaña nueva
+
+- **Cubre:** RF-7
+- **Componente:** app/admin/cotizaciones/[id]
+- **Tipo:** mejora
+- **Estado:** completada (2026-09-25)
+
+**Cómo quedó:**
+"Descargar PDF" abre una pestaña nueva con el PDF en el visor del navegador (verlo, imprimirlo
+o guardarlo), como la factura. La pestaña se abre en el mismo clic y luego carga el archivo: si
+se abriera después de esperar al servidor, el navegador la bloquearía como ventana emergente.
+Prueba: `e2e/admin.spec.ts` → "el PDF de una cotización también se abre en una sola pestaña".
+Comprueba la pestaña y el PDF, no su contenido: Chromium sin ventana no trae visor de PDF.
+
+---
+
+### TASK-66: El PDF y los abonos de una factura respetan `facturas.ver_todas`
+
+- **Cubre:** RNF-3 (seguridad)
+- **Componente:** app/api/facturas/[id]/pdf, app/api/abonos/[id]
+- **Tipo:** seguridad
+- **Estado:** completada (2026-09-25)
+
+**Descripción:**
+El detalle de una factura ya impedía abrir las ajenas a quien no tiene `ver_todas`, pero su
+PDF y sus abonos solo filtraban por tienda: con el enlace de una factura de otro vendedor de
+la misma tienda, se podía descargar su PDF y ver sus pagos.
+
+**Cómo quedó:**
+El PDF responde 403 si la factura es ajena y no se tiene `ver_todas`; los abonos se filtran
+por el autor de la factura con la misma regla. Nueva comprobación estática en
+`tests/unit/endpoints-protegidos.test.ts`: las rutas que abren una factura o cotización suelta
+(detalle, PDF, abonos) tienen que revisar `ver_todas`, para que no vuelva a pasar. Además, las
+pruebas del PDF buscaban la última factura de toda la base, que podía ser de otra tienda;
+ahora la buscan en la tienda de las pruebas.
+
+---
+
 ---
 
 ## 📊 Resumen de Fases

@@ -33,6 +33,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Una liquidada ya está cerrada: un abono más cambiaría lo que se liquidó.
+    if (factura.estado === 'liquidado') {
+      return NextResponse.json(
+        { error: 'La factura ya está liquidada y no admite abonos' },
+        { status: 409 }
+      )
+    }
+
     const abono = await prisma.abono.create({
       data: {
         facturaId,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { exigirTienda } from '@/lib/permisos'
+import { exigirTienda, veTodasLasFacturas } from '@/lib/permisos'
 import { generarPdfFactura, nombreArchivoFactura } from '@/lib/factura-pdf'
 import { fechaYHora, soloFecha, soloHora } from '@/lib/fechas'
 import { montoEnPalabras } from '@/lib/numero-a-palabras'
@@ -10,7 +10,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { tiendaId, error: sinPermiso } = await exigirTienda(request, 'facturas.ver')
+    const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, 'facturas.ver')
     if (sinPermiso) return sinPermiso
 
     const { id } = await params
@@ -52,6 +52,15 @@ export async function GET(
       return NextResponse.json(
         { error: 'Factura no encontrada' },
         { status: 404 }
+      )
+    }
+
+    // El mismo alcance que el detalle: sin 'facturas.ver_todas' solo se
+    // descargan las propias. Antes bastaba con tener el enlace de una ajena.
+    if (!veTodasLasFacturas(usuario) && factura.usuarioId !== usuario.id) {
+      return NextResponse.json(
+        { error: 'No tienes permiso para ver esta factura' },
+        { status: 403 }
       )
     }
 
