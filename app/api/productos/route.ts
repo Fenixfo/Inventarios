@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { tiendaId, error: sinPermiso } = await exigirTienda(request, 'productos.editar')
+    const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, 'productos.editar')
     if (sinPermiso) return sinPermiso
 
     const data = await request.json()
@@ -175,10 +175,11 @@ export async function PUT(request: NextRequest) {
     }
 
     // Se comprueba que el producto sea de la tienda activa antes de tocarlo:
-    // el identificador viaja en el cuerpo y podría ser de otra tienda.
+    // el identificador viaja en el cuerpo y podría ser de otra tienda. Se
+    // trae el stock actual para saber, más abajo, si el formulario lo cambió.
     const propio = await prisma.producto.findFirst({
       where: { id, tiendaId },
-      select: { id: true },
+      select: { stockActual: true },
     })
 
     if (!propio) {
@@ -193,6 +194,10 @@ export async function PUT(request: NextRequest) {
       precioUnitarioUpdatedAt: new Date(),
       stockActual: parseFloat(data.stockActual || 0),
       stockMinimo: parseFloat(data.stockMinimo || 0),
+    }
+
+    if (updateData.stockActual < 0) {
+      return NextResponse.json({ error: 'El stock no puede ser negativo' }, { status: 400 })
     }
 
     if (data.dimensiones) updateData.dimensiones = data.dimensiones
@@ -222,10 +227,39 @@ export async function PUT(request: NextRequest) {
     // se perdía silenciosamente.
     if (data.imagenUrl !== undefined) updateData.imagenUrl = data.imagenUrl || null
 
-    const producto = await prisma.producto.update({
-      where: { id },
-      data: updateData,
+    // Redondeado a los mismos dos decimales que guarda la base: si no, un
+    // 1000 que llega como 1000.00 se vería como un cambio y registraría un
+    // ajuste de la nada.
+    const stockAntes = Math.round(Number(propio.stockActual) * 100) / 100
+    const stockDespues = Math.round(updateData.stockActual * 100) / 100
+
+    const producto = await prisma.$transaction(async (tx) => {
+      const actualizado = await tx.producto.update({
+        where: { id },
+        data: updateData,
+      })
+
+      // Editar la cantidad aquí es, en el fondo, el mismo ajuste manual que
+      // se hace desde Inventario: sin este registro, el historial de stock
+      // tendría huecos que nadie podría explicar después.
+      if (stockDespues !== stockAntes) {
+        await tx.inventarioMovimiento.create({
+          data: {
+            productoId: id,
+            tipo: 'ajuste',
+            cantidad: Math.round(Math.abs(stockDespues - stockAntes) * 100) / 100,
+            stockAntes,
+            stockDespues,
+            referenciaTipo: 'edicion_producto',
+            motivo: 'Ajuste de stock al editar el producto',
+            usuarioId: usuario.id,
+          },
+        })
+      }
+
+      return actualizado
     })
+
     return NextResponse.json(producto)
   } catch (error: any) {
     if (error?.code === 'P2002') {

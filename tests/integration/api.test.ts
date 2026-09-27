@@ -1195,6 +1195,148 @@ describe('precios de bodega', () => {
   })
 })
 
+describe('PUT /api/productos registra el ajuste en inventario', () => {
+  // Un producto propio, aparte del compartido por el resto de la suite: sus
+  // pruebas cuentan con un stock concreto entre unas y otras, y mezclarlo con
+  // el ajuste de estas lo dejaría en un valor impredecible para las demás.
+  let id: string
+  const sku = `TEST-EDIT-${Date.now().toString().slice(-8)}`
+
+  beforeAll(async () => {
+    const producto = await prisma.producto.create({
+      data: {
+        tiendaId,
+        sku,
+        nombre: `${MARCA} producto para editar`,
+        categoria: 'ceramica',
+        precioUnitario: 40000,
+        stockActual: 100,
+        stockMinimo: 5,
+        activo: true,
+      },
+      select: { id: true },
+    })
+    id = producto.id
+  })
+
+  /**
+   * El formulario de edición manda el producto completo, no solo el stock:
+   * se reenvían los mismos valores y solo se pisan los que trae `cambios`.
+   */
+  const editar = (cambios: Record<string, unknown>) =>
+    api('/api/productos', {
+      method: 'PUT',
+      body: JSON.stringify({
+        id,
+        sku,
+        nombre: `${MARCA} producto para editar`,
+        categoria: 'ceramica',
+        precioUnitario: 40000,
+        stockActual: 100,
+        stockMinimo: 5,
+        ...cambios,
+      }),
+    })
+
+  it('cambiar el stock crea un ajuste con el usuario y queda visible por producto', async () => {
+    const { status, data } = await editar({ stockActual: 130 })
+
+    expect(status).toBe(200)
+    expect(Number(data.stockActual)).toBe(130)
+
+    const movimiento = await prisma.inventarioMovimiento.findFirst({
+      where: { productoId: id },
+      orderBy: { fechaMovimiento: 'desc' },
+    })
+
+    expect(movimiento).not.toBeNull()
+    expect(movimiento!.tipo).toBe('ajuste')
+    expect(Number(movimiento!.cantidad)).toBe(30)
+    expect(Number(movimiento!.stockAntes)).toBe(100)
+    expect(Number(movimiento!.stockDespues)).toBe(130)
+    expect(movimiento!.referenciaTipo).toBe('edicion_producto')
+    expect(movimiento!.motivo).toBeTruthy()
+    expect(movimiento!.usuarioId).not.toBeNull()
+
+    const { data: listado } = await api(`/api/inventario/movimientos?productoId=${id}`)
+    expect(listado.some((m: any) => m.id === movimiento!.id)).toBe(true)
+  })
+
+  it('editar otro campo sin tocar el stock no crea ningún movimiento', async () => {
+    const antes = await prisma.inventarioMovimiento.count({ where: { productoId: id } })
+
+    const { status } = await editar({ stockActual: 130, nombre: `${MARCA} producto renombrado` })
+
+    expect(status).toBe(200)
+    expect(await prisma.inventarioMovimiento.count({ where: { productoId: id } })).toBe(antes)
+  })
+
+  it('bajar el stock registra un ajuste con la cantidad en negativo entendida como salida', async () => {
+    const { status } = await editar({ stockActual: 70 })
+    expect(status).toBe(200)
+
+    const movimiento = await prisma.inventarioMovimiento.findFirst({
+      where: { productoId: id },
+      orderBy: { fechaMovimiento: 'desc' },
+    })
+
+    expect(Number(movimiento!.stockAntes)).toBe(130)
+    expect(Number(movimiento!.stockDespues)).toBe(70)
+    expect(Number(movimiento!.cantidad)).toBe(60)
+  })
+
+  it('rechaza dejar el stock en negativo, sin tocar el producto ni el inventario', async () => {
+    const antes = await prisma.producto.findUnique({ where: { id }, select: { stockActual: true } })
+    const movimientosAntes = await prisma.inventarioMovimiento.count({ where: { productoId: id } })
+
+    const { status, data } = await editar({ stockActual: -5 })
+
+    expect(status).toBe(400)
+    expect(data.error).toMatch(/negativo/i)
+
+    const despues = await prisma.producto.findUnique({ where: { id }, select: { stockActual: true } })
+    expect(Number(despues!.stockActual)).toBe(Number(antes!.stockActual))
+    expect(await prisma.inventarioMovimiento.count({ where: { productoId: id } })).toBe(movimientosAntes)
+  })
+
+  it('un producto de otra tienda no se puede editar ni deja rastro en inventario', async () => {
+    const otraTienda = await prisma.tienda.create({
+      data: {
+        nombre: `${MARCA} tienda ajena`,
+        codigo: Date.now().toString(36).slice(-6).toUpperCase(),
+      },
+      select: { id: true },
+    })
+    const ajeno = await prisma.producto.create({
+      data: {
+        tiendaId: otraTienda.id,
+        sku: `TEST-AJENO-${Date.now().toString().slice(-8)}`,
+        nombre: `${MARCA} producto de otra tienda`,
+        categoria: 'ceramica',
+        precioUnitario: 1000,
+        stockActual: 50,
+        activo: true,
+      },
+      select: { id: true },
+    })
+
+    const { status } = await api('/api/productos', {
+      method: 'PUT',
+      body: JSON.stringify({
+        id: ajeno.id,
+        sku: 'no importa',
+        nombre: 'no importa',
+        categoria: 'ceramica',
+        precioUnitario: 1000,
+        stockActual: 999,
+      }),
+    })
+
+    expect(status).toBe(404)
+    expect(await prisma.inventarioMovimiento.count({ where: { productoId: ajeno.id } })).toBe(0)
+  })
+})
+
 // TASK-60. /admin/productos trae de 10 en 10 y solo las columnas que muestra.
 describe('listado de productos por páginas', () => {
   it('trae 10, el total y solo las columnas de la tabla', async () => {

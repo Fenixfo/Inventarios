@@ -359,6 +359,9 @@ export default function EditProductoPage() {
                 required
                 style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
               />
+              <small style={{ color: '#6b7280', fontSize: '12px' }}>
+                Si lo cambias, queda en el historial de Inventario.
+              </small>
             </div>
 
             <div>

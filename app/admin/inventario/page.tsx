@@ -404,7 +404,7 @@ export default function InventarioPage() {
                     </td>
                     <td style={{ padding: '12px', fontSize: '12px', maxWidth: '220px' }}>
                       {m.motivo || '—'}
-                      {m.referenciaTipo === 'factura' && (
+                      {(m.referenciaTipo === 'factura' || m.referenciaTipo === 'edicion_producto') && (
                         <span style={{ display: 'inline-block', marginLeft: '6px', backgroundColor: '#e0e7ff', color: '#3730a3', padding: '2px 6px', borderRadius: '4px', fontSize: '10px' }}>
                           auto
                         </span>

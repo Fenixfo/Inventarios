@@ -3,18 +3,11 @@ import type { NextConfig } from "next";
 /**
  * Cabeceras de seguridad para todas las respuestas.
  *
- * La CSP es deliberadamente corta: bloquea que la aplicación se meta en un
- * iframe ajeno (clickjacking), los plugins y el cambio de <base>, pero no
- * restringe los scripts. Hacerlo en Next.js exige un nonce por petición
- * generado en el proxy; es un paso aparte porque, mal hecho, deja la página
- * en blanco.
+ * La Content-Security-Policy de las páginas no está aquí: lleva un nonce
+ * por petición y la pone el proxy (proxy.ts, lib/csp.ts).
  */
 const cabecerasDeSeguridad = [
   { key: "X-Frame-Options", value: "DENY" },
-  {
-    key: "Content-Security-Policy",
-    value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
-  },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   // La app no usa cámara, micrófono ni ubicación: que ningún script pueda pedirlos.
@@ -25,7 +18,20 @@ const cabecerasDeSeguridad = [
 
 const nextConfig: NextConfig = {
   async headers() {
-    return [{ source: "/(.*)", headers: cabecerasDeSeguridad }];
+    return [
+      { source: "/(.*)", headers: cabecerasDeSeguridad },
+      // La API responde JSON y PDF: no ejecuta scripts, así que le basta una
+      // política corta que no la deje meter en un iframe ni cargar plugins.
+      {
+        source: "/api/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+          },
+        ],
+      },
+    ];
   },
 };
 
