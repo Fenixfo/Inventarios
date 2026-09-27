@@ -402,3 +402,70 @@ test.describe('Configuración', () => {
     await expect(titulo.or(sinPermiso).first()).toBeVisible({ timeout: 30000 })
   })
 })
+
+// Solo lectura: se abren las confirmaciones y se cancelan. Nada se guarda,
+// para no cambiarle los permisos a nadie de la tienda de pruebas.
+test.describe('Usuarios', () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page)
+    await page.goto('/admin/usuarios')
+    await expect(page.getByRole('heading', { name: /gestión de usuarios/i })).toBeVisible({
+      timeout: 30000,
+    })
+  })
+
+  /** La casilla de la primera persona a la que se le pueden cambiar permisos. */
+  async function primerSeleccionable(page: Page) {
+    await expect(page.getByRole('heading', { name: '1. ¿A quién?' })).toBeVisible()
+    const casilla = page.locator('tbody input[type="checkbox"]:not([disabled])').first()
+    test.skip((await casilla.count()) === 0, 'La tienda de pruebas no tiene usuarios seleccionables')
+    return casilla
+  }
+
+  test('muestra los dos pasos con usuarios, plantillas y permisos', async ({ page }) => {
+    await expect(page.getByRole('heading', { name: '1. ¿A quién?' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '2. ¿Qué puede hacer?' })).toBeVisible()
+    await expect(page.locator('tbody tr').first()).toBeVisible()
+    // Sin nada marcado no se puede guardar ni quitar.
+    await expect(page.getByRole('button', { name: 'Añadir permisos' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Quitar permisos' })).toHaveCount(0)
+  })
+
+  test('marcar un usuario y un permiso lleva a la confirmación, y cancelar no guarda', async ({ page }) => {
+    const casilla = await primerSeleccionable(page)
+    const correo = (await casilla.locator('xpath=ancestor::tr/td[2]').textContent())?.trim() || ''
+
+    await casilla.check()
+    await page.locator('label').filter({ has: page.locator('input[type="checkbox"]') }).first().click()
+    await expect(page.getByText(/1 usuario · 1 permiso/)).toBeVisible()
+
+    await page.getByRole('button', { name: 'Añadir permisos' }).click()
+    await expect(page.getByRole('heading', { name: 'Confirmar asignación' })).toBeVisible()
+    await expect(page.getByRole('listitem').filter({ hasText: correo })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Cancelar' }).click()
+    await expect(page.getByRole('heading', { name: 'Confirmar asignación' })).toHaveCount(0)
+    // La selección sigue ahí para corregirla.
+    await expect(casilla).toBeChecked()
+
+    await page.getByRole('button', { name: 'Limpiar' }).click()
+    await expect(casilla).not.toBeChecked()
+  })
+
+  test('sacar de la tienda pide confirmación con la persona marcada', async ({ page }) => {
+    const casilla = await primerSeleccionable(page)
+    const correo = (await casilla.locator('xpath=ancestor::tr/td[2]').textContent())?.trim() || ''
+
+    await casilla.check()
+    const sacar = page.getByRole('button', { name: 'Sacar de la tienda' })
+    test.skip(await sacar.isDisabled(), 'El usuario de prueba no puede sacar a esta persona')
+
+    await sacar.click()
+    await expect(page.getByRole('heading', { name: 'Sacar de la tienda' })).toBeVisible()
+    await expect(page.getByRole('listitem').filter({ hasText: correo })).toBeVisible()
+    await expect(page.getByText(/no se borra su cuenta/i)).toBeVisible()
+
+    await page.getByRole('button', { name: 'Cancelar' }).click()
+    await expect(page.getByRole('heading', { name: 'Sacar de la tienda' })).toHaveCount(0)
+  })
+})

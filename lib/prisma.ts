@@ -1,3 +1,4 @@
+import 'server-only'
 import { PrismaClient } from '@prisma/client'
 
 // Una sola instancia para toda la app. Sin esto, cada ruta crea su propio

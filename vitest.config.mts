@@ -9,6 +9,12 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./', import.meta.url)),
+      // `server-only` falla fuera de los componentes de servidor de Next, y
+      // las pruebas importan lib/prisma y lib/permisos directamente: se usa
+      // la versión vacía que el mismo paquete entrega al servidor.
+      'server-only': fileURLToPath(
+        new URL('./node_modules/server-only/empty.js', import.meta.url)
+      ),
     },
   },
   test: {
