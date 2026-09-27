@@ -101,18 +101,17 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
       <div
         className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 md:pl-8"
         style={{
-          backgroundColor: 'var(--white-off)',
-          borderBottom: '1px solid var(--gray-light)',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-          color: 'var(--black-primary)',
+          backgroundColor: 'var(--black-primary)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+          color: 'white',
         }}
       >
         <button
           onClick={() => setMenuAbierto(true)}
           aria-label="Abrir menú"
           aria-expanded={menuAbierto}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xl md:hidden"
-          style={{ backgroundColor: 'var(--beige-light)' }}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xl text-white md:hidden"
+          style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
         >
           ☰
         </button>

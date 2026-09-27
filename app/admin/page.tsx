@@ -80,6 +80,26 @@ export default function AdminDashboard() {
         <StatCard icon="⚠️" title="Stock Bajo" value={stats.stockBajo} />
       </div>
 
+      {/* Accesos rápidos: sin título encima, igual que en el diseño de
+          referencia — son autoexplicativos. */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 sm:mb-8">
+        {puede('productos.ver') && (
+          <Link href="/admin/productos/nuevo" className="btn-quick">
+            + Nuevo Producto
+          </Link>
+        )}
+        {puede('clientes.ver') && (
+          <Link href="/admin/clientes/nuevo" className="btn-quick">
+            + Nuevo Cliente
+          </Link>
+        )}
+        {puede('facturas.ver') && (
+          <Link href="/admin/facturas/nueva" className="btn-quick">
+            + Nueva Factura
+          </Link>
+        )}
+      </div>
+
       {/* Alertas de stock bajo */}
       {productosAlerta.length > 0 && puede('productos.ver') && (
         <div className="card mb-8" style={{ padding: 0, overflow: 'hidden' }}>
@@ -152,31 +172,11 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="card">
-        <h2 className="card-title mb-4">Acciones Rápidas</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {puede('productos.ver') && (
-            <Link href="/admin/productos/nuevo" className="btn-quick">
-              + Nuevo Producto
-            </Link>
-          )}
-          {puede('clientes.ver') && (
-            <Link href="/admin/clientes/nuevo" className="btn-quick">
-              + Nuevo Cliente
-            </Link>
-          )}
-          {puede('facturas.ver') && (
-            <Link href="/admin/facturas/nueva" className="btn-quick">
-              + Nueva Factura
-            </Link>
-          )}
-          {!puede('productos.ver') && !puede('clientes.ver') && !puede('facturas.ver') && (
-            <p className="text-sm" style={{ color: 'var(--gray-secondary)' }}>
-              No tienes permisos para crear elementos
-            </p>
-          )}
-        </div>
-      </div>
+      {!puede('productos.ver') && !puede('clientes.ver') && !puede('facturas.ver') && (
+        <p className="text-sm" style={{ color: 'var(--gray-secondary)' }}>
+          No tienes permisos para crear elementos
+        </p>
+      )}
     </div>
   )
 }

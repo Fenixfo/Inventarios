@@ -2,7 +2,7 @@
 
 import { Header } from '@/components/Layout/Header'
 import { useCart } from '@/hooks/useCart'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import type { Producto } from '@/components/catalogo/tipos'
 import { useCatalogo } from '@/components/catalogo/useCatalogo'
@@ -11,9 +11,16 @@ import { TarjetaProducto } from '@/components/catalogo/TarjetaProducto'
 import { FichaProducto } from '@/components/catalogo/FichaProducto'
 import { DialogoCantidad } from '@/components/catalogo/DialogoCantidad'
 import { DialogoOtraTienda } from '@/components/catalogo/DialogoOtraTienda'
+import { LoginModal } from '@/components/auth/LoginModal'
+import { RegisterModal } from '@/components/auth/RegisterModal'
 
 export default function Catalogo() {
   const { carrito, agregarAlCarrito, tiendaDelCarrito, esDeOtraTienda, vaciarCarrito } = useCart()
+  const [loginAbierto, setLoginAbierto] = useState(false)
+  const [registroAbierto, setRegistroAbierto] = useState(false)
+  // Botón "▲" flotante: aparece al bajar al catálogo, igual que en la portada
+  // de referencia, para volver a la portada sin tener que hacer scroll a mano.
+  const [mostrarSubir, setMostrarSubir] = useState(false)
   const {
     productos,
     total,
@@ -90,10 +97,66 @@ export default function Catalogo() {
     setAAgregar(null)
   }
 
+  const irAlCatalogo = () => document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth' })
+  const irArriba = () => document.getElementById('portada')?.scrollIntoView({ behavior: 'smooth' })
+
+  useEffect(() => {
+    const alHacerScroll = () => {
+      const catalogo = document.getElementById('catalogo')
+      if (!catalogo) return
+      setMostrarSubir(window.scrollY > catalogo.offsetTop - 100)
+    }
+    window.addEventListener('scroll', alHacerScroll)
+    return () => window.removeEventListener('scroll', alHacerScroll)
+  }, [])
+
   return (
     <>
       <Header compact={true} showLogo={false} />
-      <main className="min-h-screen py-6 sm:py-12" style={{ backgroundColor: 'var(--beige-light)' }}>
+
+      {/* Portada: primero lo que ve quien llega al sitio, antes del catálogo. */}
+      <section
+        id="portada"
+        className="flex items-center justify-center p-4"
+        style={{ minHeight: '100vh', backgroundColor: 'var(--beige-light)' }}
+      >
+        <div style={{ width: '100%', maxWidth: 440 }} className="text-center">
+          <h1 style={{ margin: '0 0 8px 0', fontSize: 'clamp(48px, 10vw, 72px)', fontWeight: 'bold', color: 'var(--black-primary)' }}>
+            Beraca
+          </h1>
+          <p style={{ margin: '0 0 32px 0', fontSize: 18, color: 'var(--gray-secondary)' }}>
+            Gestión de Inventarios
+          </p>
+
+          <p style={{ margin: '0 0 32px 0', fontSize: 16, color: 'var(--black-primary)', lineHeight: 1.6 }}>
+            Controla tu inventario, crea facturas y gestiona tus ventas en un solo lugar
+          </p>
+
+          <div className="flex flex-col gap-3 mb-8">
+            <button onClick={() => setLoginAbierto(true)} className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '13px' }}>
+              Iniciar Sesión
+            </button>
+            <button onClick={() => setRegistroAbierto(true)} className="btn-secondary" style={{ width: '100%', justifyContent: 'center', padding: '13px' }}>
+              Registrarse
+            </button>
+          </div>
+
+          <div className="flex items-center gap-4 mb-8">
+            <div style={{ flex: 1, height: 1, backgroundColor: 'var(--gray-light)' }} />
+            <span style={{ color: 'var(--gray-secondary)', fontSize: 14 }}>O</span>
+            <div style={{ flex: 1, height: 1, backgroundColor: 'var(--gray-light)' }} />
+          </div>
+
+          <button
+            onClick={irAlCatalogo}
+            style={{ color: 'var(--gold-dark)', fontWeight: 600, textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14 }}
+          >
+            Ver catálogo sin crear cuenta ↓
+          </button>
+        </div>
+      </section>
+
+      <main id="catalogo" className="min-h-screen py-6 sm:py-12" style={{ backgroundColor: 'var(--white-off)' }}>
         <div className="max-w-7xl mx-auto px-4">
           {/* Botón del carrito. En móvil queda fijo abajo a la derecha:
               arriba obligaría a subir toda la lista para llegar a él. */}
@@ -224,11 +287,12 @@ export default function Catalogo() {
           )}
         </div>
 
-        {/* Carrito flotante en móvil, siempre a mano */}
+        {/* Carrito flotante en móvil, siempre a mano. A la izquierda, como
+            en la portada de referencia: a la derecha va el botón "subir". */}
         <Link
           href="/carrito"
           aria-label="Ver carrito"
-          className="sm:hidden fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full text-2xl shadow-lg"
+          className="sm:hidden fixed bottom-5 left-5 z-40 flex h-14 w-14 items-center justify-center rounded-full text-2xl shadow-lg"
           style={{ backgroundColor: 'var(--gold)', color: 'var(--black-primary)' }}
         >
           🛒
@@ -241,6 +305,18 @@ export default function Catalogo() {
             </span>
           )}
         </Link>
+
+        {/* Volver a la portada, visible solo al haber bajado al catálogo. */}
+        {mostrarSubir && (
+          <button
+            onClick={irArriba}
+            aria-label="Volver arriba"
+            className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full text-2xl font-bold shadow-lg"
+            style={{ backgroundColor: 'var(--gold)', color: 'var(--black-primary)' }}
+          >
+            ↑
+          </button>
+        )}
 
         {cambioDeTienda && (
           <DialogoOtraTienda
@@ -267,6 +343,26 @@ export default function Catalogo() {
           />
         )}
       </main>
+
+      {loginAbierto && (
+        <LoginModal
+          onCerrar={() => setLoginAbierto(false)}
+          onIrARegistro={() => {
+            setLoginAbierto(false)
+            setRegistroAbierto(true)
+          }}
+        />
+      )}
+
+      {registroAbierto && (
+        <RegisterModal
+          onCerrar={() => setRegistroAbierto(false)}
+          onIrALogin={() => {
+            setRegistroAbierto(false)
+            setLoginAbierto(true)
+          }}
+        />
+      )}
     </>
   )
 }

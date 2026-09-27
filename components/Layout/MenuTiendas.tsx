@@ -133,8 +133,8 @@ export function MenuTiendas({ email, onCerrarSesion }: Props) {
         onClick={() => setAbierto(!abierto)}
         aria-expanded={abierto}
         aria-haspopup="menu"
-        className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition"
-        style={{ backgroundColor: 'var(--beige-light)', color: 'var(--black-primary)' }}
+        className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:bg-white/25"
+        style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
       >
         🏪
         <span className="max-w-[140px] truncate">{actual?.nombre}</span>
