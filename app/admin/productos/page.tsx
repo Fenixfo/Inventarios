@@ -51,7 +51,7 @@ export default function ProductosPage() {
         </div>
 
         <div className="filters-row">
-          <BuscadorEnter onBuscar={setBusqueda} etiqueta="Nombre" placeholder="Ej: porcelanato gris" />
+          <BuscadorEnter onBuscar={setBusqueda} etiqueta="Nombre" placeholder="Ej: porcelanato gris" ocultarAyuda />
 
           <div>
             <label htmlFor="filtro-categoria" className="field-label">Categoría</label>

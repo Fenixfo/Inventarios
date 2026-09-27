@@ -8,6 +8,7 @@ interface Props {
   onBuscar: (texto: string) => void
   placeholder?: string
   etiqueta?: string
+  ocultarAyuda?: boolean
 }
 
 /**
@@ -18,7 +19,7 @@ interface Props {
  * así que la búsqueda tiene que ir a la base, y una consulta por letra sería
  * demasiado. Menos de tres letras no se busca.
  */
-export function BuscadorEnter({ onBuscar, placeholder = 'Buscar por nombre', etiqueta = 'Buscar' }: Props) {
+export function BuscadorEnter({ onBuscar, placeholder = 'Buscar por nombre', etiqueta = 'Buscar', ocultarAyuda = false }: Props) {
   const [texto, setTexto] = useState('')
 
   const limpio = texto.trim()
@@ -82,9 +83,11 @@ export function BuscadorEnter({ onBuscar, placeholder = 'Buscar por nombre', eti
         </button>
       </div>
 
-      <p className="field-help">
-        {muyCorto ? `Escribe al menos ${MINIMO_BUSQUEDA} letras.` : 'Pulsa Enter para buscar.'}
-      </p>
+      {(muyCorto || !ocultarAyuda) && (
+        <p className="field-help">
+          {muyCorto ? `Escribe al menos ${MINIMO_BUSQUEDA} letras.` : 'Pulsa Enter para buscar.'}
+        </p>
+      )}
     </div>
   )
 }
