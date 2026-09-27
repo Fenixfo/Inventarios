@@ -15,10 +15,10 @@ interface CartProps {
 export function Cart({ carrito, onQuitarItem, onActualizarCantidad, onVaciarCarrito }: CartProps) {
   if (carrito.items.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-6 text-center">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Carrito de Compras</h1>
-        <p className="text-gray-600 mb-4">El carrito está vacío</p>
-        <Link href="/" className="text-blue-600 hover:text-blue-800 font-medium">
+      <div className="card text-center">
+        <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--black-primary)' }}>Carrito de Compras</h1>
+        <p className="mb-4" style={{ color: 'var(--gray-secondary)' }}>El carrito está vacío</p>
+        <Link href="/" style={{ color: 'var(--gold-dark)', fontWeight: 600, textDecoration: 'none' }}>
           ← Volver al catálogo
         </Link>
       </div>
@@ -26,24 +26,24 @@ export function Cart({ carrito, onQuitarItem, onActualizarCantidad, onVaciarCarr
   }
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
+    <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
       {/* Resumen del carrito */}
-      <div className="p-4 sm:p-6 border-b">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Carrito de Compras</h1>
+      <div className="p-4 sm:p-6" style={{ borderBottom: '1px solid var(--gray-light)' }}>
+        <h1 className="text-xl sm:text-2xl font-bold mb-4" style={{ color: 'var(--black-primary)' }}>Carrito de Compras</h1>
         {/* Tres columnas en 360 px dejan ~100 px por dato: los importes se
             bajan de tamaño en vez de desbordarse. */}
         <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
           <div>
-            <p className="text-xs sm:text-sm text-gray-600">Productos</p>
-            <p className="text-lg sm:text-2xl font-bold text-gray-900">{carrito.totalCantidad}</p>
+            <p className="text-xs sm:text-sm" style={{ color: 'var(--gray-secondary)' }}>Productos</p>
+            <p className="text-lg sm:text-2xl font-bold" style={{ color: 'var(--black-primary)' }}>{carrito.totalCantidad}</p>
           </div>
           <div>
-            <p className="text-xs sm:text-sm text-gray-600">m² Total</p>
-            <p className="text-lg sm:text-2xl font-bold text-gray-900">{carrito.totalM2.toFixed(2)}</p>
+            <p className="text-xs sm:text-sm" style={{ color: 'var(--gray-secondary)' }}>m² Total</p>
+            <p className="text-lg sm:text-2xl font-bold" style={{ color: 'var(--black-primary)' }}>{carrito.totalM2.toFixed(2)}</p>
           </div>
           <div>
-            <p className="text-xs sm:text-sm text-gray-600">Total</p>
-            <p className="text-sm sm:text-2xl font-bold text-red-600 break-words">
+            <p className="text-xs sm:text-sm" style={{ color: 'var(--gray-secondary)' }}>Total</p>
+            <p className="text-sm sm:text-2xl font-bold break-words" style={{ color: 'var(--gold-dark)' }}>
               {pesos(carrito.totalPrecio)}
             </p>
           </div>
@@ -51,18 +51,19 @@ export function Cart({ carrito, onQuitarItem, onActualizarCantidad, onVaciarCarr
       </div>
 
       {/* Lista de items */}
-      <div className="divide-y">
+      <div>
         {carrito.items.map((item) => (
-          <div key={item.id} className="p-4 hover:bg-gray-50 transition">
+          <div key={item.id} className="p-4 transition" style={{ borderBottom: '1px solid var(--gray-light)' }}>
             <div className="flex items-start justify-between mb-3">
               <div className="flex-1">
-                <h2 className="font-semibold text-gray-900">{item.nombre}</h2>
-                <p className="text-sm text-gray-600">SKU: {item.sku}</p>
+                <h2 className="font-semibold" style={{ color: 'var(--black-primary)' }}>{item.nombre}</h2>
+                <p className="text-sm" style={{ color: 'var(--gray-secondary)' }}>SKU: {item.sku}</p>
               </div>
               <button
                 onClick={() => onQuitarItem(item.id)}
                 aria-label={`Quitar ${item.nombre} del carrito`}
-                className="shrink-0 h-9 w-9 text-red-600 hover:text-red-800 font-medium"
+                className="shrink-0 h-9 w-9 font-medium"
+                style={{ color: 'var(--status-red-solid)' }}
               >
                 ✕
               </button>
@@ -75,7 +76,8 @@ export function Cart({ carrito, onQuitarItem, onActualizarCantidad, onVaciarCarr
                 <button
                   onClick={() => onActualizarCantidad(item.id, item.cantidad - 0.5)}
                   aria-label="Quitar medio metro"
-                  className="h-10 w-10 bg-gray-200 hover:bg-gray-300 rounded text-lg"
+                  className="h-10 w-10 rounded text-lg"
+                  style={{ backgroundColor: 'var(--beige-light)', color: 'var(--black-primary)' }}
                 >
                   −
                 </button>
@@ -90,23 +92,25 @@ export function Cart({ carrito, onQuitarItem, onActualizarCantidad, onVaciarCarr
                       onActualizarCantidad(item.id, valor)
                     }
                   }}
-                  className="w-16 h-10 text-center font-medium border border-gray-300 rounded px-2 focus:outline-none focus:ring-2 focus:ring-red-600"
+                  className="field-input w-16 h-10 text-center font-medium"
+                  style={{ padding: '4px' }}
                 />
-                <span className="text-sm text-gray-600">m²</span>
+                <span className="text-sm" style={{ color: 'var(--gray-secondary)' }}>m²</span>
                 <button
                   onClick={() => onActualizarCantidad(item.id, item.cantidad + 0.5)}
                   aria-label="Añadir medio metro"
-                  className="h-10 w-10 bg-gray-200 hover:bg-gray-300 rounded text-lg"
+                  className="h-10 w-10 rounded text-lg"
+                  style={{ backgroundColor: 'var(--beige-light)', color: 'var(--black-primary)' }}
                 >
                   +
                 </button>
               </div>
 
               <div className="text-right ml-auto">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm" style={{ color: 'var(--gray-secondary)' }}>
                   {pesos(item.precioUnitario)}/m²
                 </p>
-                <p className="font-bold text-gray-900">
+                <p className="font-bold" style={{ color: 'var(--black-primary)' }}>
                   {pesos(item.subtotal)}
                 </p>
               </div>
@@ -116,15 +120,15 @@ export function Cart({ carrito, onQuitarItem, onActualizarCantidad, onVaciarCarr
       </div>
 
       {/* Totales y acciones */}
-      <div className="p-4 sm:p-6 bg-gray-50">
-        <div className="space-y-2 mb-6 border-t pt-4">
+      <div className="p-4 sm:p-6" style={{ backgroundColor: 'var(--beige-light)' }}>
+        <div className="space-y-2 mb-6 pt-4" style={{ borderTop: '1px solid var(--gray-light)' }}>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Subtotal:</span>
+            <span style={{ color: 'var(--gray-secondary)' }}>Subtotal:</span>
             <span className="font-medium">{pesos(carrito.totalPrecio)}</span>
           </div>
           <div className="flex justify-between text-lg font-bold">
             <span>Total:</span>
-            <span className="text-red-600">{pesos(carrito.totalPrecio)}</span>
+            <span style={{ color: 'var(--gold-dark)' }}>{pesos(carrito.totalPrecio)}</span>
           </div>
         </div>
 
@@ -132,7 +136,8 @@ export function Cart({ carrito, onQuitarItem, onActualizarCantidad, onVaciarCarr
 
         <Link
           href="/"
-          className="block text-center text-blue-600 hover:text-blue-800 font-medium py-2"
+          className="block text-center font-medium py-2"
+          style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}
         >
           ← Seguir comprando
         </Link>

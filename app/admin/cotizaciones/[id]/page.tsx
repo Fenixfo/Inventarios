@@ -45,7 +45,7 @@ interface Cotizacion {
   items: Item[]
 }
 
-const etiqueta = { margin: '0 0 5px 0', color: '#666', fontSize: '12px' }
+const etiqueta = { margin: '0 0 5px 0', color: 'var(--gray-secondary)', fontSize: '12px' }
 
 export default function CotizacionPage() {
   const params = useParams()
@@ -91,37 +91,33 @@ export default function CotizacionPage() {
 
   return (
     <PermissionProtector requiredPermission="cotizaciones">
-      <div style={{ padding: '20px', maxWidth: '900px' }}>
-        <div style={{ marginBottom: '20px' }}>
-          <Link href="/admin/cotizaciones" style={{ color: '#2563eb', textDecoration: 'none' }}>
+      <div className="card" style={{ maxWidth: 900 }}>
+        <div className="mb-4">
+          <Link href="/admin/cotizaciones" style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}>
             ← Volver a Cotizaciones
           </Link>
         </div>
 
         {cargando ? (
-          <p style={{ color: '#666' }}>Cargando...</p>
+          <p style={{ color: 'var(--gray-secondary)' }}>Cargando...</p>
         ) : error || !cotizacion ? (
-          <p style={{ color: '#dc2626' }}>{error || 'Cotización no encontrada'}</p>
+          <p style={{ color: 'var(--status-red-solid)' }}>{error || 'Cotización no encontrada'}</p>
         ) : (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
               <div>
-                <h1 style={{ margin: '0 0 6px 0' }}>{cotizacion.numeroCotizacion}</h1>
-                <p style={{ margin: 0, color: '#666' }}>{fechaYHora(cotizacion.fecha)}</p>
+                <h1 style={{ margin: '0 0 6px 0', color: 'var(--black-primary)' }}>{cotizacion.numeroCotizacion}</h1>
+                <p style={{ margin: 0, color: 'var(--gray-secondary)' }}>{fechaYHora(cotizacion.fecha)}</p>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {cotizacion.esBodega && (
-                  <span style={{ padding: '8px 12px', backgroundColor: '#fef3c7', color: '#92400e', borderRadius: '4px', fontSize: '14px', fontWeight: 'bold' }}>
-                    🏭 Precio de bodega
-                  </span>
-                )}
-                <span style={{ padding: '8px 12px', backgroundColor: '#e0e7ff', color: '#3730a3', borderRadius: '4px', fontSize: '14px', fontWeight: 'bold' }}>
+                {cotizacion.esBodega && <span className="badge badge-amber" style={{ padding: '8px 12px', fontSize: 14 }}>🏭 Precio de bodega</span>}
+                <span className="badge badge-indigo" style={{ padding: '8px 12px', fontSize: 14 }}>
                   Cotización
                 </span>
               </div>
             </div>
 
-            <div style={{ backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '4px', marginBottom: '20px' }}>
+            <div style={{ backgroundColor: 'var(--beige-light)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
                 <div>
                   <p style={etiqueta}>CLIENTE</p>
@@ -149,88 +145,69 @@ export default function CotizacionPage() {
             </div>
 
             <div style={{ overflowX: 'auto', marginBottom: '20px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table className="table-luxe">
                 <thead>
-                  <tr style={{ borderBottom: '2px solid #ddd' }}>
-                    <th style={{ padding: '10px', textAlign: 'left' }}>Producto</th>
-                    <th style={{ padding: '10px', textAlign: 'right' }}>Cantidad (m²)</th>
-                    <th style={{ padding: '10px', textAlign: 'right' }}>Precio Unit.</th>
-                    <th style={{ padding: '10px', textAlign: 'right' }}>Subtotal</th>
+                  <tr>
+                    <th>Producto</th>
+                    <th style={{ textAlign: 'right' }}>Cantidad (m²)</th>
+                    <th style={{ textAlign: 'right' }}>Precio Unit.</th>
+                    <th style={{ textAlign: 'right' }}>Subtotal</th>
                   </tr>
                 </thead>
                 <tbody>
                   {cotizacion.items.map((item) => (
-                    <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '10px' }}>{item.productoNombre || item.producto?.nombre || '(Personalizado)'}</td>
-                      <td style={{ padding: '10px', textAlign: 'right' }}>{Number(item.cantidadM2).toFixed(2)}</td>
-                      <td style={{ padding: '10px', textAlign: 'right' }}>{pesos(item.precioUnitario)}</td>
-                      <td style={{ padding: '10px', textAlign: 'right' }}>{pesos(item.subtotal)}</td>
+                    <tr key={item.id}>
+                      <td>{item.productoNombre || item.producto?.nombre || '(Personalizado)'}</td>
+                      <td style={{ textAlign: 'right' }}>{Number(item.cantidadM2).toFixed(2)}</td>
+                      <td style={{ textAlign: 'right' }}>{pesos(item.precioUnitario)}</td>
+                      <td style={{ textAlign: 'right' }}>{pesos(item.subtotal)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            <div style={{ backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '4px', marginBottom: '20px', maxWidth: '420px', marginLeft: 'auto' }}>
+            <div style={{ backgroundColor: 'var(--beige-light)', padding: '15px', borderRadius: '8px', marginBottom: '20px', maxWidth: '420px', marginLeft: 'auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                 <span>Subtotal:</span>
                 <span>{pesos(cotizacion.subtotal)}</span>
               </div>
               {Number(cotizacion.descuentoMonto) > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#dc2626' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: 'var(--status-red-solid)' }}>
                   <span>Descuento ({Number(cotizacion.descuentoPorcentaje)}%):</span>
                   <span>-{pesos(cotizacion.descuentoMonto)}</span>
                 </div>
               )}
               {Number(cotizacion.impuesto) > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#2563eb' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: 'var(--status-blue-text)' }}>
                   <span>Impuesto:</span>
                   <span>+{pesos(cotizacion.impuesto)}</span>
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '18px', borderTop: '2px solid #ddd', paddingTop: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '18px', borderTop: '2px solid var(--gray-light)', paddingTop: '10px', color: 'var(--gold-dark)' }}>
                 <span>Total:</span>
                 <span>{pesos(cotizacion.total)}</span>
               </div>
-              <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#6b7280' }}>
+              <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: 'var(--gray-secondary)' }}>
                 Son: {montoEnPalabras(cotizacion.total)}
               </p>
             </div>
 
             {cotizacion.observaciones && (
-              <div style={{ backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '4px', marginBottom: '20px' }}>
-                <p style={{ margin: '0 0 5px 0', color: '#666', fontWeight: 'bold' }}>Observaciones:</p>
+              <div style={{ backgroundColor: 'var(--beige-light)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+                <p style={{ margin: '0 0 5px 0', color: 'var(--gray-secondary)', fontWeight: 'bold' }}>Observaciones:</p>
                 <p style={{ margin: 0 }}>{cotizacion.observaciones}</p>
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '20px' }}>
-              <button
-                onClick={descargarPdf}
-                disabled={descargando}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: descargando ? '#9ca3af' : '#8b5cf6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: descargando ? 'wait' : 'pointer',
-                }}
-              >
+            <div className="flex gap-3 flex-wrap mt-5">
+              <button onClick={descargarPdf} disabled={descargando} className="btn-primary">
                 {descargando ? 'Generando PDF...' : 'Descargar PDF'}
               </button>
 
               <button
                 onClick={() => setEnvioWhatsApp(true)}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#25d366',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                }}
+                style={{ padding: '10px 20px', backgroundColor: '#25d366', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
               >
                 Enviar por WhatsApp
               </button>

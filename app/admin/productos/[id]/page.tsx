@@ -167,29 +167,25 @@ export default function EditProductoPage() {
     }
   }
 
-  if (loading) return <div style={{ padding: '20px' }}>Cargando...</div>
-  if (!formData) return <div style={{ padding: '20px', color: 'red' }}>Producto no encontrado</div>
+  if (loading) return <div className="card" style={{ color: 'var(--gray-secondary)' }}>Cargando...</div>
+  if (!formData) return <div className="card" style={{ color: 'var(--status-red-solid)' }}>Producto no encontrado</div>
 
   return (
     <PermissionProtector requiredPermission="productos">
-      <div style={{ padding: '20px', maxWidth: '800px' }}>
-        <div style={{ marginBottom: '20px' }}>
-          <Link href="/admin/productos" style={{ color: '#2563eb', textDecoration: 'none' }}>
+      <div className="card" style={{ maxWidth: 800 }}>
+        <div className="mb-4">
+          <Link href="/admin/productos" style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}>
             ← Volver a Productos
           </Link>
         </div>
 
-        <h1 style={{ marginBottom: '20px' }}>Editar Producto</h1>
+        <h1 className="card-title mb-4" style={{ fontSize: 20 }}>Editar Producto</h1>
 
-        {error && (
-          <div style={{ padding: '10px', marginBottom: '20px', backgroundColor: '#fee', color: '#c00', borderRadius: '4px' }}>
-            {error}
-          </div>
-        )}
+        {error && <div className="alert-box error">{error}</div>}
 
-        <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '15px' }}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>SKU *</label>
+            <label className="field-label">SKU *</label>
             <input
               type="text"
               name="sku"
@@ -197,83 +193,63 @@ export default function EditProductoPage() {
               onChange={handleChange}
               onBlur={checkSkuExists}
               required
-              style={{
-                width: '100%',
-                padding: '8px',
-                borderRadius: '4px',
-                border: skuError ? '2px solid #dc2626' : '1px solid #ddd',
-                boxSizing: 'border-box'
-              }}
+              className={`field-input ${skuError ? 'has-error' : ''}`}
             />
             {skuError && (
-              <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+              <div style={{ color: 'var(--status-red-solid)', fontSize: '12px', marginTop: '4px' }}>
                 {skuError}
               </div>
             )}
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Nombre *</label>
+            <label className="field-label">Nombre *</label>
             <input
               type="text"
               name="nombre"
               value={formData.nombre}
               onChange={handleChange}
               required
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+              className="field-input"
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Categoría *</label>
+            <label className="field-label">Categoría *</label>
             <SelectorCategoria
               value={formData.categoria}
-              onChange={(categoria) =>
-                setFormData((prev) => (prev ? { ...prev, categoria } : prev))
-              }
+              onChange={(categoria) => setFormData((prev) => (prev ? { ...prev, categoria } : prev))}
               categorias={categoriasExistentes}
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Dimensiones</label>
+              <label className="field-label">Dimensiones</label>
               <input
                 type="text"
                 name="dimensiones"
                 value={formData.dimensiones || ''}
                 onChange={handleChange}
                 placeholder="Ej: 60x60"
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+                className="field-input"
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Color</label>
-              <input
-                type="text"
-                name="color"
-                value={formData.color || ''}
-                onChange={handleChange}
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-              />
+              <label className="field-label">Color</label>
+              <input type="text" name="color" value={formData.color || ''} onChange={handleChange} className="field-input" />
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Acabado</label>
-              <input
-                type="text"
-                name="acabado"
-                value={formData.acabado || ''}
-                onChange={handleChange}
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-              />
+              <label className="field-label">Acabado</label>
+              <input type="text" name="acabado" value={formData.acabado || ''} onChange={handleChange} className="field-input" />
             </div>
 
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Espesor (mm)</label>
+              <label className="field-label">Espesor (mm)</label>
               <input
                 type="number"
                 name="espesorMm"
@@ -281,13 +257,13 @@ export default function EditProductoPage() {
                 onChange={handleChange}
                 onWheel={preventWheelChange}
                 step="0.01"
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+                className="field-input"
               />
             </div>
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>m² por caja</label>
+            <label className="field-label">m² por caja</label>
             <input
               type="number"
               name="m2PorCaja"
@@ -295,13 +271,13 @@ export default function EditProductoPage() {
               onChange={handleChange}
               onWheel={preventWheelChange}
               step="0.01"
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+              className="field-input"
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Precio al público *</label>
+              <label className="field-label">Precio al público *</label>
               <input
                 type="number"
                 name="precioUnitario"
@@ -310,13 +286,13 @@ export default function EditProductoPage() {
                 onWheel={preventWheelChange}
                 step="0.01"
                 required
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+                className="field-input"
               />
-              <small style={{ color: '#6b7280', fontSize: '12px' }}>El que ve el cliente.</small>
+              <p className="field-help">El que ve el cliente.</p>
             </div>
 
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Precio de bodega</label>
+              <label className="field-label">Precio de bodega</label>
               <input
                 type="number"
                 name="precioBodega"
@@ -324,15 +300,13 @@ export default function EditProductoPage() {
                 onChange={handleChange}
                 onWheel={preventWheelChange}
                 step="0.01"
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+                className="field-input"
               />
-              <small style={{ color: '#6b7280', fontSize: '12px' }}>
-                Vacío = se cobra el del público.
-              </small>
+              <p className="field-help">Vacío = se cobra el del público.</p>
             </div>
 
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Costo</label>
+              <label className="field-label">Costo</label>
               <input
                 type="number"
                 name="costo"
@@ -340,15 +314,15 @@ export default function EditProductoPage() {
                 onChange={handleChange}
                 onWheel={preventWheelChange}
                 step="0.01"
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+                className="field-input"
               />
-              <small style={{ color: '#6b7280', fontSize: '12px' }}>Precio de compra.</small>
+              <p className="field-help">Precio de compra.</p>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Stock Actual *</label>
+              <label className="field-label">Stock Actual *</label>
               <input
                 type="number"
                 name="stockActual"
@@ -357,15 +331,13 @@ export default function EditProductoPage() {
                 onWheel={preventWheelChange}
                 step="0.01"
                 required
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+                className="field-input"
               />
-              <small style={{ color: '#6b7280', fontSize: '12px' }}>
-                Si lo cambias, queda en el historial de Inventario.
-              </small>
+              <p className="field-help">Si lo cambias, queda en el historial de Inventario.</p>
             </div>
 
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Stock Mínimo *</label>
+              <label className="field-label">Stock Mínimo *</label>
               <input
                 type="number"
                 name="stockMinimo"
@@ -374,75 +346,43 @@ export default function EditProductoPage() {
                 onWheel={preventWheelChange}
                 step="0.01"
                 required
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+                className="field-input"
               />
             </div>
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Proveedor</label>
-            <input
-              type="text"
-              name="proveedor"
-              value={formData.proveedor || ''}
-              onChange={handleChange}
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-            />
+            <label className="field-label">Proveedor</label>
+            <input type="text" name="proveedor" value={formData.proveedor || ''} onChange={handleChange} className="field-input" />
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Descripción</label>
+            <label className="field-label">Descripción</label>
             <textarea
               name="descripcion"
               value={formData.descripcion || ''}
               onChange={handleChange}
               rows={4}
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+              className="field-textarea"
             />
           </div>
 
-          <div style={{ marginBottom: '15px' }}>
+          <div>
             <ImageUploader
               etiqueta="Imagen del producto"
               valor={formData.imagenUrl || ''}
-              onChange={(url) =>
-                setFormData((prev) => (prev ? { ...prev, imagenUrl: url } : prev))
-              }
+              onChange={(url) => setFormData((prev) => (prev ? { ...prev, imagenUrl: url } : prev))}
               carpeta="productos"
               ayuda="Es lo que ven tus clientes en el catálogo. Se reduce y optimiza automáticamente."
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-            <button
-              type="submit"
-              disabled={saving || !!skuError}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: saving || skuError ? '#999' : '#2563eb',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: saving || skuError ? 'not-allowed' : 'pointer',
-                opacity: saving || skuError ? 0.6 : 1,
-              }}
-            >
+          <div className="flex gap-3 mt-2">
+            <button type="submit" disabled={saving || !!skuError} className="btn-primary">
               {saving ? 'Guardando...' : 'Guardar Cambios'}
             </button>
 
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={saving}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: '#dc2626',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-              }}
-            >
+            <button type="button" onClick={handleDelete} disabled={saving} className="btn-danger">
               {saving ? 'Eliminando...' : 'Eliminar Producto'}
             </button>
           </div>

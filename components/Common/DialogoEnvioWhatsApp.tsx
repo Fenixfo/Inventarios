@@ -75,21 +75,17 @@ export function DialogoEnvioWhatsApp({
         role="dialog"
         aria-modal="true"
         aria-labelledby="titulo-envio"
-        style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '520px', width: '100%', maxHeight: '88vh', overflowY: 'auto', padding: '24px' }}
+        style={{ backgroundColor: 'var(--white-off)', borderRadius: '12px', maxWidth: '520px', width: '100%', maxHeight: '88vh', overflowY: 'auto', padding: '24px' }}
       >
-        <h3 id="titulo-envio" style={{ marginTop: 0, marginBottom: '6px', fontSize: '18px' }}>
+        <h3 id="titulo-envio" style={{ marginTop: 0, marginBottom: '6px', fontSize: '18px', color: 'var(--black-primary)' }}>
           Enviar {documento}
         </h3>
 
-        {error && (
-          <p style={{ margin: '0 0 12px 0', padding: '10px', backgroundColor: '#fee2e2', color: '#b91c1c', borderRadius: '6px', fontSize: '13px' }}>
-            {error}
-          </p>
-        )}
+        {error && <p className="alert-box error" style={{ fontSize: '13px' }}>{error}</p>}
 
         {/* Camino principal: el archivo */}
-        <div style={{ border: '1px solid #bbf7d0', backgroundColor: '#f0fdf4', borderRadius: '8px', padding: '16px', marginBottom: '20px' }}>
-          <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#166534' }}>
+        <div style={{ border: '1px solid #bbf7d0', backgroundColor: 'var(--status-green-bg)', borderRadius: '8px', padding: '16px', marginBottom: '20px' }}>
+          <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: 'var(--status-green-text)' }}>
             Se abre el menú de compartir del celular: eliges WhatsApp, eliges el contacto
             y va el PDF adjunto.
           </p>
@@ -113,7 +109,7 @@ export function DialogoEnvioWhatsApp({
           </button>
 
           {avisoDescarga && (
-            <p style={{ margin: '12px 0 0 0', fontSize: '12px', color: '#166534' }}>
+            <p style={{ margin: '12px 0 0 0', fontSize: '12px', color: 'var(--status-green-text)' }}>
               Este navegador no puede entregarle el archivo a WhatsApp, así que el PDF se
               descargó. Adjúntalo desde WhatsApp, o ábrelo desde el celular para mandarlo
               directo.
@@ -121,12 +117,12 @@ export function DialogoEnvioWhatsApp({
           )}
         </div>
 
-        <p style={{ fontSize: '13px', color: '#6b7280', marginTop: 0, marginBottom: '14px' }}>
+        <p style={{ fontSize: '13px', color: 'var(--gray-secondary)', marginTop: 0, marginBottom: '14px' }}>
           O envía solo el resumen escrito, sin archivo. Esta vía sí permite indicar el
           número de una vez:
         </p>
 
-        <label htmlFor="destino-whatsapp" style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>
+        <label htmlFor="destino-whatsapp" className="field-label">
           Número de destino
         </label>
         <input
@@ -135,10 +131,10 @@ export function DialogoEnvioWhatsApp({
           value={destino}
           onChange={(e) => setDestino(e.target.value)}
           placeholder="Sin número: eliges el contacto en WhatsApp"
-          style={{ width: '100%', padding: '10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', fontFamily: 'inherit' }}
+          className="field-input"
         />
 
-        <p style={{ fontSize: '12px', color: '#6b7280', margin: '6px 0 18px 0' }}>
+        <p style={{ fontSize: '12px', color: 'var(--gray-secondary)', margin: '6px 0 18px 0' }}>
           {telefonoCliente ? `Tomado del cliente ${nombreCliente || ''}.` : sinTelefono}{' '}
           {numero
             ? `Se abrirá el chat con +${numero}.`
@@ -146,24 +142,21 @@ export function DialogoEnvioWhatsApp({
         </p>
 
         <details style={{ marginBottom: '18px' }}>
-          <summary style={{ cursor: 'pointer', fontSize: '13px', color: '#2563eb' }}>
+          <summary style={{ cursor: 'pointer', fontSize: '13px', color: 'var(--gold-dark)' }}>
             Ver el mensaje que se va a enviar
           </summary>
-          <pre style={{ backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '6px', padding: '12px', fontSize: '12px', whiteSpace: 'pre-wrap', fontFamily: 'inherit', marginTop: '8px' }}>
+          <pre style={{ backgroundColor: 'var(--beige-light)', border: '1px solid var(--gray-light)', borderRadius: '8px', padding: '12px', fontSize: '12px', whiteSpace: 'pre-wrap', fontFamily: 'inherit', marginTop: '8px' }}>
             {mensaje}
           </pre>
         </details>
 
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <button
-            onClick={onCerrar}
-            style={{ padding: '11px 16px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px' }}
-          >
+          <button onClick={onCerrar} className="btn-secondary" style={{ padding: '11px 16px' }}>
             Cancelar
           </button>
           <button
             onClick={enviarResumen}
-            style={{ flex: 1, padding: '11px 16px', border: '1px solid #25d366', borderRadius: '6px', backgroundColor: 'white', color: '#128c3e', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
+            style={{ flex: 1, padding: '11px 16px', border: '1px solid #25d366', borderRadius: '8px', backgroundColor: 'var(--white-off)', color: '#128c3e', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
           >
             Enviar solo el resumen
           </button>

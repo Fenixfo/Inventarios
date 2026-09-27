@@ -56,12 +56,12 @@ export function Header({ showNav = true, compact = false, showLogo = true }: Hea
 
   if (compact) {
     return (
-      <header className="bg-gradient-to-r from-blue-600 to-blue-800 shadow-lg">
+      <header style={{ backgroundColor: 'var(--black-primary)' }} className="shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap justify-between items-center gap-3">
           {showLogo && (
-            <Link href="/" className="flex items-center gap-1 group whitespace-nowrap">
-              <span className="text-2xl group-hover:scale-110 transition-transform inline-block">🏠</span>
-              <span className="text-white font-bold text-lg">Home</span>
+            <Link href="/" className="flex items-center gap-1 group whitespace-nowrap no-underline">
+              <span className="text-2xl group-hover:scale-110 transition-transform inline-block" style={{ color: 'var(--gold)' }}>◆</span>
+              <span className="font-bold text-lg" style={{ color: 'white' }}>Beraca</span>
             </Link>
           )}
           {!showLogo && <div />}
@@ -69,22 +69,18 @@ export function Header({ showNav = true, compact = false, showLogo = true }: Hea
           <nav className="flex items-center gap-2 sm:gap-6">
             {!loading && user && (
               <>
-                <Link
-                  href="/admin"
-                  className="px-3 sm:px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium transition-colors flex items-center gap-2 text-sm sm:text-base whitespace-nowrap"
-                >
-                  <span>✓</span>
-                  {/* En móvil no cabe el rótulo entero junto al resto. */}
-                  <span className="sm:hidden">Panel</span>
-                  <span className="hidden sm:inline">Panel de administración</span>
+                <Link href="/admin" className="btn-quick" style={{ padding: '8px 16px', fontSize: '14px' }}>
+                  <span className="sm:hidden">✓ Panel</span>
+                  <span className="hidden sm:inline">✓ Panel de administración</span>
                 </Link>
-                <div className="flex items-center gap-3 sm:border-l sm:border-blue-500 sm:pl-6">
-                  <span className="hidden md:inline text-white text-sm">
+                <div className="flex items-center gap-3 sm:border-l sm:pl-6" style={{ borderColor: 'rgba(255,255,255,0.2)' }}>
+                  <span className="hidden md:inline text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>
                     {user.email}
                   </span>
                   <button
                     onClick={handleLogout}
-                    className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm sm:text-base whitespace-nowrap"
+                    className="px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base whitespace-nowrap"
+                    style={{ backgroundColor: 'var(--status-red-solid)', color: 'white' }}
                   >
                     Salir<span className="hidden sm:inline"> de sesión</span>
                   </button>
@@ -92,16 +88,11 @@ export function Header({ showNav = true, compact = false, showLogo = true }: Hea
               </>
             )}
             {!loading && !user && (
-              <Link
-                href="/login"
-                className="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 font-medium transition-colors"
-              >
+              <Link href="/login" className="btn-primary">
                 Ingresar
               </Link>
             )}
-            {loading && (
-              <span className="text-white">Cargando...</span>
-            )}
+            {loading && <span style={{ color: 'white' }}>Cargando...</span>}
           </nav>
         </div>
       </header>
@@ -109,26 +100,27 @@ export function Header({ showNav = true, compact = false, showLogo = true }: Hea
   }
 
   return (
-    <header className="bg-gradient-to-r from-blue-600 to-blue-800 shadow-lg">
+    <header style={{ backgroundColor: 'var(--black-primary)' }} className="shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap justify-between items-center gap-3">
         {showLogo && (
-          <Link href="/" className="flex items-center gap-1 group whitespace-nowrap">
-            <span className="text-2xl group-hover:scale-110 transition-transform inline-block">🏠</span>
-            <span className="text-white font-bold text-lg">Home</span>
+          <Link href="/" className="flex items-center gap-1 group whitespace-nowrap no-underline">
+            <span className="text-2xl group-hover:scale-110 transition-transform inline-block" style={{ color: 'var(--gold)' }}>◆</span>
+            <span className="font-bold text-lg" style={{ color: 'white' }}>Beraca</span>
           </Link>
         )}
         {!showLogo && <div />}
 
         <nav className="flex items-center gap-4 sm:gap-8">
           {!loading && user && (
-            <div className="flex items-center gap-3 sm:border-l sm:border-blue-500 sm:pl-8">
+            <div className="flex items-center gap-3 sm:border-l sm:pl-8" style={{ borderColor: 'rgba(255,255,255,0.2)' }}>
               {/* El correo se esconde en móvil: empuja el botón fuera. */}
-              <span className="hidden md:inline text-white text-sm">
+              <span className="hidden md:inline text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>
                 {user.email}
               </span>
               <button
                 onClick={handleLogout}
-                className="px-4 sm:px-5 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm sm:text-base whitespace-nowrap"
+                className="px-4 sm:px-5 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base whitespace-nowrap"
+                style={{ backgroundColor: 'var(--status-red-solid)', color: 'white' }}
               >
                 Salir<span className="hidden sm:inline"> de sesión</span>
               </button>

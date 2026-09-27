@@ -69,13 +69,13 @@ export default function AuditoriaPage() {
   const getAccionColor = (accion: string) => {
     switch (accion) {
       case 'CREATE':
-        return '#10b981'
+        return 'var(--status-green-text)'
       case 'UPDATE':
-        return '#3b82f6'
+        return 'var(--status-blue-text)'
       case 'DELETE':
-        return '#ef4444'
+        return 'var(--status-red-solid)'
       default:
-        return '#6b7280'
+        return 'var(--gray-secondary)'
     }
   }
 
@@ -85,275 +85,168 @@ export default function AuditoriaPage() {
 
   return (
     <PermissionProtector requiredPermission="auditoria">
-      <div style={{ padding: '20px', maxWidth: '1400px' }}>
-      <div style={{ marginBottom: '20px' }}>
-        <Link href="/admin" style={{ color: '#2563eb', textDecoration: 'none' }}>
-          ← Volver al Dashboard
-        </Link>
-      </div>
-
-      <h1 style={{ marginBottom: '30px' }}>Auditoría e Historial</h1>
-
-      {/* Filtros */}
-      <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-        <div>
-          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Tabla:</label>
-          <select
-            value={filtroTabla || ''}
-            onChange={(e) => setFiltroTabla(e.target.value || null)}
-            style={{
-              padding: '8px 12px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontSize: '12px',
-              marginTop: '4px',
-            }}
-          >
-            <option value="">Todas</option>
-            {tablas.map((tabla) => (
-              <option key={tabla} value={tabla}>
-                {tabla}
-              </option>
-            ))}
-          </select>
+      <div className="card" style={{ maxWidth: 1400 }}>
+        <div className="mb-4">
+          <Link href="/admin" style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}>
+            ← Volver al Dashboard
+          </Link>
         </div>
 
-        <div>
-          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Acción:</label>
-          <select
-            value={filtroAccion || ''}
-            onChange={(e) => setFiltroAccion(e.target.value || null)}
-            style={{
-              padding: '8px 12px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontSize: '12px',
-              marginTop: '4px',
-            }}
-          >
-            <option value="">Todas</option>
-            {acciones.map((accion) => (
-              <option key={accion} value={accion}>
-                {accion}
-              </option>
-            ))}
-          </select>
-        </div>
+        <h1 className="card-title mb-5" style={{ fontSize: 20 }}>Auditoría e Historial</h1>
 
-        {(filtroTabla || filtroAccion) && (
-          <button
-            onClick={() => {
-              setFiltroTabla(null)
-              setFiltroAccion(null)
-            }}
-            style={{
-              padding: '8px 12px',
-              backgroundColor: '#f3f4f6',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              marginTop: '24px',
-            }}
-          >
-            Limpiar filtros
-          </button>
-        )}
-      </div>
-
-      {error && (
-        <div
-          style={{
-            backgroundColor: '#fee',
-            color: '#c00',
-            padding: '10px',
-            borderRadius: '4px',
-            marginBottom: '20px',
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {loading ? (
-        <div style={{ textAlign: 'center', color: '#666' }}>Cargando auditoría...</div>
-      ) : registros.length === 0 ? (
-        <div style={{ color: '#666' }}>No hay registros de auditoría</div>
-      ) : (
-        <>
-          <div style={{ marginBottom: '20px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #ddd', backgroundColor: '#f9fafb' }}>
-                  <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px' }}>Fecha</th>
-                  <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px' }}>Tabla</th>
-                  <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px' }}>Acción</th>
-                  <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px' }}>Usuario</th>
-                  <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px' }}>IP</th>
-                  <th style={{ padding: '12px', textAlign: 'center', fontSize: '12px' }}>Detalles</th>
-                </tr>
-              </thead>
-              <tbody>
-                {registros.map((registro) => (
-                  <tr key={registro.id} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '12px', fontSize: '11px' }}>
-                      {formatearFecha(registro.fechaAccion)}
-                    </td>
-                    <td style={{ padding: '12px', fontSize: '11px', fontWeight: 'bold' }}>
-                      {registro.tablaAfectada}
-                    </td>
-                    <td style={{ padding: '12px', fontSize: '11px' }}>
-                      <span
-                        style={{
-                          backgroundColor: getAccionColor(registro.accion),
-                          color: 'white',
-                          padding: '4px 8px',
-                          borderRadius: '4px',
-                          fontSize: '10px',
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        {registro.accion}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px', fontSize: '11px' }}>
-                      {registro.usuario?.email || '(Sistema)'}
-                    </td>
-                    <td style={{ padding: '12px', fontSize: '10px', color: '#999' }}>
-                      {registro.ipAddress || '-'}
-                    </td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>
-                      <button
-                        onClick={() =>
-                          setExpandido(expandido === registro.id ? null : registro.id)
-                        }
-                        style={{
-                          backgroundColor: '#e5e7eb',
-                          border: 'none',
-                          padding: '4px 8px',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontSize: '11px',
-                        }}
-                      >
-                        {expandido === registro.id ? '↑ Ocultar' : '↓ Ver'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* Filtros */}
+        <div className="filters-row">
+          <div>
+            <label className="field-label">Tabla:</label>
+            <select value={filtroTabla || ''} onChange={(e) => setFiltroTabla(e.target.value || null)} className="filter-select">
+              <option value="">Todas</option>
+              {tablas.map((tabla) => (
+                <option key={tabla} value={tabla}>
+                  {tabla}
+                </option>
+              ))}
+            </select>
           </div>
 
-          {/* Detalles expandidos */}
-          {expandido && (
-            <div
-              style={{
-                backgroundColor: '#f9fafb',
-                padding: '20px',
-                borderRadius: '8px',
-                marginBottom: '20px',
-                border: '1px solid #e5e7eb',
+          <div>
+            <label className="field-label">Acción:</label>
+            <select value={filtroAccion || ''} onChange={(e) => setFiltroAccion(e.target.value || null)} className="filter-select">
+              <option value="">Todas</option>
+              {acciones.map((accion) => (
+                <option key={accion} value={accion}>
+                  {accion}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {(filtroTabla || filtroAccion) && (
+            <button
+              onClick={() => {
+                setFiltroTabla(null)
+                setFiltroAccion(null)
               }}
+              className="btn-secondary"
             >
-              {registros.find((r) => r.id === expandido) && (
-                <>
-                  <h3 style={{ marginTop: 0, marginBottom: '15px' }}>
-                    Detalles del Cambio (ID: {expandido})
-                  </h3>
-
-                  {registros.find((r) => r.id === expandido)?.datosDespues && (
-                    <div style={{ marginBottom: '20px' }}>
-                      <h4 style={{ margin: '0 0 10px 0', color: '#10b981' }}>
-                        📝 Datos Actuales
-                      </h4>
-                      <pre
-                        style={{
-                          backgroundColor: 'white',
-                          padding: '10px',
-                          borderRadius: '4px',
-                          border: '1px solid #e5e7eb',
-                          fontSize: '11px',
-                          overflow: 'auto',
-                          maxHeight: '300px',
-                        }}
-                      >
-                        {JSON.stringify(
-                          registros.find((r) => r.id === expandido)?.datosDespues,
-                          null,
-                          2
-                        )}
-                      </pre>
-                    </div>
-                  )}
-
-                  {registros.find((r) => r.id === expandido)?.datosAntes && (
-                    <div>
-                      <h4 style={{ margin: '0 0 10px 0', color: '#3b82f6' }}>
-                        📋 Datos Anteriores
-                      </h4>
-                      <pre
-                        style={{
-                          backgroundColor: 'white',
-                          padding: '10px',
-                          borderRadius: '4px',
-                          border: '1px solid #e5e7eb',
-                          fontSize: '11px',
-                          overflow: 'auto',
-                          maxHeight: '300px',
-                        }}
-                      >
-                        {JSON.stringify(
-                          registros.find((r) => r.id === expandido)?.datosAntes,
-                          null,
-                          2
-                        )}
-                      </pre>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+              Limpiar filtros
+            </button>
           )}
+        </div>
 
-          {/* Paginación */}
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '20px' }}>
-            <button
-              onClick={() => cargarRegistros(page - 1)}
-              disabled={page === 0}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: page === 0 ? '#e5e7eb' : '#2563eb',
-                color: page === 0 ? '#999' : 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: page === 0 ? 'default' : 'pointer',
-              }}
-            >
-              ← Anterior
-            </button>
+        {error && <div className="alert-box error">{error}</div>}
 
-            <span style={{ padding: '8px 16px', fontSize: '12px' }}>
-              Página {page + 1}
-            </span>
+        {loading ? (
+          <div style={{ textAlign: 'center', color: 'var(--gray-secondary)' }}>Cargando auditoría...</div>
+        ) : registros.length === 0 ? (
+          <div style={{ color: 'var(--gray-secondary)' }}>No hay registros de auditoría</div>
+        ) : (
+          <>
+            <div style={{ overflowX: 'auto', marginBottom: 20 }}>
+              <table className="table-luxe">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Tabla</th>
+                    <th>Acción</th>
+                    <th>Usuario</th>
+                    <th>IP</th>
+                    <th style={{ textAlign: 'center' }}>Detalles</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {registros.map((registro) => (
+                    <tr key={registro.id}>
+                      <td style={{ fontSize: '11px' }}>{formatearFecha(registro.fechaAccion)}</td>
+                      <td style={{ fontSize: '11px', fontWeight: 'bold' }}>{registro.tablaAfectada}</td>
+                      <td>
+                        <span
+                          className="badge"
+                          style={{ backgroundColor: getAccionColor(registro.accion), color: 'white' }}
+                        >
+                          {registro.accion}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '11px' }}>{registro.usuario?.email || '(Sistema)'}</td>
+                      <td style={{ fontSize: '10px', color: 'var(--gray-secondary)' }}>{registro.ipAddress || '-'}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button
+                          onClick={() => setExpandido(expandido === registro.id ? null : registro.id)}
+                          className="btn-action"
+                        >
+                          {expandido === registro.id ? '↑ Ocultar' : '↓ Ver'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-            <button
-              onClick={() => cargarRegistros(page + 1)}
-              disabled={registros.length < pageSize}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: registros.length < pageSize ? '#e5e7eb' : '#2563eb',
-                color: registros.length < pageSize ? '#999' : 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: registros.length < pageSize ? 'default' : 'pointer',
-              }}
-            >
-              Siguiente →
-            </button>
-          </div>
-        </>
-      )}
+            {/* Detalles expandidos */}
+            {expandido && (
+              <div style={{ backgroundColor: 'var(--beige-light)', padding: '20px', borderRadius: '8px', marginBottom: '20px', border: '1px solid var(--gray-light)' }}>
+                {registros.find((r) => r.id === expandido) && (
+                  <>
+                    <h3 style={{ marginTop: 0, marginBottom: '15px', color: 'var(--black-primary)' }}>
+                      Detalles del Cambio (ID: {expandido})
+                    </h3>
+
+                    {registros.find((r) => r.id === expandido)?.datosDespues && (
+                      <div style={{ marginBottom: '20px' }}>
+                        <h4 style={{ margin: '0 0 10px 0', color: 'var(--status-green-text)' }}>📝 Datos Actuales</h4>
+                        <pre
+                          style={{
+                            backgroundColor: 'var(--white-off)',
+                            padding: '10px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--gray-light)',
+                            fontSize: '11px',
+                            overflow: 'auto',
+                            maxHeight: '300px',
+                          }}
+                        >
+                          {JSON.stringify(registros.find((r) => r.id === expandido)?.datosDespues, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+
+                    {registros.find((r) => r.id === expandido)?.datosAntes && (
+                      <div>
+                        <h4 style={{ margin: '0 0 10px 0', color: 'var(--status-blue-text)' }}>📋 Datos Anteriores</h4>
+                        <pre
+                          style={{
+                            backgroundColor: 'var(--white-off)',
+                            padding: '10px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--gray-light)',
+                            fontSize: '11px',
+                            overflow: 'auto',
+                            maxHeight: '300px',
+                          }}
+                        >
+                          {JSON.stringify(registros.find((r) => r.id === expandido)?.datosAntes, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Paginación */}
+            <div className="flex gap-3 justify-center mt-5">
+              <button onClick={() => cargarRegistros(page - 1)} disabled={page === 0} className="btn-secondary">
+                ← Anterior
+              </button>
+
+              <span style={{ padding: '8px 16px', fontSize: '12px' }}>Página {page + 1}</span>
+
+              <button onClick={() => cargarRegistros(page + 1)} disabled={registros.length < pageSize} className="btn-secondary">
+                Siguiente →
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </PermissionProtector>
   )

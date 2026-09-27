@@ -67,10 +67,10 @@ export function ImageUploader({ valor, onChange, carpeta, etiqueta, ayuda }: Pro
       {valor ? (
         <div
           style={{
-            border: '1px solid #e5e7eb',
+            border: '1px solid var(--gray-light)',
             borderRadius: '8px',
             padding: '12px',
-            backgroundColor: '#f9fafb',
+            backgroundColor: 'var(--beige-light)',
           }}
         >
           <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
@@ -82,15 +82,15 @@ export function ImageUploader({ valor, onChange, carpeta, etiqueta, ayuda }: Pro
                 height: '110px',
                 objectFit: 'cover',
                 borderRadius: '6px',
-                border: '1px solid #e5e7eb',
-                backgroundColor: 'white',
+                border: '1px solid var(--gray-light)',
+                backgroundColor: 'var(--white-off)',
                 flexShrink: 0,
               }}
             />
 
             <div style={{ flex: 1, minWidth: 0 }}>
               {resumen && (
-                <p style={{ fontSize: '12px', color: '#059669', margin: '0 0 6px 0' }}>
+                <p style={{ fontSize: '12px', color: 'var(--status-green-text)', margin: '0 0 6px 0' }}>
                   ✓ {resumen}
                 </p>
               )}
@@ -98,7 +98,7 @@ export function ImageUploader({ valor, onChange, carpeta, etiqueta, ayuda }: Pro
               <p
                 style={{
                   fontSize: '11px',
-                  color: '#6b7280',
+                  color: 'var(--gray-secondary)',
                   margin: '0 0 12px 0',
                   wordBreak: 'break-all',
                 }}
@@ -111,14 +111,8 @@ export function ImageUploader({ valor, onChange, carpeta, etiqueta, ayuda }: Pro
                   type="button"
                   onClick={() => inputRef.current?.click()}
                   disabled={subiendo}
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: '13px',
-                    backgroundColor: '#e5e7eb',
-                    border: 'none',
-                    borderRadius: '5px',
-                    cursor: subiendo ? 'wait' : 'pointer',
-                  }}
+                  className="btn-action"
+                  style={{ cursor: subiendo ? 'wait' : 'pointer' }}
                 >
                   Cambiar
                 </button>
@@ -126,15 +120,7 @@ export function ImageUploader({ valor, onChange, carpeta, etiqueta, ayuda }: Pro
                   type="button"
                   onClick={quitar}
                   disabled={subiendo}
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: '13px',
-                    backgroundColor: 'white',
-                    color: '#dc2626',
-                    border: '1px solid #fecaca',
-                    borderRadius: '5px',
-                    cursor: 'pointer',
-                  }}
+                  className="btn-action danger"
                 >
                   Quitar
                 </button>
@@ -151,11 +137,11 @@ export function ImageUploader({ valor, onChange, carpeta, etiqueta, ayuda }: Pro
             style={{
               width: '100%',
               padding: '22px',
-              border: '2px dashed #d1d5db',
+              border: '2px dashed var(--gray-light)',
               borderRadius: '8px',
-              backgroundColor: subiendo ? '#f3f4f6' : 'white',
+              backgroundColor: subiendo ? 'var(--beige-light)' : 'var(--white-off)',
               cursor: subiendo ? 'wait' : 'pointer',
-              color: '#6b7280',
+              color: 'var(--gray-secondary)',
               fontSize: '14px',
               fontFamily: 'inherit',
             }}
@@ -178,14 +164,8 @@ export function ImageUploader({ valor, onChange, carpeta, etiqueta, ayuda }: Pro
                 onChange={(e) => onChange(e.target.value.trim())}
                 onBlur={() => setPegarUrl(false)}
                 autoFocus
-                style={{
-                  width: '100%',
-                  padding: '8px 10px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  boxSizing: 'border-box',
-                }}
+                className="field-input"
+                style={{ fontSize: '13px' }}
               />
             ) : (
               <button
@@ -194,7 +174,7 @@ export function ImageUploader({ valor, onChange, carpeta, etiqueta, ayuda }: Pro
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#2563eb',
+                  color: 'var(--gold-dark)',
                   fontSize: '12px',
                   cursor: 'pointer',
                   padding: 0,
@@ -207,12 +187,10 @@ export function ImageUploader({ valor, onChange, carpeta, etiqueta, ayuda }: Pro
         </div>
       )}
 
-      {ayuda && !error && (
-        <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '6px' }}>{ayuda}</p>
-      )}
+      {ayuda && !error && <p className="field-help">{ayuda}</p>}
 
       {error && (
-        <p style={{ fontSize: '13px', color: '#dc2626', marginTop: '6px' }}>{error}</p>
+        <p style={{ fontSize: '13px', color: 'var(--status-red-solid)', marginTop: '6px' }}>{error}</p>
       )}
 
       <input

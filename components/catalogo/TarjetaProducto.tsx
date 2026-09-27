@@ -14,16 +14,19 @@ interface Props {
 /** Un producto en la rejilla del catálogo. */
 export function TarjetaProducto({ producto, mostrarTienda, onVerDetalle, onAgregar }: Props) {
   return (
-    <div className="bg-white rounded-lg shadow hover:shadow-lg transition transform hover:-translate-y-1 overflow-hidden flex flex-col">
+    <div
+      className="rounded-lg shadow hover:shadow-lg transition transform hover:-translate-y-1 overflow-hidden flex flex-col"
+      style={{ backgroundColor: 'var(--white-off)', border: '1px solid var(--gray-light)' }}
+    >
       {/* Imagen y datos: pulsarlos abre la ficha ampliada.
           Es un button para que también funcione con teclado. */}
       <button
         type="button"
         onClick={onVerDetalle}
         aria-label={`Ver detalles de ${producto.nombre}`}
-        className="text-left flex-1 flex flex-col cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-inset"
+        className="text-left flex-1 flex flex-col cursor-zoom-in focus:outline-none"
       >
-        <div className="relative bg-gray-200 h-48 overflow-hidden flex items-center justify-center group">
+        <div className="relative h-48 overflow-hidden flex items-center justify-center group" style={{ backgroundColor: 'var(--beige-light)' }}>
           {producto.imagenUrl ? (
             <img
               src={producto.imagenUrl}
@@ -41,28 +44,24 @@ export function TarjetaProducto({ producto, mostrarTienda, onVerDetalle, onAgreg
         <div className="p-4 flex-1 flex flex-col">
           {/* SKU y Categoría */}
           <div className="mb-3 flex gap-2 flex-wrap">
-            <span className="inline-block bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">
-              {producto.sku}
-            </span>
-            <span className="inline-block bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded capitalize">
+            <span className="badge badge-gold">{producto.sku}</span>
+            <span className="badge" style={{ backgroundColor: 'var(--beige-light)', color: 'var(--black-primary)' }}>
               {producto.categoria}
             </span>
             {/* De qué tienda es: en el catálogo conviven varias
                 y el cliente necesita saber a quién le compra. */}
             {mostrarTienda && producto.tienda && (
-              <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
-                🏪 {producto.tienda.nombre}
-              </span>
+              <span className="badge badge-indigo">🏪 {producto.tienda.nombre}</span>
             )}
           </div>
 
           {/* Nombre */}
           {/* h2 y no h3: el h1 es el título del catálogo y saltar
               un nivel rompe la navegación por encabezados. */}
-          <h2 className="font-semibold text-lg text-gray-900 mb-2">{producto.nombre}</h2>
+          <h2 className="font-semibold text-lg mb-2" style={{ color: 'var(--black-primary)' }}>{producto.nombre}</h2>
 
           {/* Atributos */}
-          <div className="text-sm text-gray-600 space-y-1">
+          <div className="text-sm space-y-1" style={{ color: 'var(--gray-secondary)' }}>
             {producto.dimensiones && <p>📏 {producto.dimensiones}</p>}
             {producto.color && <p>🎨 {producto.color}</p>}
             {producto.acabado && <p>✨ {producto.acabado}</p>}
@@ -72,12 +71,9 @@ export function TarjetaProducto({ producto, mostrarTienda, onVerDetalle, onAgreg
       </button>
 
       {/* Precio y botón, fuera del área que abre la ficha */}
-      <div className="px-4 pb-4 border-t pt-3">
-        <p className="text-2xl font-bold text-red-600 mb-3">{pesos(producto.precioUnitario)}</p>
-        <button
-          onClick={onAgregar}
-          className="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700 font-medium transition"
-        >
+      <div className="px-4 pb-4 pt-3" style={{ borderTop: '1px solid var(--gray-light)' }}>
+        <p className="text-2xl font-bold mb-3" style={{ color: 'var(--gold-dark)' }}>{pesos(producto.precioUnitario)}</p>
+        <button onClick={onAgregar} className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
           🛒 Agregar al carrito
         </button>
       </div>

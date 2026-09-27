@@ -130,42 +130,31 @@ export default function EditClientePage() {
     }
   }
 
-  if (loading) return <div style={{ padding: '20px' }}>Cargando...</div>
-  if (!formData) return <div style={{ padding: '20px', color: 'red' }}>Cliente no encontrado</div>
+  if (loading) return <div className="card" style={{ color: 'var(--gray-secondary)' }}>Cargando...</div>
+  if (!formData) return <div className="card" style={{ color: 'var(--status-red-solid)' }}>Cliente no encontrado</div>
 
   return (
     <PermissionProtector requiredPermission="clientes">
-      <div style={{ padding: '20px', maxWidth: '600px' }}>
-        <div style={{ marginBottom: '20px' }}>
-          <Link href="/admin/clientes" style={{ color: '#2563eb', textDecoration: 'none' }}>
+      <div className="card" style={{ maxWidth: 600 }}>
+        <div className="mb-4">
+          <Link href="/admin/clientes" style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}>
             ← Volver a Clientes
           </Link>
         </div>
 
-        <h1 style={{ marginBottom: '20px' }}>Editar Cliente</h1>
+        <h1 className="card-title mb-4" style={{ fontSize: 20 }}>Editar Cliente</h1>
 
-        {error && (
-          <div style={{ padding: '10px', marginBottom: '20px', backgroundColor: '#fee', color: '#c00', borderRadius: '4px' }}>
-            {error}
-          </div>
-        )}
+        {error && <div className="alert-box error">{error}</div>}
 
-        <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '15px' }}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Nombre *</label>
-            <input
-              type="text"
-              name="nombre"
-              value={formData.nombre}
-              onChange={handleChange}
-              required
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-            />
+            <label className="field-label">Nombre *</label>
+            <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} required className="field-input" />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Cédula/CC *</label>
+              <label className="field-label">Cédula/CC *</label>
               <input
                 type="text"
                 name="cedulaCc"
@@ -173,53 +162,30 @@ export default function EditClientePage() {
                 onChange={handleChange}
                 onBlur={checkCedulaExists}
                 required
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  borderRadius: '4px',
-                  border: cedulaError ? '2px solid #dc2626' : '1px solid #ddd',
-                  boxSizing: 'border-box'
-                }}
+                className={`field-input ${cedulaError ? 'has-error' : ''}`}
               />
               {cedulaError && (
-                <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                <div style={{ color: 'var(--status-red-solid)', fontSize: '12px', marginTop: '4px' }}>
                   {cedulaError}
                 </div>
               )}
             </div>
 
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Teléfono</label>
-              <input
-                type="text"
-                name="telefono"
-                value={formData.telefono || ''}
-                onChange={handleChange}
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-              />
+              <label className="field-label">Teléfono</label>
+              <input type="text" name="telefono" value={formData.telefono || ''} onChange={handleChange} className="field-input" />
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Email</label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email || ''}
-                onChange={handleChange}
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-              />
+              <label className="field-label">Email</label>
+              <input type="email" name="email" value={formData.email || ''} onChange={handleChange} className="field-input" />
             </div>
 
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Término de Pago</label>
-              <select
-                name="terminoPago"
-                value={formData.terminoPago || ''}
-                onChange={handleChange}
-                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-              >
+              <label className="field-label">Término de Pago</label>
+              <select name="terminoPago" value={formData.terminoPago || ''} onChange={handleChange} className="field-select">
                 <option value="">Selecciona un término</option>
                 <option value="contado">Contado</option>
                 <option value="mixto">Mixto</option>
@@ -229,18 +195,12 @@ export default function EditClientePage() {
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Dirección</label>
-            <textarea
-              name="direccion"
-              value={formData.direccion || ''}
-              onChange={handleChange}
-              rows={3}
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-            />
+            <label className="field-label">Dirección</label>
+            <textarea name="direccion" value={formData.direccion || ''} onChange={handleChange} rows={3} className="field-textarea" />
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Límite de Crédito</label>
+            <label className="field-label">Límite de Crédito</label>
             <input
               type="number"
               name="limiteCredito"
@@ -248,46 +208,22 @@ export default function EditClientePage() {
               onChange={handleChange}
               step="0.01"
               min="0"
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+              className="field-input"
             />
           </div>
 
           {formData.ultimaCompraFecha && (
-            <div style={{ padding: '10px', backgroundColor: '#f0f0f0', borderRadius: '4px' }}>
+            <div style={{ padding: '10px', backgroundColor: 'var(--beige-light)', borderRadius: '8px' }}>
               <strong>Última compra:</strong> {soloFecha(formData.ultimaCompraFecha)}
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-            <button
-              type="submit"
-              disabled={saving || !!cedulaError}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: saving || cedulaError ? '#999' : '#2563eb',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: saving || cedulaError ? 'not-allowed' : 'pointer',
-                opacity: saving || cedulaError ? 0.6 : 1,
-              }}
-            >
+          <div className="flex gap-3 mt-2">
+            <button type="submit" disabled={saving || !!cedulaError} className="btn-primary">
               {saving ? 'Guardando...' : 'Guardar Cambios'}
             </button>
 
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={saving}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: '#dc2626',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-              }}
-            >
+            <button type="button" onClick={handleDelete} disabled={saving} className="btn-danger">
               {saving ? 'Eliminando...' : 'Eliminar Cliente'}
             </button>
           </div>

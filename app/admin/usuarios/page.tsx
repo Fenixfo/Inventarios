@@ -196,33 +196,24 @@ export default function UsuariosPage() {
 
   return (
     <PermissionProtector requiredPermission="usuarios.ver">
-      <div style={{ padding: '20px', maxWidth: '1100px' }}>
-        <div style={{ marginBottom: '20px' }}>
-          <Link href="/admin" style={{ color: '#2563eb', textDecoration: 'none' }}>
+      <div style={{ maxWidth: 1100 }}>
+        <div className="mb-4">
+          <Link href="/admin" style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}>
             ← Volver al Dashboard
           </Link>
         </div>
 
-        <h1 style={{ marginBottom: '6px' }}>Gestión de Usuarios</h1>
-        <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '26px' }}>
+        <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--black-primary)' }}>Gestión de Usuarios</h1>
+        <p style={{ color: 'var(--gray-secondary)', fontSize: '14px', marginBottom: '26px' }}>
           Marca los usuarios y los permisos que quieras darles, y confirma al final. Marcando
           solo usuarios puedes dejarlos sin ningún permiso.
         </p>
 
-        {error && (
-          <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '12px', borderRadius: '6px', marginBottom: '20px', fontSize: '14px' }}>
-            {error}
-          </div>
-        )}
-
-        {exito && (
-          <div style={{ backgroundColor: '#d1fae5', color: '#065f46', padding: '12px', borderRadius: '6px', marginBottom: '20px', fontSize: '14px' }}>
-            ✅ {exito}
-          </div>
-        )}
+        {error && <div className="alert-box error">{error}</div>}
+        {exito && <div className="alert-box success">✅ {exito}</div>}
 
         {cargando ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>Cargando...</div>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--gray-secondary)' }}>Cargando...</div>
         ) : (
           <>
             <TablaUsuarios
@@ -243,21 +234,8 @@ export default function UsuariosPage() {
             />
 
             {/* Paso 3: confirmar */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', paddingBottom: '40px' }}>
-              <button
-                onClick={() => setConfirmando('agregar')}
-                disabled={!hayQueGuardar}
-                style={{
-                  padding: '12px 26px',
-                  backgroundColor: hayQueGuardar ? '#10b981' : '#d1d5db',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: hayQueGuardar ? 'pointer' : 'not-allowed',
-                  fontWeight: 'bold',
-                  fontSize: '14px',
-                }}
-              >
+            <div className="flex gap-3 items-center flex-wrap" style={{ paddingBottom: '40px' }}>
+              <button onClick={() => setConfirmando('agregar')} disabled={!hayQueGuardar} className="btn-primary">
                 Añadir permisos
               </button>
 
@@ -272,16 +250,8 @@ export default function UsuariosPage() {
                         ? 'Los usuarios marcados no tienen permisos que quitar'
                         : 'Deja sin ningún permiso a los usuarios marcados'
                   }
-                  style={{
-                    padding: '12px 26px',
-                    backgroundColor: puedeQuitar ? '#ef4444' : '#d1d5db',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: puedeQuitar ? 'pointer' : 'not-allowed',
-                    fontWeight: 'bold',
-                    fontSize: '14px',
-                  }}
+                  className="btn-danger"
+                  style={!puedeQuitar ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
                 >
                   Quitar permisos
                 </button>
@@ -298,16 +268,8 @@ export default function UsuariosPage() {
                         ? 'No puedes sacarte a ti mismo desde aquí'
                         : 'Quita el acceso a la tienda, no la cuenta'
                   }
-                  style={{
-                    padding: '12px 26px',
-                    backgroundColor: 'white',
-                    color: puedeSacar ? '#b91c1c' : '#9ca3af',
-                    border: `1px solid ${puedeSacar ? '#fca5a5' : '#e5e7eb'}`,
-                    borderRadius: '6px',
-                    cursor: puedeSacar ? 'pointer' : 'not-allowed',
-                    fontWeight: 'bold',
-                    fontSize: '14px',
-                  }}
+                  className="btn-danger"
+                  style={!puedeSacar ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
                 >
                   Sacar de la tienda
                 </button>
@@ -315,13 +277,10 @@ export default function UsuariosPage() {
 
               {(usuariosSel.size > 0 || permisosSel.size > 0) && (
                 <>
-                  <button
-                    onClick={limpiar}
-                    style={{ padding: '12px 18px', backgroundColor: '#e5e7eb', color: '#374151', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}
-                  >
+                  <button onClick={limpiar} className="btn-secondary">
                     Limpiar
                   </button>
-                  <span style={{ fontSize: '13px', color: '#6b7280' }}>
+                  <span style={{ fontSize: '13px', color: 'var(--gray-secondary)' }}>
                     {usuariosSel.size} usuario{usuariosSel.size !== 1 ? 's' : ''} ·{' '}
                     {permisosSel.size} permiso{permisosSel.size !== 1 ? 's' : ''}
                   </span>

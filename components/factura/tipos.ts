@@ -64,22 +64,30 @@ export const sinRueda = (e: React.WheelEvent<HTMLInputElement>) => {
 /** Estilo de los campos de texto del formulario. */
 export const estiloCampo: React.CSSProperties = {
   width: '100%',
-  padding: '8px',
-  borderRadius: '4px',
-  border: '1px solid #ddd',
+  padding: '10px 12px',
+  borderRadius: '8px',
+  border: '1px solid var(--gray-light)',
   boxSizing: 'border-box',
+  backgroundColor: 'var(--white-off)',
+  color: 'var(--black-primary)',
+  fontFamily: 'inherit',
+  fontSize: '14px',
 }
 
 export const estiloEtiqueta: React.CSSProperties = {
   display: 'block',
-  marginBottom: '5px',
-  fontWeight: 'bold',
+  marginBottom: '6px',
+  fontWeight: 600,
+  fontSize: '13px',
+  color: 'var(--black-primary)',
 }
 
 export const estiloSeccion: React.CSSProperties = {
-  backgroundColor: '#f9f9f9',
+  backgroundColor: 'var(--white-off)',
   padding: '20px',
-  borderRadius: '4px',
+  borderRadius: '12px',
+  border: '1px solid var(--gray-light)',
+  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
 }
 
 /** Lista desplegable de sugerencias bajo un campo de búsqueda. */
@@ -88,9 +96,9 @@ export const estiloSugerencias: React.CSSProperties = {
   top: '100%',
   left: 0,
   right: 0,
-  backgroundColor: 'white',
-  border: '1px solid #ddd',
-  borderRadius: '4px',
+  backgroundColor: 'var(--white-off)',
+  border: '1px solid var(--gray-light)',
+  borderRadius: '8px',
   maxHeight: '200px',
   overflow: 'auto',
   zIndex: 10,

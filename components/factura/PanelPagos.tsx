@@ -60,8 +60,8 @@ export function PanelPagos({ total, anticipo, abonos, puedeAbonar, guardando, on
   }
 
   return (
-    <div style={{ backgroundColor: '#f0f9ff', padding: '15px', borderRadius: '4px', marginBottom: '20px', border: '1px solid #0ea5e9' }}>
-      <h3 style={{ margin: '0 0 15px 0', color: '#0369a1' }}>Términos de Pago</h3>
+    <div style={{ backgroundColor: 'var(--beige-light)', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid var(--gold)' }}>
+      <h3 style={{ margin: '0 0 15px 0', color: 'var(--gold-dark)' }}>Términos de Pago</h3>
 
       <div style={{ marginBottom: '15px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontFamily: 'monospace' }}>
@@ -70,42 +70,54 @@ export function PanelPagos({ total, anticipo, abonos, puedeAbonar, guardando, on
         </div>
 
         {anticipo > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontFamily: 'monospace', color: '#059669' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontFamily: 'monospace', color: 'var(--status-green-text)' }}>
             <span>Adelanto (Inicial):</span>
             <span>{pesos(anticipo)}</span>
           </div>
         )}
 
         {abonos.length > 0 && (
-          <div style={{ backgroundColor: 'white', padding: '10px', borderRadius: '4px', marginBottom: '10px' }}>
-            <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', fontSize: '12px', color: '#666' }}>Abonos Registrados:</p>
+          <div style={{ backgroundColor: 'var(--white-off)', padding: '10px', borderRadius: '6px', marginBottom: '10px' }}>
+            <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', fontSize: '12px', color: 'var(--gray-secondary)' }}>Abonos Registrados:</p>
             {abonos.map((abono) => (
               <div key={`${abono.fecha}-${abono.monto}`} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontFamily: 'monospace', fontSize: '12px' }}>
                 <span>{fechaYHora(abono.fecha)}</span>
                 <span>{pesos(abono.monto)}</span>
               </div>
             ))}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #e5e7eb', fontWeight: 'bold', fontFamily: 'monospace', fontSize: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--gray-light)', fontWeight: 'bold', fontFamily: 'monospace', fontSize: '12px' }}>
               <span>Subtotal abonos:</span>
               <span>{pesos(totalAbonos)}</span>
             </div>
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontFamily: 'monospace', backgroundColor: 'white', padding: '8px', borderRadius: '4px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontFamily: 'monospace', backgroundColor: 'var(--white-off)', padding: '8px', borderRadius: '6px' }}>
           <span>Total Abonado:</span>
-          <span style={{ fontWeight: 'bold', color: '#059669' }}>{pesos(totalAbonado)}</span>
+          <span style={{ fontWeight: 'bold', color: 'var(--status-green-text)' }}>{pesos(totalAbonado)}</span>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', backgroundColor: saldoPendiente > 0 ? '#fef2f2' : '#f0fdf4', padding: '10px', borderRadius: '4px', borderLeft: `4px solid ${saldoPendiente > 0 ? '#dc2626' : '#10b981'}` }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            fontFamily: 'monospace',
+            backgroundColor: saldoPendiente > 0 ? 'var(--status-red-bg)' : 'var(--status-green-bg)',
+            padding: '10px',
+            borderRadius: '6px',
+            borderLeft: `4px solid ${saldoPendiente > 0 ? 'var(--status-red-solid)' : 'var(--status-green-text)'}`,
+          }}
+        >
           <span style={{ fontWeight: 'bold' }}>Saldo Pendiente:</span>
-          <span style={{ fontWeight: 'bold', color: saldoPendiente > 0 ? '#dc2626' : '#10b981' }}>{pesos(saldoPendiente)}</span>
+          <span style={{ fontWeight: 'bold', color: saldoPendiente > 0 ? 'var(--status-red-solid)' : 'var(--status-green-text)' }}>
+            {pesos(saldoPendiente)}
+          </span>
         </div>
       </div>
 
       {puedeAbonar && saldoPendiente > 0 && (
-        <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #0ea5e9' }}>
-          <p style={{ margin: '0 0 10px 0', fontSize: '12px', fontWeight: 'bold', color: '#0369a1' }}>Agregar Nuevo Abono:</p>
+        <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid var(--gold)' }}>
+          <p style={{ margin: '0 0 10px 0', fontSize: '12px', fontWeight: 'bold', color: 'var(--gold-dark)' }}>Agregar Nuevo Abono:</p>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
             <div style={{ flex: 1 }}>
               <input
@@ -117,31 +129,11 @@ export function PanelPagos({ total, anticipo, abonos, puedeAbonar, guardando, on
                 min="0"
                 step="100"
                 onWheel={(e) => e.currentTarget.blur()}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid #0ea5e9',
-                  borderRadius: '4px',
-                  fontFamily: 'monospace',
-                  boxSizing: 'border-box',
-                }}
+                className="field-input"
+                style={{ fontFamily: 'monospace', borderColor: 'var(--gold)' }}
               />
             </div>
-            <button
-              onClick={pedirConfirmacion}
-              disabled={guardando || !nuevoAbono}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#0ea5e9',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                opacity: guardando || !nuevoAbono ? 0.6 : 1,
-                whiteSpace: 'nowrap',
-              }}
-            >
+            <button onClick={pedirConfirmacion} disabled={guardando || !nuevoAbono} className="btn-primary" style={{ whiteSpace: 'nowrap' }}>
               {guardando ? 'Guardando...' : 'Agregar'}
             </button>
           </div>
@@ -161,101 +153,56 @@ export function PanelPagos({ total, anticipo, abonos, puedeAbonar, guardando, on
           justifyContent: 'center',
           zIndex: 1000,
         }}>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '30px',
-            borderRadius: '8px',
-            maxWidth: '500px',
-            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
-          }}>
-            <h2 style={{ margin: '0 0 20px 0', color: '#1f2937' }}>Confirmar Abono</h2>
+          <div className="card" style={{ maxWidth: 500, boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)' }}>
+            <h2 style={{ margin: '0 0 20px 0', color: 'var(--black-primary)' }}>Confirmar Abono</h2>
 
-            <div style={{
-              backgroundColor: '#f3f4f6',
-              padding: '15px',
-              borderRadius: '6px',
-              marginBottom: '20px',
-            }}>
+            <div style={{ backgroundColor: 'var(--beige-light)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
               <div style={{ marginBottom: '15px' }}>
-                <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '12px' }}>Saldo Actual:</p>
+                <p style={{ margin: '0 0 5px 0', color: 'var(--gray-secondary)', fontSize: '12px' }}>Saldo Actual:</p>
                 <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', fontFamily: 'monospace' }}>
                   {pesos(saldoPendiente)}
                 </p>
               </div>
 
               <div style={{ marginBottom: '15px' }}>
-                <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '12px' }}>Abono a Registrar:</p>
-                <p style={{ margin: 0, fontSize: '20px', fontWeight: 'bold', color: '#0ea5e9', fontFamily: 'monospace' }}>
+                <p style={{ margin: '0 0 5px 0', color: 'var(--gray-secondary)', fontSize: '12px' }}>Abono a Registrar:</p>
+                <p style={{ margin: 0, fontSize: '20px', fontWeight: 'bold', color: 'var(--gold-dark)', fontFamily: 'monospace' }}>
                   {pesos(aConfirmar)}
                 </p>
               </div>
 
-              <div style={{
-                borderTop: '1px solid #e5e7eb',
-                paddingTop: '15px',
-              }}>
-                <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '12px' }}>Nuevo Saldo Pendiente:</p>
-                <p style={{
-                  margin: 0,
-                  fontSize: '20px',
-                  fontWeight: 'bold',
-                  color: saldoPendiente - aConfirmar > 0 ? '#dc2626' : '#10b981',
-                  fontFamily: 'monospace'
-                }}>
+              <div style={{ borderTop: '1px solid var(--gray-light)', paddingTop: '15px' }}>
+                <p style={{ margin: '0 0 5px 0', color: 'var(--gray-secondary)', fontSize: '12px' }}>Nuevo Saldo Pendiente:</p>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: '20px',
+                    fontWeight: 'bold',
+                    color: saldoPendiente - aConfirmar > 0 ? 'var(--status-red-solid)' : 'var(--status-green-text)',
+                    fontFamily: 'monospace',
+                  }}
+                >
                   {pesos(saldoPendiente - aConfirmar)}
                 </p>
               </div>
             </div>
 
             {aConfirmar > saldoPendiente && (
-              <div style={{
-                backgroundColor: '#fef3c7',
-                border: '1px solid #fcd34d',
-                color: '#92400e',
-                padding: '12px',
-                borderRadius: '4px',
-                marginBottom: '15px',
-                fontSize: '12px',
-              }}>
+              <div className="alert-box">
                 <strong>⚠️ Advertencia:</strong> Este abono es superior al saldo pendiente de {pesos(saldoPendiente)}.
                 Está pagando {pesos(aConfirmar - saldoPendiente)} de más.
               </div>
             )}
 
-            <p style={{ margin: '0 0 20px 0', color: '#666', fontSize: '14px', textAlign: 'center' }}>
+            <p style={{ margin: '0 0 20px 0', color: 'var(--gray-secondary)', fontSize: '14px', textAlign: 'center' }}>
               ¿Confirma el registro de este abono? Esta acción no se puede deshacer.
             </p>
 
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setAConfirmar(null)}
-                disabled={guardando}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#e5e7eb',
-                  color: '#374151',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                }}
-              >
+              <button onClick={() => setAConfirmar(null)} disabled={guardando} className="btn-secondary">
                 Cancelar
               </button>
-              <button
-                onClick={confirmar}
-                disabled={guardando}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  opacity: guardando ? 0.6 : 1,
-                }}
-              >
+              <button onClick={confirmar} disabled={guardando} className="btn-primary">
                 {guardando ? 'Guardando...' : 'Confirmar Abono'}
               </button>
             </div>

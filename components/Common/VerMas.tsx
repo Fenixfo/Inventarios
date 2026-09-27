@@ -15,20 +15,8 @@ interface Props {
  */
 export function VerMas({ restantes, cargando, onClick }: Props) {
   return (
-    <div style={{ textAlign: 'center', marginTop: '20px' }}>
-      <button
-        onClick={onClick}
-        disabled={cargando}
-        style={{
-          padding: '10px 24px',
-          backgroundColor: 'white',
-          color: '#2563eb',
-          border: '1px solid #2563eb',
-          borderRadius: '4px',
-          cursor: cargando ? 'wait' : 'pointer',
-          fontWeight: 'bold',
-        }}
-      >
+    <div style={{ textAlign: 'center' }}>
+      <button onClick={onClick} disabled={cargando} className="btn-ver-mas">
         {cargando ? 'Cargando...' : `Ver más (${restantes} restantes)`}
       </button>
     </div>

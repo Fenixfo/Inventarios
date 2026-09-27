@@ -1,5 +1,415 @@
 @import 'tailwindcss';
 
+/* ---------------------------------------------------------------------------
+   Sistema de diseño "Luxe Clásico"
+   ---------------------------------------------------------------------------
+   Paleta y componentes tomados de beraca-admin-panel/beraca-login-public
+   (los mockups de referencia). Vive aquí, centralizado, para que todas las
+   pantallas del panel, el login y el catálogo usen exactamente los mismos
+   tonos y formas en vez de repetir hex sueltos en cada archivo.
+   --------------------------------------------------------------------------- */
+
+:root {
+  --black-primary: #1a1a1a;
+  --gold: #d4af37;
+  --gold-dark: #b8860b;
+  --beige-light: #f5f1e8;
+  --white-off: #fefdfb;
+  --gray-secondary: #8b8b8b;
+  --gray-light: #e8e8e8;
+
+  /* Colores de estado: se mantienen semánticos (rojo=peligro, ámbar=alerta,
+     azul=pagado, verde=éxito) para no perder legibilidad, pero en tonos que
+     conviven con el dorado/beige en vez de un azul o rojo saturado. */
+  --status-red-bg: #fee2e2;
+  --status-red-text: #991b1b;
+  --status-red-solid: #dc2626;
+  --status-amber-bg: #fef3c7;
+  --status-amber-text: #b45309;
+  --status-blue-bg: #dbeafe;
+  --status-blue-text: #0369a1;
+  --status-teal-bg: #cffafe;
+  --status-teal-text: #0e7490;
+  --status-green-bg: #d1fae5;
+  --status-green-text: #065f46;
+  --status-indigo-bg: #e0e7ff;
+  --status-indigo-text: #3730a3;
+}
+
+/* ---- Botones ---- */
+
+.btn-primary {
+  background-color: var(--gold);
+  color: var(--black-primary);
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--gold-dark);
+}
+
+.btn-primary:disabled {
+  background-color: var(--gray-light);
+  color: var(--gray-secondary);
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background-color: var(--white-off);
+  color: var(--black-primary);
+  border: 2px solid var(--gold);
+  padding: 9px 19px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--gold);
+}
+
+.btn-quick {
+  background-color: var(--white-off);
+  border: 2px solid var(--gold);
+  color: var(--gold-dark);
+  padding: 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  text-align: center;
+  text-decoration: none;
+  display: block;
+}
+
+.btn-quick:hover:not(:disabled) {
+  background-color: var(--gold);
+  color: var(--black-primary);
+}
+
+.btn-danger {
+  background-color: var(--white-off);
+  color: var(--status-red-solid);
+  border: 1px solid var(--status-red-solid);
+  padding: 9px 19px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: var(--status-red-solid);
+  color: white;
+}
+
+.btn-action {
+  background-color: transparent;
+  color: var(--gold-dark);
+  border: 1px solid var(--gold);
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn-action:hover:not(:disabled) {
+  background-color: var(--gold);
+  color: var(--black-primary);
+}
+
+.btn-action.danger {
+  color: var(--status-red-solid);
+  border-color: var(--status-red-solid);
+}
+
+.btn-action.danger:hover:not(:disabled) {
+  background-color: var(--status-red-solid);
+  color: white;
+}
+
+/* ---- Tarjetas y contenedores ---- */
+
+.card {
+  background-color: var(--white-off);
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid var(--gray-light);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--gray-light);
+  padding-bottom: 16px;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--black-primary);
+  margin: 0;
+}
+
+.indicator-card {
+  background-color: var(--white-off);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid var(--gray-light);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+.indicator-label {
+  font-size: 11px;
+  color: var(--gray-secondary);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+}
+
+.indicator-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--black-primary);
+}
+
+/* ---- Formularios ---- */
+
+.field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--black-primary);
+}
+
+.field-help {
+  font-size: 12px;
+  color: var(--gray-secondary);
+  margin-top: 4px;
+}
+
+.field-input,
+.field-select,
+.field-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--gray-light);
+  border-radius: 8px;
+  background-color: var(--white-off);
+  color: var(--black-primary);
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease;
+}
+
+.field-input:focus,
+.field-select:focus,
+.field-textarea:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+}
+
+.field-input.has-error {
+  border-color: var(--status-red-solid);
+}
+
+/* Filtros: el mismo campo, pero con el borde dorado que marca "esto busca",
+   distinto del borde neutro de un formulario de captura. */
+.filter-input,
+.filter-select {
+  padding: 10px 12px;
+  border: 2px solid var(--gold);
+  border-radius: 8px;
+  background-color: var(--beige-light);
+  color: var(--black-primary);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.filter-input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.filter-select {
+  cursor: pointer;
+}
+
+.filters-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ---- Tablas ---- */
+
+.table-luxe {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table-luxe th {
+  text-align: left;
+  padding: 12px 16px;
+  background-color: var(--beige-light);
+  color: var(--gray-secondary);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--gray-light);
+  white-space: nowrap;
+}
+
+.table-luxe td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--gray-light);
+}
+
+.table-luxe tbody tr:hover {
+  background-color: rgba(212, 175, 55, 0.06);
+}
+
+.table-luxe tbody tr:nth-child(even) {
+  background-color: rgba(245, 241, 232, 0.5);
+}
+
+/* ---- Badges de estado ---- */
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-red {
+  background-color: var(--status-red-bg);
+  color: var(--status-red-text);
+}
+
+.badge-red-solid {
+  background-color: var(--status-red-solid);
+  color: white;
+}
+
+.badge-amber {
+  background-color: var(--status-amber-bg);
+  color: var(--status-amber-text);
+}
+
+.badge-blue {
+  background-color: var(--status-blue-bg);
+  color: var(--status-blue-text);
+}
+
+.badge-teal {
+  background-color: var(--status-teal-bg);
+  color: var(--status-teal-text);
+}
+
+.badge-green {
+  background-color: var(--status-green-bg);
+  color: var(--status-green-text);
+}
+
+.badge-indigo {
+  background-color: var(--status-indigo-bg);
+  color: var(--status-indigo-text);
+}
+
+.badge-gold {
+  background-color: var(--gold);
+  color: var(--black-primary);
+}
+
+/* ---- Avisos ---- */
+
+.alert-box {
+  background-color: var(--status-amber-bg);
+  border-left: 4px solid var(--gold);
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  color: var(--status-amber-text);
+  font-size: 14px;
+}
+
+.alert-box.success {
+  background-color: var(--status-green-bg);
+  border-left-color: #059669;
+  color: var(--status-green-text);
+}
+
+.alert-box.error {
+  background-color: var(--status-red-bg);
+  border-left-color: var(--status-red-solid);
+  color: var(--status-red-text);
+}
+
+/* ---- Botón "ver más" ---- */
+
+.btn-ver-mas {
+  background-color: var(--gold);
+  color: var(--black-primary);
+  border: none;
+  padding: 12px 32px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+  width: 100%;
+  max-width: 300px;
+  margin-top: 16px;
+  transition: background-color 0.2s ease;
+}
+
+.btn-ver-mas:hover:not(:disabled) {
+  background-color: var(--gold-dark);
+}
+
+.btn-ver-mas:disabled {
+  background-color: var(--gray-light);
+  color: var(--gray-secondary);
+  cursor: not-allowed;
+}
+
 @keyframes popup-in {
   from {
     opacity: 0;

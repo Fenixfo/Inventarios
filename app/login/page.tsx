@@ -81,161 +81,92 @@ export default function LoginPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#f3f4f6',
+          backgroundColor: 'var(--beige-light)',
           padding: '16px',
-      }}
-    >
-      <div
-        style={{
-          backgroundColor: 'white',
-          padding: 'clamp(20px, 6vw, 40px)',
-          borderRadius: '8px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-          width: '100%',
-          maxWidth: '400px',
         }}
       >
-        <h1 style={{ marginTop: 0, marginBottom: '30px', textAlign: 'center', fontSize: '24px' }}>
-          Inventarios Beraca
-        </h1>
-
-        {error && (
-          <div
-            style={{
-              backgroundColor: '#fee',
-              color: '#c00',
-              padding: '12px',
-              borderRadius: '4px',
-              marginBottom: '20px',
-              fontSize: '14px',
-            }}
-          >
-            {error}
+        <div className="card" style={{ padding: 'clamp(24px, 6vw, 40px)', width: '100%', maxWidth: '400px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+            <h1 style={{ margin: 0, fontSize: '36px', fontWeight: 'bold', color: 'var(--black-primary)' }}>Beraca</h1>
+            <p style={{ margin: '4px 0 0 0', color: 'var(--gray-secondary)', fontSize: '14px' }}>Gestión de Inventarios</p>
           </div>
-        )}
 
-        <form onSubmit={handleLogin}>
-          <div style={{ marginBottom: '20px' }}>
+          {error && <div className="alert-box error">{error}</div>}
+
+          <form onSubmit={handleLogin}>
+            <div className="mb-5">
+              <label htmlFor="email" className="field-label">Email</label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="tu@email.com"
+                required
+                disabled={loading}
+                className="field-input"
+              />
+            </div>
+
+            <div className="mb-6">
+              <label htmlFor="password" className="field-label">Contraseña</label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                disabled={loading}
+                className="field-input"
+              />
+            </div>
+
+            {/* Duración de la sesión en este dispositivo */}
             <label
-              htmlFor="email"
               style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontWeight: '500',
-                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px',
+                cursor: 'pointer',
+                marginBottom: '20px',
+                padding: '12px',
+                border: `1px solid ${mantener ? 'var(--gold)' : 'var(--gray-light)'}`,
+                backgroundColor: mantener ? 'var(--beige-light)' : 'transparent',
+                borderRadius: '8px',
               }}
             >
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="tu@email.com"
-              required
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '30px' }}>
-            <label
-              htmlFor="password"
-              style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontWeight: '500',
-                fontSize: '14px',
-              }}
-            >
-              Contraseña
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          {/* Duración de la sesión en este dispositivo */}
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '10px',
-              cursor: 'pointer',
-              marginBottom: '20px',
-              padding: '12px',
-              border: `1px solid ${mantener ? '#bfdbfe' : '#e5e7eb'}`,
-              backgroundColor: mantener ? '#eff6ff' : '#f9fafb',
-              borderRadius: '6px',
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={mantener}
-              onChange={(e) => setMantener(e.target.checked)}
-              disabled={loading}
-              style={{ width: '17px', height: '17px', marginTop: '1px', cursor: 'pointer' }}
-            />
-            <span style={{ fontSize: '14px' }}>
-              <strong>Mantén tu sesión iniciada</strong>
-              <span style={{ display: 'block', color: '#6b7280', fontSize: '12px', marginTop: '3px' }}>
-                {mantener
-                  ? `No tendrás que volver a entrar durante ${describirDuracion(DURACION_LARGA_MS)}. Úsalo solo en tu propio dispositivo.`
-                  : `La sesión se cierra a las ${describirDuracion(DURACION_CORTA_MS)}. Déjalo así en un equipo compartido.`}
+              <input
+                type="checkbox"
+                checked={mantener}
+                onChange={(e) => setMantener(e.target.checked)}
+                disabled={loading}
+                style={{ width: '17px', height: '17px', marginTop: '1px', cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: '14px' }}>
+                <strong>Mantén tu sesión iniciada</strong>
+                <span style={{ display: 'block', color: 'var(--gray-secondary)', fontSize: '12px', marginTop: '3px' }}>
+                  {mantener
+                    ? `No tendrás que volver a entrar durante ${describirDuracion(DURACION_LARGA_MS)}. Úsalo solo en tu propio dispositivo.`
+                    : `La sesión se cierra a las ${describirDuracion(DURACION_CORTA_MS)}. Déjalo así en un equipo compartido.`}
+                </span>
               </span>
-            </span>
-          </label>
+            </label>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '12px',
-              backgroundColor: loading ? '#ccc' : '#2563eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '14px',
-              fontWeight: '600',
-              cursor: loading ? 'default' : 'pointer',
-            }}
-          >
-            {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-          </button>
-        </form>
+            <button type="submit" disabled={loading} className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
+              {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+            </button>
+          </form>
 
-        <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '12px', color: '#666' }}>
-          <p style={{ margin: '10px 0' }}>
-            ¿No tienes cuenta?{' '}
-            <Link href="/signup" style={{ color: '#2563eb', textDecoration: 'none' }}>
-              Regístrate aquí
-            </Link>
-          </p>
+          <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--gray-secondary)' }}>
+            <p style={{ margin: '10px 0' }}>
+              ¿No tienes cuenta?{' '}
+              <Link href="/signup" style={{ color: 'var(--gold-dark)', textDecoration: 'none', fontWeight: 600 }}>
+                Regístrate aquí
+              </Link>
+            </p>
+          </div>
         </div>
-      </div>
       </div>
     </>
   )

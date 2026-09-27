@@ -20,8 +20,6 @@ interface Producto {
   m2PorCaja?: number | null
 }
 
-const celda = { padding: '10px' }
-
 export default function ProductosPage() {
   const [busqueda, setBusqueda] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState('')
@@ -44,127 +42,105 @@ export default function ProductosPage() {
 
   return (
     <PermissionProtector requiredPermission="productos">
-      <div style={{ padding: '20px' }}>
-        <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <h1 style={{ margin: 0 }}>Productos</h1>
-          <Link href="/admin/productos/nuevo" style={{
-            padding: '10px 20px',
-            backgroundColor: '#2563eb',
-            color: 'white',
-            textDecoration: 'none',
-            borderRadius: '4px'
-          }}>
-            Nuevo Producto
+      <div className="card">
+        <div className="card-header">
+          <h1 className="card-title" style={{ fontSize: 20 }}>Productos</h1>
+          <Link href="/admin/productos/nuevo" className="btn-primary">
+            + Nuevo Producto
           </Link>
         </div>
 
-        <div style={{ backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '4px', marginBottom: '20px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '15px', alignItems: 'start' }}>
-            <BuscadorEnter onBuscar={setBusqueda} etiqueta="Nombre" placeholder="Ej: porcelanato gris" />
+        <div className="filters-row">
+          <BuscadorEnter onBuscar={setBusqueda} etiqueta="Nombre" placeholder="Ej: porcelanato gris" />
 
-            <div>
-              <label htmlFor="filtro-categoria" style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>Categoría</label>
-              <select
-                id="filtro-categoria"
-                value={filtroCategoria}
-                onChange={(e) => setFiltroCategoria(e.target.value)}
-                style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' }}
-              >
-                <option value="">Todas las categorías</option>
-                {categorias.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label htmlFor="filtro-categoria" className="field-label">Categoría</label>
+            <select
+              id="filtro-categoria"
+              value={filtroCategoria}
+              onChange={(e) => setFiltroCategoria(e.target.value)}
+              className="filter-select"
+            >
+              <option value="">Todas las categorías</option>
+              {categorias.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
           </div>
         </div>
 
-        {error && (
-          <p style={{ color: '#dc2626' }}>Error: {error}</p>
-        )}
+        {error && <p style={{ color: 'var(--status-red-solid)' }}>Error: {error}</p>}
 
         {cargando ? (
-          <p style={{ color: '#666' }}>Cargando...</p>
+          <p style={{ color: 'var(--gray-secondary)' }}>Cargando...</p>
         ) : productos.length === 0 ? (
-          <p style={{ color: '#666' }}>
+          <p style={{ color: 'var(--gray-secondary)' }}>
             {hayFiltros ? 'No hay productos que coincidan con la búsqueda' : 'No hay productos registrados'}
           </p>
         ) : (
           <>
-            <p style={{ color: '#6b7280', fontSize: '13px', margin: '0 0 10px 0' }}>
+            <p className="text-sm mb-2" style={{ color: 'var(--gray-secondary)' }}>
               {hayFiltros
                 ? `Mostrando ${productos.length} de ${total} que coinciden`
                 : `Mostrando los ${productos.length} más recientes de ${total}`}
             </p>
 
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table className="table-luxe">
                 <thead>
-                  <tr style={{ borderBottom: '2px solid #ddd' }}>
-                    <th style={{ ...celda, textAlign: 'left' }}>Nombre</th>
-                    <th style={{ ...celda, textAlign: 'left' }}>Categoría</th>
-                    <th style={{ ...celda, textAlign: 'left' }}>Medida</th>
-                    <th style={{ ...celda, textAlign: 'right' }}>Precio público</th>
-                    <th style={{ ...celda, textAlign: 'right' }}>Precio bodega</th>
-                    <th style={{ ...celda, textAlign: 'right' }}>Stock (m²)</th>
-                    <th style={{ ...celda, textAlign: 'right' }}>m² por caja</th>
-                    <th style={{ ...celda, textAlign: 'center' }}>Acciones</th>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Categoría</th>
+                    <th>Medida</th>
+                    <th style={{ textAlign: 'right' }}>Precio público</th>
+                    <th style={{ textAlign: 'right' }}>Precio bodega</th>
+                    <th style={{ textAlign: 'right' }}>Stock (m²)</th>
+                    <th style={{ textAlign: 'right' }}>m² por caja</th>
+                    <th style={{ textAlign: 'center' }}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {productos.map((producto) => {
                     const bajo = Number(producto.stockActual) < Number(producto.stockMinimo)
+                    const agotado = Number(producto.stockActual) <= 0
 
                     return (
-                      <tr key={producto.id} style={{ borderBottom: '1px solid #eee' }}>
-                        <td style={celda}>{producto.nombre}</td>
-                        <td style={celda}>{producto.categoria}</td>
-                        <td style={{ ...celda, whiteSpace: 'nowrap', color: producto.dimensiones ? 'inherit' : '#9ca3af' }}>
+                      <tr key={producto.id}>
+                        <td>{producto.nombre}</td>
+                        <td>{producto.categoria}</td>
+                        <td style={{ whiteSpace: 'nowrap', color: producto.dimensiones ? 'inherit' : 'var(--gray-secondary)' }}>
                           {producto.dimensiones || '—'}
                         </td>
-                        <td style={{ ...celda, textAlign: 'right' }}>{pesos(producto.precioUnitario)}</td>
-                        <td style={{ ...celda, textAlign: 'right', color: producto.precioBodega ? 'inherit' : '#9ca3af' }}>
-                          {producto.precioBodega
-                            ? pesos(producto.precioBodega)
-                            : '—'}
+                        <td style={{ textAlign: 'right' }}>{pesos(producto.precioUnitario)}</td>
+                        <td style={{ textAlign: 'right', color: producto.precioBodega ? 'inherit' : 'var(--gray-secondary)' }}>
+                          {producto.precioBodega ? pesos(producto.precioBodega) : '—'}
                         </td>
-                        <td style={{ ...celda, textAlign: 'right' }}>
+                        <td style={{ textAlign: 'right' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
                             {bajo && (
                               <span
                                 title={`Mínimo: ${producto.stockMinimo} m²`}
-                                style={{
-                                  backgroundColor: Number(producto.stockActual) <= 0 ? '#dc2626' : '#f59e0b',
-                                  color: 'white',
-                                  padding: '2px 7px',
-                                  borderRadius: '4px',
-                                  fontSize: '10px',
-                                  fontWeight: 'bold',
-                                  whiteSpace: 'nowrap',
-                                }}
+                                className={`badge ${agotado ? 'badge-red-solid' : 'badge-amber'}`}
                               >
-                                {Number(producto.stockActual) <= 0 ? 'AGOTADO' : 'STOCK BAJO'}
+                                {agotado ? 'AGOTADO' : 'STOCK BAJO'}
                               </span>
                             )}
                             <span
                               style={{
                                 fontFamily: 'monospace',
                                 fontWeight: 'bold',
-                                color: bajo ? '#dc2626' : '#059669',
+                                color: bajo ? 'var(--status-red-solid)' : 'var(--status-green-text)',
                               }}
                             >
                               {Number(producto.stockActual)}
                             </span>
                           </div>
                         </td>
-                        <td style={{ ...celda, textAlign: 'right', color: producto.m2PorCaja ? 'inherit' : '#9ca3af' }}>
+                        <td style={{ textAlign: 'right', color: producto.m2PorCaja ? 'inherit' : 'var(--gray-secondary)' }}>
                           {producto.m2PorCaja ? Number(producto.m2PorCaja) : '—'}
                         </td>
-                        <td style={{ ...celda, textAlign: 'center' }}>
-                          <Link href={`/admin/productos/${producto.id}`} style={{
-                            color: '#2563eb',
-                            textDecoration: 'none',
-                          }}>
+                        <td style={{ textAlign: 'center' }}>
+                          <Link href={`/admin/productos/${producto.id}`} className="btn-action">
                             Editar
                           </Link>
                         </td>

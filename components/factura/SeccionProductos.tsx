@@ -119,8 +119,8 @@ export function SeccionProductos({ lineas, esBodega, onMarcarBodega, onAgregar, 
             fontWeight: 'bold',
             padding: '8px 14px',
             borderRadius: '6px',
-            border: `1px solid ${esBodega ? '#f59e0b' : '#d1d5db'}`,
-            backgroundColor: esBodega ? '#fef3c7' : 'white',
+            border: `1px solid ${esBodega ? 'var(--gold)' : 'var(--gray-light)'}`,
+            backgroundColor: esBodega ? 'var(--status-amber-bg)' : 'var(--white-off)',
           }}
         >
           <input
@@ -134,7 +134,7 @@ export function SeccionProductos({ lineas, esBodega, onMarcarBodega, onAgregar, 
       </div>
 
       {esBodega && (
-        <div style={{ backgroundColor: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '6px', padding: '10px 12px', marginBottom: '15px', fontSize: '13px' }}>
+        <div className="alert-box" style={{ marginBottom: '15px', fontSize: '13px' }}>
           Esta factura usa los precios de bodega. Los productos que no tengan uno definido
           se cobran al precio del público.
         </div>
@@ -158,14 +158,14 @@ export function SeccionProductos({ lineas, esBodega, onMarcarBodega, onAgregar, 
                 onClick={() => elegir(producto)}
                 style={{
                   padding: '10px',
-                  borderBottom: '1px solid #eee',
+                  borderBottom: '1px solid var(--gray-light)',
                   cursor: 'pointer'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--beige-light)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
                 <div style={{ fontWeight: 'bold' }}>{producto.nombre}</div>
-                <div style={{ fontSize: '12px', color: '#666' }}>
+                <div style={{ fontSize: '12px', color: 'var(--gray-secondary)' }}>
                   SKU: {producto.sku} | Stock: {producto.stockActual}m² |{' '}
                   {pesos(precioDe(producto))}
                   {esBodega && !tienePrecioBodega(producto) && ' (sin precio de bodega)'}
@@ -176,14 +176,14 @@ export function SeccionProductos({ lineas, esBodega, onMarcarBodega, onAgregar, 
               onClick={() => elegirPersonalizado(texto)}
               style={{
                 padding: '10px',
-                borderBottom: '1px solid #eee',
+                borderBottom: '1px solid var(--gray-light)',
                 cursor: 'pointer',
-                backgroundColor: '#f9f9f9',
-                color: '#2563eb',
+                backgroundColor: 'var(--beige-light)',
+                color: 'var(--gold-dark)',
                 fontWeight: 'bold'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e3f2fd'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f9f9f9'}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(212, 175, 55, 0.15)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--beige-light)'}
             >
               + Nuevo: {texto}
             </div>
@@ -220,41 +220,28 @@ export function SeccionProductos({ lineas, esBodega, onMarcarBodega, onAgregar, 
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-          <button
-            type="button"
-            onClick={agregar}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              backgroundColor: '#2563eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px',
-            }}
-          >
+          <button type="button" onClick={agregar} className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
             Agregar
           </button>
         </div>
       </div>
 
       {lineas.length > 0 && (
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px' }}>
+        <table className="table-luxe" style={{ marginBottom: '15px' }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid #ddd', backgroundColor: '#f0f0f0' }}>
-              <th style={{ padding: '10px', textAlign: 'left', fontSize: '12px' }}>Producto</th>
-              <th style={{ padding: '10px', textAlign: 'right', fontSize: '12px' }}>Cant. (m²)</th>
-              <th style={{ padding: '10px', textAlign: 'right', fontSize: '12px' }}>Precio Unit.</th>
-              <th style={{ padding: '10px', textAlign: 'right', fontSize: '12px' }}>Subtotal</th>
-              <th style={{ padding: '10px', textAlign: 'center', fontSize: '12px' }}>Acciones</th>
+            <tr>
+              <th>Producto</th>
+              <th style={{ textAlign: 'right' }}>Cant. (m²)</th>
+              <th style={{ textAlign: 'right' }}>Precio Unit.</th>
+              <th style={{ textAlign: 'right' }}>Subtotal</th>
+              <th style={{ textAlign: 'center' }}>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {lineas.map((linea, indice) => (
-              <tr key={linea.clave} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '10px', fontSize: '12px' }}>{linea.productoNombre}</td>
-                <td style={{ padding: '10px', textAlign: 'right' }}>
+              <tr key={linea.clave}>
+                <td style={{ fontSize: '12px' }}>{linea.productoNombre}</td>
+                <td style={{ textAlign: 'right' }}>
                   <input
                     type="number"
                     value={linea.cantidadM2}
@@ -262,10 +249,10 @@ export function SeccionProductos({ lineas, esBodega, onMarcarBodega, onAgregar, 
                     onWheel={sinRueda}
                     step="0.01"
                     min="0"
-                    style={{ width: '60px', padding: '4px', borderRadius: '3px', border: '1px solid #ddd', textAlign: 'right' }}
+                    style={{ width: '60px', padding: '4px', borderRadius: '4px', border: '1px solid var(--gray-light)', textAlign: 'right' }}
                   />
                 </td>
-                <td style={{ padding: '10px', textAlign: 'right' }}>
+                <td style={{ textAlign: 'right' }}>
                   <input
                     type="number"
                     value={linea.precioUnitario}
@@ -273,24 +260,12 @@ export function SeccionProductos({ lineas, esBodega, onMarcarBodega, onAgregar, 
                     onWheel={sinRueda}
                     step="0.01"
                     min="0"
-                    style={{ width: '70px', padding: '4px', borderRadius: '3px', border: '1px solid #ddd', textAlign: 'right' }}
+                    style={{ width: '70px', padding: '4px', borderRadius: '4px', border: '1px solid var(--gray-light)', textAlign: 'right' }}
                   />
                 </td>
-                <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold', fontFamily: 'monospace' }}>{pesos(linea.subtotal)}</td>
-                <td style={{ padding: '10px', textAlign: 'center' }}>
-                  <button
-                    type="button"
-                    onClick={() => onQuitar(indice)}
-                    style={{
-                      padding: '4px 8px',
-                      backgroundColor: '#ef4444',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '3px',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                    }}
-                  >
+                <td style={{ textAlign: 'right', fontWeight: 'bold', fontFamily: 'monospace' }}>{pesos(linea.subtotal)}</td>
+                <td style={{ textAlign: 'center' }}>
+                  <button type="button" onClick={() => onQuitar(indice)} className="btn-action danger">
                     Quitar
                   </button>
                 </td>

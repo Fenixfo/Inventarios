@@ -81,30 +81,30 @@ export function SeccionCliente({ cliente, onCliente, terminoPago, onTerminoPago 
                 onClick={() => elegir(encontrado)}
                 style={{
                   padding: '10px',
-                  borderBottom: '1px solid #eee',
+                  borderBottom: '1px solid var(--gray-light)',
                   cursor: 'pointer'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--beige-light)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
                 <div style={{ fontWeight: 'bold' }}>{encontrado.nombre}</div>
-                <div style={{ fontSize: '12px', color: '#666' }}>Cédula: {encontrado.cedulaCc}</div>
+                <div style={{ fontSize: '12px', color: 'var(--gray-secondary)' }}>Cédula: {encontrado.cedulaCc}</div>
               </div>
             ))}
             <div
               onClick={() => crearNuevo(cliente.cedula)}
               style={{
                 padding: '10px',
-                borderTop: sugerencias.length > 0 ? '1px solid #eee' : 'none',
+                borderTop: sugerencias.length > 0 ? '1px solid var(--gray-light)' : 'none',
                 cursor: 'pointer',
-                color: '#2563eb',
-                backgroundColor: '#f9f9f9'
+                color: 'var(--gold-dark)',
+                backgroundColor: 'var(--beige-light)'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f9f9f9'}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(212, 175, 55, 0.15)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--beige-light)'}
             >
               <div style={{ fontWeight: 'bold' }}>➕ Nuevo: {cliente.cedula}</div>
-              <div style={{ fontSize: '12px', color: '#666' }}>Crear cliente con esta cédula</div>
+              <div style={{ fontSize: '12px', color: 'var(--gray-secondary)' }}>Crear cliente con esta cédula</div>
             </div>
           </div>
         )}
@@ -118,7 +118,7 @@ export function SeccionCliente({ cliente, onCliente, terminoPago, onTerminoPago 
             value={cliente.nombre}
             onChange={(e) => cambiar({ nombre: e.target.value })}
             readOnly={!!cliente.id}
-            style={{ ...estiloCampo, backgroundColor: cliente.id ? '#f5f5f5' : 'white' }}
+            style={{ ...estiloCampo, backgroundColor: cliente.id ? 'var(--beige-light)' : 'var(--white-off)' }}
           />
         </div>
         <div>

@@ -73,24 +73,24 @@ export function SeccionResumen(props: Props) {
         </div>
       </div>
 
-      <div style={{ backgroundColor: 'white', padding: '15px', borderRadius: '4px', border: '1px solid #ddd', marginBottom: '15px' }}>
+      <div style={{ backgroundColor: 'var(--beige-light)', padding: '15px', borderRadius: '8px', border: '1px solid var(--gray-light)', marginBottom: '15px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '14px', fontFamily: 'monospace' }}>
           <span>Subtotal:</span>
           <span>{pesos(subtotal)}</span>
         </div>
         {descuento > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '14px', color: '#dc2626', fontFamily: 'monospace' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '14px', color: 'var(--status-red-solid)', fontFamily: 'monospace' }}>
             <span>Descuento ({descuentoPorcentaje.toFixed(2)}%):</span>
             <span>-{pesos(descuento)}</span>
           </div>
         )}
         {impuesto > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '14px', color: '#2563eb', fontFamily: 'monospace' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '14px', color: 'var(--status-blue-text)', fontFamily: 'monospace' }}>
             <span>Impuesto ({impuestoPorcentaje.toFixed(2)}%):</span>
             <span>+{pesos(impuesto)}</span>
           </div>
         )}
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '18px', borderTop: '2px solid #ddd', paddingTop: '10px', color: '#2563eb', fontFamily: 'monospace', marginBottom: '15px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '18px', borderTop: '2px solid var(--gray-light)', paddingTop: '10px', color: 'var(--gold-dark)', fontFamily: 'monospace', marginBottom: '15px' }}>
           <span>TOTAL:</span>
           <span>{pesos(total)}</span>
         </div>
@@ -115,13 +115,13 @@ export function SeccionResumen(props: Props) {
               style={{ ...estiloCampo, fontFamily: 'monospace' }}
             />
             {abono > 0 && (
-              <div style={{ marginTop: '8px', padding: '10px', backgroundColor: '#f0f9ff', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace' }}>
+              <div style={{ marginTop: '8px', padding: '10px', backgroundColor: 'var(--white-off)', border: '1px solid var(--gray-light)', borderRadius: '8px', fontSize: '12px', fontFamily: 'monospace' }}>
                 <div>Abono: {pesos(abono)}</div>
-                <div style={{ color: abono > total ? '#dc2626' : '#10b981', fontWeight: 'bold' }}>
+                <div style={{ color: abono > total ? 'var(--status-red-solid)' : 'var(--status-green-text)', fontWeight: 'bold' }}>
                   Saldo pendiente: {pesos(Math.max(0, total - abono))}
                 </div>
                 {abono > total && (
-                  <div style={{ color: '#f59e0b', marginTop: '5px', fontSize: '11px' }}>
+                  <div style={{ color: 'var(--status-amber-text)', marginTop: '5px', fontSize: '11px' }}>
                     ⚠️ Pagando ${((abono - total) / 1000).toFixed(1)}k de más
                   </div>
                 )}

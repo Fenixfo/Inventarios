@@ -41,7 +41,7 @@ export function AdminProtector({ children }: { children: React.ReactNode }) {
 
   if (cargando) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+      <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-secondary)' }}>
         Cargando...
       </div>
     )

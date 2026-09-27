@@ -10,9 +10,9 @@ interface Props {
 
 const nivelDe = (u: Usuario) => {
   const a = accesoDe(u)
-  if (a?.esOwner) return { texto: 'Dueño', color: '#7c3aed' }
-  if (a?.esAdmin) return { texto: 'Administrador', color: '#2563eb' }
-  return { texto: 'Usuario', color: '#6b7280' }
+  if (a?.esOwner) return { texto: 'Dueño', color: 'var(--gold-dark)' }
+  if (a?.esAdmin) return { texto: 'Administrador', color: 'var(--status-blue-text)' }
+  return { texto: 'Usuario', color: 'var(--gray-secondary)' }
 }
 
 /** Paso 1: a quién se le asignan o quitan permisos. Al dueño no se le tocan. */
@@ -21,19 +21,19 @@ export function TablaUsuarios({ usuarios, seleccionados, onAlternar }: Props) {
 
   return (
     <div style={estiloTarjeta}>
-      <h2 style={{ fontSize: '16px', marginTop: 0, marginBottom: '4px' }}>1. ¿A quién?</h2>
-      <p style={{ fontSize: '13px', color: '#6b7280', marginTop: 0, marginBottom: '16px' }}>
+      <h2 style={{ fontSize: '16px', marginTop: 0, marginBottom: '4px', color: 'var(--black-primary)' }}>1. ¿A quién?</h2>
+      <p style={{ fontSize: '13px', color: 'var(--gray-secondary)', marginTop: 0, marginBottom: '16px' }}>
         Puedes marcar varios y asignarles lo mismo de una vez.
       </p>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <table className="table-luxe">
         <thead>
-          <tr style={{ backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
-            <th style={{ padding: '10px', width: '40px' }}></th>
-            <th style={{ padding: '10px', textAlign: 'left', fontSize: '12px' }}>Usuario</th>
-            <th style={{ padding: '10px', textAlign: 'left', fontSize: '12px' }}>Nivel</th>
-            <th style={{ padding: '10px', textAlign: 'left', fontSize: '12px' }}>Tienda</th>
-            <th style={{ padding: '10px', textAlign: 'right', fontSize: '12px' }}>Permisos</th>
+          <tr>
+            <th style={{ width: '40px' }}></th>
+            <th>Usuario</th>
+            <th>Nivel</th>
+            <th>Tienda</th>
+            <th style={{ textAlign: 'right' }}>Permisos</th>
           </tr>
         </thead>
         <tbody>
@@ -46,12 +46,11 @@ export function TablaUsuarios({ usuarios, seleccionados, onAlternar }: Props) {
               <tr
                 key={u.id}
                 style={{
-                  borderBottom: '1px solid #f3f4f6',
-                  backgroundColor: seleccionados.has(u.id) ? '#eff6ff' : 'transparent',
+                  backgroundColor: seleccionados.has(u.id) ? 'rgba(212, 175, 55, 0.1)' : undefined,
                   opacity: esDueno ? 0.6 : 1,
                 }}
               >
-                <td style={{ padding: '10px', textAlign: 'center' }}>
+                <td style={{ textAlign: 'center' }}>
                   <input
                     type="checkbox"
                     checked={seleccionados.has(u.id)}
@@ -61,16 +60,16 @@ export function TablaUsuarios({ usuarios, seleccionados, onAlternar }: Props) {
                     style={{ cursor: esDueno ? 'not-allowed' : 'pointer', width: '16px', height: '16px' }}
                   />
                 </td>
-                <td style={{ padding: '10px', fontSize: '14px' }}>{u.email}</td>
-                <td style={{ padding: '10px' }}>
-                  <span style={{ backgroundColor: nivel.color, color: 'white', padding: '2px 9px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>
+                <td style={{ fontSize: '14px' }}>{u.email}</td>
+                <td>
+                  <span className="badge" style={{ backgroundColor: nivel.color, color: 'white' }}>
                     {nivel.texto}
                   </span>
                 </td>
-                <td style={{ padding: '10px', fontSize: '13px', color: '#6b7280' }}>
+                <td style={{ fontSize: '13px', color: 'var(--gray-secondary)' }}>
                   {acceso?.tiendaNombre || '—'}
                 </td>
-                <td style={{ padding: '10px', textAlign: 'right', fontSize: '13px', color: '#6b7280' }}>
+                <td style={{ textAlign: 'right', fontSize: '13px', color: 'var(--gray-secondary)' }}>
                   {esDueno || acceso?.esAdmin ? 'todos' : acceso?.permisos.length || 0}
                 </td>
               </tr>
@@ -80,7 +79,7 @@ export function TablaUsuarios({ usuarios, seleccionados, onAlternar }: Props) {
       </table>
 
       {!haySeleccionables && (
-        <p style={{ fontSize: '13px', color: '#6b7280', marginTop: '14px' }}>
+        <p style={{ fontSize: '13px', color: 'var(--gray-secondary)', marginTop: '14px' }}>
           No hay usuarios a los que asignar permisos.
         </p>
       )}

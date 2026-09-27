@@ -133,7 +133,8 @@ export function MenuTiendas({ email, onCerrarSesion }: Props) {
         onClick={() => setAbierto(!abierto)}
         aria-expanded={abierto}
         aria-haspopup="menu"
-        className="flex items-center gap-2 rounded-lg bg-white/15 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/25"
+        className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition"
+        style={{ backgroundColor: 'var(--beige-light)', color: 'var(--black-primary)' }}
       >
         🏪
         <span className="max-w-[140px] truncate">{actual?.nombre}</span>
@@ -152,9 +153,8 @@ export function MenuTiendas({ email, onCerrarSesion }: Props) {
           {tiendas.map((t) => (
             <div
               key={t.id}
-              className={`flex items-start justify-between gap-2 px-4 py-2 ${
-                t.id === activa ? 'bg-blue-50' : 'hover:bg-gray-50'
-              }`}
+              className="flex items-start justify-between gap-2 px-4 py-2 hover:bg-[var(--beige-light)]"
+              style={t.id === activa ? { backgroundColor: 'rgba(212, 175, 55, 0.12)' } : undefined}
             >
               <button
                 onClick={() => cambiarA(t.id)}
@@ -162,7 +162,7 @@ export function MenuTiendas({ email, onCerrarSesion }: Props) {
                 role="menuitem"
               >
                 <span className="block text-sm font-medium text-gray-900">
-                  {t.id === activa && <span className="text-blue-600">✓ </span>}
+                  {t.id === activa && <span style={{ color: 'var(--gold-dark)' }}>✓ </span>}
                   {t.nombre}
                 </span>
                 <span className="block text-xs text-gray-500">
@@ -190,14 +190,16 @@ export function MenuTiendas({ email, onCerrarSesion }: Props) {
           <div className="mt-1 border-t">
             <a
               href="/tiendas/nueva"
-              className="block px-4 py-3 text-sm text-blue-600 no-underline hover:bg-gray-50"
+              className="block px-4 py-3 text-sm no-underline hover:bg-[var(--beige-light)]"
+              style={{ color: 'var(--gold-dark)' }}
               role="menuitem"
             >
               ➕ Crear una tienda
             </a>
             <a
               href="/request-access"
-              className="block px-4 py-3 text-sm text-blue-600 no-underline hover:bg-gray-50"
+              className="block px-4 py-3 text-sm no-underline hover:bg-[var(--beige-light)]"
+              style={{ color: 'var(--gold-dark)' }}
               role="menuitem"
             >
               ✋ Pedir acceso con un código

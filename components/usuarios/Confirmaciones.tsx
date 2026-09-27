@@ -40,27 +40,23 @@ function MarcoConfirmacion({
         role="dialog"
         aria-modal="true"
         aria-label={titulo}
-        style={{ backgroundColor: 'white', borderRadius: '12px', maxWidth: '560px', width: '100%', maxHeight: '85vh', overflow: 'auto', padding: '24px' }}
+        style={{ backgroundColor: 'var(--white-off)', borderRadius: '12px', maxWidth: '560px', width: '100%', maxHeight: '85vh', overflow: 'auto', padding: '24px' }}
       >
-        <h2 style={{ fontSize: '18px', marginTop: 0, marginBottom: '6px' }}>{titulo}</h2>
-        <p style={{ fontSize: '13px', color: '#6b7280', marginTop: 0, marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '18px', marginTop: 0, marginBottom: '6px', color: 'var(--black-primary)' }}>{titulo}</h2>
+        <p style={{ fontSize: '13px', color: 'var(--gray-secondary)', marginTop: 0, marginBottom: '20px' }}>
           Revisa antes de guardar. Nada se ha modificado todavía.
         </p>
 
         {children}
 
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button
-            onClick={onCancelar}
-            disabled={guardando}
-            style={{ flex: 1, padding: '11px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px' }}
-          >
+          <button onClick={onCancelar} disabled={guardando} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>
             Cancelar
           </button>
           <button
             onClick={onConfirmar}
             disabled={guardando}
-            style={{ flex: 1, padding: '11px', backgroundColor: guardando ? '#9ca3af' : colorConfirmar, color: 'white', border: 'none', borderRadius: '6px', cursor: guardando ? 'wait' : 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+            style={{ flex: 1, padding: '11px', backgroundColor: guardando ? 'var(--gray-secondary)' : colorConfirmar, color: 'white', border: 'none', borderRadius: '8px', cursor: guardando ? 'wait' : 'pointer', fontWeight: 'bold', fontSize: '14px' }}
           >
             {guardando ? textoGuardando : textoConfirmar}
           </button>
@@ -106,7 +102,7 @@ export function ConfirmarAsignacion({
       titulo="Confirmar asignación"
       textoConfirmar="Confirmar"
       textoGuardando="Guardando..."
-      colorConfirmar="#10b981"
+      colorConfirmar="var(--status-green-text)"
       {...accion}
     >
       <div style={{ marginBottom: '18px' }}>
@@ -123,7 +119,7 @@ export function ConfirmarAsignacion({
       </div>
 
       {nombrarAdmin && (
-        <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '12px', marginBottom: '18px', fontSize: '13px' }}>
+        <div className="alert-box" style={{ marginBottom: '18px' }}>
           👑 Además {n === 1 ? 'será nombrado' : 'serán nombrados'}{' '}
           <strong>administrador{plural(n, 'es')}</strong> de la tienda, con acceso a todo.
         </div>
@@ -140,13 +136,13 @@ export function ConfirmarAsignacion({
               <span style={{ fontWeight: 'bold' }}>
                 {m.icono} {m.nombre}:
               </span>{' '}
-              <span style={{ color: '#4b5563' }}>{m.marcadas.map((a) => a.nombre).join(', ')}</span>
+              <span style={{ color: 'var(--gray-secondary)' }}>{m.marcadas.map((a) => a.nombre).join(', ')}</span>
             </div>
           ))}
         </div>
       )}
 
-      <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '20px' }}>
+      <p style={{ fontSize: '12px', color: 'var(--gray-secondary)', marginBottom: '20px' }}>
         Los permisos que ya tuvieran se conservan.
       </p>
     </MarcoConfirmacion>
@@ -166,7 +162,7 @@ export function ConfirmarSalida({ marcados, ...accion }: PropsSalida) {
       titulo="Sacar de la tienda"
       textoConfirmar="Sí, sacar de la tienda"
       textoGuardando="Sacando..."
-      colorConfirmar="#dc2626"
+      colorConfirmar="var(--status-red-solid)"
       {...accion}
     >
       <div style={{ marginBottom: '18px' }}>
@@ -178,19 +174,19 @@ export function ConfirmarSalida({ marcados, ...accion }: PropsSalida) {
             <li key={u.id} style={{ marginBottom: '4px' }}>
               {u.email}
               {accesoDe(u)?.esAdmin && (
-                <span style={{ color: '#6b7280', fontSize: '13px' }}> (administrador)</span>
+                <span style={{ color: 'var(--gray-secondary)', fontSize: '13px' }}> (administrador)</span>
               )}
             </li>
           ))}
         </ul>
       </div>
 
-      <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fecaca', borderRadius: '6px', padding: '12px', marginBottom: '14px', fontSize: '13px', color: '#991b1b' }}>
+      <div className="alert-box error" style={{ marginBottom: '14px' }}>
         Se les quita el acceso a esta tienda y desaparecen del listado. Para volver
         tendrán que pedir acceso otra vez con el código.
       </div>
 
-      <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '20px' }}>
+      <p style={{ fontSize: '12px', color: 'var(--gray-secondary)', marginBottom: '20px' }}>
         No se borra su cuenta: la cuenta es de la persona, no de la tienda, y puede
         seguir trabajando en otras. Lo que hayan facturado se queda aquí, a su nombre.
       </p>
@@ -219,7 +215,7 @@ export function ConfirmarRetiro({
       titulo="Quitar todos los permisos"
       textoConfirmar="Sí, quitar todos"
       textoGuardando="Quitando..."
-      colorConfirmar="#ef4444"
+      colorConfirmar="var(--status-red-solid)"
       {...accion}
     >
       <div style={{ marginBottom: '18px' }}>
@@ -233,7 +229,7 @@ export function ConfirmarRetiro({
             return (
               <li key={u.id} style={{ marginBottom: '4px' }}>
                 {u.email}{' '}
-                <span style={{ color: '#6b7280', fontSize: '13px' }}>
+                <span style={{ color: 'var(--gray-secondary)', fontSize: '13px' }}>
                   ({acceso?.esAdmin ? 'administrador' : `${cuantos} permiso${plural(cuantos)}`})
                 </span>
               </li>
@@ -243,20 +239,20 @@ export function ConfirmarRetiro({
       </div>
 
       {marcados.length > n && (
-        <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '18px' }}>
+        <p style={{ fontSize: '12px', color: 'var(--gray-secondary)', marginBottom: '18px' }}>
           Los otros {marcados.length - n} marcados ya no tenían permisos, así que no cambian.
         </p>
       )}
 
       {cuantosAdmins > 0 && (
-        <div style={{ backgroundColor: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '6px', padding: '12px', marginBottom: '18px', fontSize: '13px' }}>
+        <div className="alert-box" style={{ marginBottom: '18px' }}>
           ⚠️ {cuantosAdmins === 1 ? 'Uno de ellos es' : `${cuantosAdmins} de ellos son`}{' '}
           <strong>administrador</strong>: también se le retira el cargo, porque si no
           seguiría teniendo acceso a todo.
         </div>
       )}
 
-      <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fecaca', borderRadius: '6px', padding: '12px', marginBottom: '22px', fontSize: '13px', color: '#991b1b' }}>
+      <div className="alert-box error" style={{ marginBottom: '22px' }}>
         Conservan el acceso a la tienda, pero sin permisos no podrán abrir ninguna
         sección del panel. Para devolvérselos habrá que asignarlos de nuevo.
       </div>

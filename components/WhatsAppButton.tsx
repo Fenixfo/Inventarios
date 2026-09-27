@@ -149,41 +149,36 @@ export function WhatsAppButton({ carrito, onPedidoEnviado }: WhatsAppButtonProps
 
       {modalAbierto && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
+          <div className="rounded-lg shadow-lg max-w-md w-full p-6" style={{ backgroundColor: 'var(--white-off)' }}>
             {enviado ? (
               <div className="text-center">
                 <div className="text-5xl mb-4">✅</div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Pedido enviado</h2>
-                <p className="text-gray-600 mb-6">
+                <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--black-primary)' }}>Pedido enviado</h2>
+                <p className="mb-6" style={{ color: 'var(--gray-secondary)' }}>
                   Se abrió WhatsApp con tu pedido. Envía el mensaje para confirmarlo.
                 </p>
-                <button
-                  onClick={cerrarModal}
-                  className="w-full bg-gray-800 text-white py-2 rounded hover:bg-gray-900 font-medium transition"
-                >
+                <button onClick={cerrarModal} className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
                   Cerrar
                 </button>
               </div>
             ) : (
               <>
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Enviar pedido</h2>
+                <h2 className="text-2xl font-bold mb-4" style={{ color: 'var(--black-primary)' }}>Enviar pedido</h2>
 
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tu nombre (opcional)
-                  </label>
+                  <label className="field-label">Tu nombre (opcional)</label>
                   <input
                     type="text"
                     value={nombre}
                     onChange={(e) => setNombre(e.target.value)}
                     placeholder="Juan Pérez"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
+                    className="field-input"
                   />
                 </div>
 
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tu teléfono <span className="text-red-600">*</span>
+                  <label className="field-label">
+                    Tu teléfono <span style={{ color: 'var(--status-red-solid)' }}>*</span>
                   </label>
                   <input
                     type="tel"
@@ -194,21 +189,17 @@ export function WhatsAppButton({ carrito, onPedidoEnviado }: WhatsAppButtonProps
                     }}
                     placeholder="300 123 4567"
                     autoFocus
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                      errorTelefono
-                        ? 'border-red-500 focus:ring-red-500'
-                        : 'border-gray-300 focus:ring-green-600'
-                    }`}
+                    className={`field-input ${errorTelefono ? 'has-error' : ''}`}
                   />
                   {errorTelefono && (
-                    <p className="text-sm text-red-600 mt-1">{errorTelefono}</p>
+                    <p className="text-sm mt-1" style={{ color: 'var(--status-red-solid)' }}>{errorTelefono}</p>
                   )}
                 </div>
 
                 {!cargandoConfig && !destinoConfigurado && (
-                  <div className="mb-4 border border-amber-300 bg-amber-50 rounded-lg p-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Número de WhatsApp destino <span className="text-red-600">*</span>
+                  <div className="alert-box">
+                    <label className="field-label">
+                      Número de WhatsApp destino <span style={{ color: 'var(--status-red-solid)' }}>*</span>
                     </label>
                     <input
                       type="tel"
@@ -218,16 +209,12 @@ export function WhatsAppButton({ carrito, onPedidoEnviado }: WhatsAppButtonProps
                         setErrorDestino(null)
                       }}
                       placeholder="573001234567"
-                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                        errorDestino
-                          ? 'border-red-500 focus:ring-red-500'
-                          : 'border-gray-300 focus:ring-green-600'
-                      }`}
+                      className={`field-input ${errorDestino ? 'has-error' : ''}`}
                     />
                     {errorDestino ? (
-                      <p className="text-sm text-red-600 mt-1">{errorDestino}</p>
+                      <p className="text-sm mt-1" style={{ color: 'var(--status-red-solid)' }}>{errorDestino}</p>
                     ) : (
-                      <p className="text-xs text-gray-600 mt-1">
+                      <p className="field-help">
                         Aún no hay un número configurado en el sistema. Escribe uno con indicativo
                         para esta prueba.
                       </p>
@@ -235,40 +222,34 @@ export function WhatsAppButton({ carrito, onPedidoEnviado }: WhatsAppButtonProps
                   </div>
                 )}
 
-                <div className="bg-gray-50 rounded-lg p-4 mb-4 text-sm">
+                <div className="rounded-lg p-4 mb-4 text-sm" style={{ backgroundColor: 'var(--beige-light)' }}>
                   <div className="flex justify-between mb-1">
-                    <span className="text-gray-600">Productos:</span>
+                    <span style={{ color: 'var(--gray-secondary)' }}>Productos:</span>
                     <span className="font-medium">{carrito.totalCantidad}</span>
                   </div>
                   <div className="flex justify-between mb-1">
-                    <span className="text-gray-600">Total m²:</span>
+                    <span style={{ color: 'var(--gray-secondary)' }}>Total m²:</span>
                     <span className="font-medium">{carrito.totalM2.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between border-t pt-2 mt-2">
+                  <div className="flex justify-between pt-2 mt-2" style={{ borderTop: '1px solid var(--gray-light)' }}>
                     <span className="font-bold">Total:</span>
-                    <span className="font-bold text-red-600">
+                    <span className="font-bold" style={{ color: 'var(--gold-dark)' }}>
                       {pesos(carrito.totalPrecio)}
                     </span>
                   </div>
                 </div>
 
-                {errorGeneral && (
-                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-sm">
-                    {errorGeneral}
-                  </div>
-                )}
+                {errorGeneral && <div className="alert-box error">{errorGeneral}</div>}
 
                 <div className="flex gap-3">
-                  <button
-                    onClick={cerrarModal}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition"
-                  >
+                  <button onClick={cerrarModal} className="btn-secondary flex-1" style={{ justifyContent: 'center' }}>
                     Cancelar
                   </button>
                   <button
                     onClick={handleEnviar}
                     disabled={enviando}
-                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-medium transition"
+                    className="flex-1 px-4 py-2 rounded-lg font-medium transition"
+                    style={{ backgroundColor: enviando ? 'var(--gray-secondary)' : '#25d366', color: 'white' }}
                   >
                     {enviando ? 'Enviando...' : 'Enviar'}
                   </button>

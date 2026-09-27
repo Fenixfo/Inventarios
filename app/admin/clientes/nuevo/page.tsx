@@ -74,152 +74,93 @@ export default function NuevoClientePage() {
 
   return (
     <PermissionProtector requiredPermission="clientes">
-      <div style={{ padding: '20px', maxWidth: '600px' }}>
-      <div style={{ marginBottom: '20px' }}>
-        <Link href="/admin/clientes" style={{ color: '#2563eb', textDecoration: 'none' }}>
-          ← Volver a Clientes
-        </Link>
-      </div>
-
-      <h1 style={{ marginBottom: '20px' }}>Nuevo Cliente</h1>
-
-      {error && (
-        <div style={{ padding: '10px', marginBottom: '20px', backgroundColor: '#fee', color: '#c00', borderRadius: '4px' }}>
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '15px' }}>
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Nombre *</label>
-          <input
-            type="text"
-            name="nombre"
-            value={formData.nombre}
-            onChange={handleChange}
-            required
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-          />
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Cédula/CC *</label>
-            <input
-              type="text"
-              name="cedulaCc"
-              value={formData.cedulaCc}
-              onChange={handleChange}
-              onBlur={checkCedulaExists}
-              required
-              style={{
-                width: '100%',
-                padding: '8px',
-                borderRadius: '4px',
-                border: cedulaError ? '2px solid #dc2626' : '1px solid #ddd',
-                boxSizing: 'border-box'
-              }}
-            />
-            {cedulaError && (
-              <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
-                {cedulaError}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Teléfono</label>
-            <input
-              type="text"
-              name="telefono"
-              value={formData.telefono}
-              onChange={handleChange}
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-            />
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Email</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Término de Pago</label>
-            <select
-              name="terminoPago"
-              value={formData.terminoPago}
-              onChange={handleChange}
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-            >
-              <option value="">Selecciona un término</option>
-              <option value="contado">Contado</option>
-              <option value="mixto">Mixto</option>
-              <option value="credito">Crédito</option>
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Dirección</label>
-          <textarea
-            name="direccion"
-            value={formData.direccion}
-            onChange={handleChange}
-            rows={3}
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-          />
-        </div>
-
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Límite de Crédito</label>
-          <input
-            type="number"
-            name="limiteCredito"
-            value={formData.limiteCredito}
-            onChange={handleChange}
-            step="0.01"
-            min="0"
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-          />
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-          <button
-            type="submit"
-            disabled={loading || !!cedulaError}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: loading || cedulaError ? '#999' : '#2563eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: loading || cedulaError ? 'not-allowed' : 'pointer',
-              opacity: loading || cedulaError ? 0.6 : 1,
-            }}
-          >
-            {loading ? 'Guardando...' : 'Guardar Cliente'}
-          </button>
-
-          <Link href="/admin/clientes" style={{
-            padding: '10px 20px',
-            backgroundColor: '#6b7280',
-            color: 'white',
-            textDecoration: 'none',
-            borderRadius: '4px',
-            display: 'inline-block'
-          }}>
-            Cancelar
+      <div className="card" style={{ maxWidth: 600 }}>
+        <div className="mb-4">
+          <Link href="/admin/clientes" style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}>
+            ← Volver a Clientes
           </Link>
         </div>
-      </form>
+
+        <h1 className="card-title mb-4" style={{ fontSize: 20 }}>Nuevo Cliente</h1>
+
+        {error && <div className="alert-box error">{error}</div>}
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div>
+            <label className="field-label">Nombre *</label>
+            <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} required className="field-input" />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="field-label">Cédula/CC *</label>
+              <input
+                type="text"
+                name="cedulaCc"
+                value={formData.cedulaCc}
+                onChange={handleChange}
+                onBlur={checkCedulaExists}
+                required
+                className={`field-input ${cedulaError ? 'has-error' : ''}`}
+              />
+              {cedulaError && (
+                <div style={{ color: 'var(--status-red-solid)', fontSize: '12px', marginTop: '4px' }}>
+                  {cedulaError}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="field-label">Teléfono</label>
+              <input type="text" name="telefono" value={formData.telefono} onChange={handleChange} className="field-input" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="field-label">Email</label>
+              <input type="email" name="email" value={formData.email} onChange={handleChange} className="field-input" />
+            </div>
+
+            <div>
+              <label className="field-label">Término de Pago</label>
+              <select name="terminoPago" value={formData.terminoPago} onChange={handleChange} className="field-select">
+                <option value="">Selecciona un término</option>
+                <option value="contado">Contado</option>
+                <option value="mixto">Mixto</option>
+                <option value="credito">Crédito</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="field-label">Dirección</label>
+            <textarea name="direccion" value={formData.direccion} onChange={handleChange} rows={3} className="field-textarea" />
+          </div>
+
+          <div>
+            <label className="field-label">Límite de Crédito</label>
+            <input
+              type="number"
+              name="limiteCredito"
+              value={formData.limiteCredito}
+              onChange={handleChange}
+              step="0.01"
+              min="0"
+              className="field-input"
+            />
+          </div>
+
+          <div className="flex gap-3 mt-2">
+            <button type="submit" disabled={loading || !!cedulaError} className="btn-primary">
+              {loading ? 'Guardando...' : 'Guardar Cliente'}
+            </button>
+
+            <Link href="/admin/clientes" className="btn-secondary">
+              Cancelar
+            </Link>
+          </div>
+        </form>
       </div>
     </PermissionProtector>
   )

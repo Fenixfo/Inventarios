@@ -214,16 +214,7 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
 
   return (
     <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '20px' }}>
-      {error && (
-        <div style={{
-          padding: '15px',
-          backgroundColor: '#fee',
-          color: '#c33',
-          borderRadius: '4px',
-        }}>
-          {error}
-        </div>
-      )}
+      {error && <div className="alert-box error">{error}</div>}
 
       <SeccionCliente
         cliente={cliente}
@@ -259,20 +250,7 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
       />
 
       <div style={{ display: 'flex', gap: '10px' }}>
-        <button
-          type="submit"
-          disabled={saving || lineas.length === 0}
-          style={{
-            padding: '12px 24px',
-            backgroundColor: saving || lineas.length === 0 ? '#999' : '#2563eb',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: saving || lineas.length === 0 ? 'not-allowed' : 'pointer',
-            fontSize: '14px',
-            fontWeight: 'bold',
-          }}
-        >
+        <button type="submit" disabled={saving || lineas.length === 0} className="btn-primary">
           {esCotizacion
             ? saving ? 'Guardando cotización...' : 'Guardar Cotización'
             : saving ? 'Creando factura...' : 'Crear Factura'}

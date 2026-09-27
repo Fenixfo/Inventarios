@@ -7,16 +7,16 @@ import { PermissionProtector } from '@/components/PermissionProtector'
 export default function NuevaFacturaPage() {
   return (
     <PermissionProtector requiredPermission="facturas">
-      <div style={{ padding: '20px', maxWidth: '1000px' }}>
-      <div style={{ marginBottom: '20px' }}>
-        <Link href="/admin/facturas" style={{ color: '#2563eb', textDecoration: 'none' }}>
-          ← Volver a Facturas
-        </Link>
-      </div>
+      <div style={{ maxWidth: 1000 }}>
+        <div className="mb-4">
+          <Link href="/admin/facturas" style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}>
+            ← Volver a Facturas
+          </Link>
+        </div>
 
-      <h1 style={{ marginBottom: '30px' }}>Nueva Factura</h1>
+        <h1 className="mb-6 text-2xl font-bold" style={{ color: 'var(--black-primary)' }}>Nueva Factura</h1>
 
-      <InvoiceForm />
+        <InvoiceForm />
       </div>
     </PermissionProtector>
   )

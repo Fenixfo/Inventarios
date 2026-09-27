@@ -51,12 +51,12 @@ interface Factura {
 }
 
 const COLORES_ESTADO: Record<string, string> = {
-  pagado: '#10b981',
-  entregado: '#0891b2',
-  anulado: '#ef4444',
+  pagado: 'var(--status-blue-text)',
+  entregado: 'var(--status-teal-text)',
+  anulado: 'var(--status-red-solid)',
   // El final de una factura cobrada: ya se repartió la ganancia.
-  liquidado: '#6366f1',
-  pendiente: '#f59e0b',
+  liquidado: 'var(--status-indigo-text)',
+  pendiente: 'var(--status-amber-text)',
 }
 
 const formatearEstado = (estado: string) => estado.charAt(0).toUpperCase() + estado.slice(1)
@@ -66,8 +66,9 @@ const estiloBoton = (fondo: string): React.CSSProperties => ({
   backgroundColor: fondo,
   color: 'white',
   border: 'none',
-  borderRadius: '4px',
+  borderRadius: '8px',
   cursor: 'pointer',
+  fontWeight: 600,
 })
 
 /**
@@ -184,8 +185,8 @@ export default function FacturaPage() {
     await cambiarEstado('anulado')
   }
 
-  if (loading) return <div style={{ padding: '20px' }}>Cargando...</div>
-  if (!factura) return <div style={{ padding: '20px', color: 'red' }}>{error || 'Factura no encontrada'}</div>
+  if (loading) return <div className="card" style={{ color: 'var(--gray-secondary)' }}>Cargando...</div>
+  if (!factura) return <div className="card" style={{ color: 'var(--status-red-solid)' }}>{error || 'Factura no encontrada'}</div>
 
   const totalAbonado = Number(factura.anticipo || 0) + abonos.reduce((suma, a) => suma + Number(a.monto), 0)
   const saldoPendiente = Number(factura.total) - totalAbonado
@@ -220,121 +221,102 @@ export default function FacturaPage() {
 
   return (
     <PermissionProtector requiredPermission="facturas">
-      <div style={{ padding: '20px', maxWidth: '900px' }}>
-        <div style={{ marginBottom: '20px' }}>
-          <Link href="/admin/facturas" style={{ color: '#2563eb', textDecoration: 'none' }}>
+      <div className="card" style={{ maxWidth: 900 }}>
+        <div className="mb-4">
+          <Link href="/admin/facturas" style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}>
             ← Volver a Facturas
           </Link>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '20px', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1 style={{ margin: '0 0 10px 0' }}>{factura.numeroFactura}</h1>
-            <p style={{ margin: '5px 0', color: '#666' }}>{fechaYHora(factura.fecha)}</p>
+            <h1 style={{ margin: '0 0 10px 0', color: 'var(--black-primary)' }}>{factura.numeroFactura}</h1>
+            <p style={{ margin: '5px 0', color: 'var(--gray-secondary)' }}>{fechaYHora(factura.fecha)}</p>
           </div>
           <div style={{ textAlign: 'right', display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {/* Marca por qué los precios de esta factura son distintos. */}
-            {factura.esBodega && (
-              <span style={{
-                padding: '8px 12px',
-                backgroundColor: '#fef3c7',
-                color: '#92400e',
-                borderRadius: '4px',
-                fontSize: '14px',
-                display: 'inline-block',
-                fontWeight: 'bold'
-              }}>
-                🏭 Precio de bodega
-              </span>
-            )}
-            <span style={{
-              padding: '8px 12px',
-              backgroundColor: COLORES_ESTADO[factura.estado] || COLORES_ESTADO.pendiente,
-              color: 'white',
-              borderRadius: '4px',
-              fontSize: '14px',
-              display: 'inline-block',
-              fontWeight: 'bold'
-            }}>
+            {factura.esBodega && <span className="badge badge-amber" style={{ padding: '8px 12px', fontSize: 14 }}>🏭 Precio de bodega</span>}
+            <span
+              className="badge"
+              style={{ padding: '8px 12px', fontSize: 14, backgroundColor: COLORES_ESTADO[factura.estado] || COLORES_ESTADO.pendiente, color: 'white' }}
+            >
               {formatearEstado(factura.estado)}
             </span>
           </div>
         </div>
 
-        {error && (
-          <div style={{ padding: '10px', marginBottom: '20px', backgroundColor: '#fee', color: '#c00', borderRadius: '4px' }}>
-            {error}
-          </div>
-        )}
+        {error && <div className="alert-box error">{error}</div>}
 
-        <div style={{ backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '4px', marginBottom: '20px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        <div style={{ backgroundColor: 'var(--beige-light)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
-              <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '12px' }}>CLIENTE</p>
+              <p style={{ margin: '0 0 5px 0', color: 'var(--gray-secondary)', fontSize: '12px' }}>CLIENTE</p>
               <p style={{ margin: 0, fontWeight: 'bold' }}>{factura.cliente?.nombre || 'Cliente General'}</p>
             </div>
             <div>
-              <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '12px' }}>VENDEDOR</p>
+              <p style={{ margin: '0 0 5px 0', color: 'var(--gray-secondary)', fontSize: '12px' }}>VENDEDOR</p>
               <p style={{ margin: 0 }}>{factura.usuario?.email || '-'}</p>
             </div>
             <div>
-              <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '12px' }}>TÉRMINO DE PAGO</p>
+              <p style={{ margin: '0 0 5px 0', color: 'var(--gray-secondary)', fontSize: '12px' }}>TÉRMINO DE PAGO</p>
               <p style={{ margin: 0 }}>{factura.terminoPago || '-'}</p>
             </div>
             <div>
-              <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '12px' }}>MÉTODO DE PAGO</p>
+              <p style={{ margin: '0 0 5px 0', color: 'var(--gray-secondary)', fontSize: '12px' }}>MÉTODO DE PAGO</p>
               <p style={{ margin: 0 }}>{factura.metodoPago || '-'}</p>
             </div>
           </div>
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #ddd' }}>
-              <th style={{ padding: '10px', textAlign: 'left' }}>Producto</th>
-              <th style={{ padding: '10px', textAlign: 'right' }}>Cantidad (m²)</th>
-              <th style={{ padding: '10px', textAlign: 'right' }}>Precio Unit.</th>
-              <th style={{ padding: '10px', textAlign: 'right' }}>Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-            {factura.items.map((item) => (
-              <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '10px' }}>{item.productoNombre || item.producto?.nombre || '(Personalizado)'}</td>
-                <td style={{ padding: '10px', textAlign: 'right' }}>{Number(item.cantidadM2).toFixed(2)}</td>
-                <td style={{ padding: '10px', textAlign: 'right' }}>{pesos(item.precioUnitario)}</td>
-                <td style={{ padding: '10px', textAlign: 'right' }}>{pesos(item.subtotal)}</td>
+        <div style={{ overflowX: 'auto', marginBottom: 20 }}>
+          <table className="table-luxe">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th style={{ textAlign: 'right' }}>Cantidad (m²)</th>
+                <th style={{ textAlign: 'right' }}>Precio Unit.</th>
+                <th style={{ textAlign: 'right' }}>Subtotal</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {factura.items.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.productoNombre || item.producto?.nombre || '(Personalizado)'}</td>
+                  <td style={{ textAlign: 'right' }}>{Number(item.cantidadM2).toFixed(2)}</td>
+                  <td style={{ textAlign: 'right' }}>{pesos(item.precioUnitario)}</td>
+                  <td style={{ textAlign: 'right' }}>{pesos(item.subtotal)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-        <div style={{ backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '4px', marginBottom: '20px', maxWidth: '400px', marginLeft: 'auto' }}>
+        <div style={{ backgroundColor: 'var(--beige-light)', padding: '15px', borderRadius: '8px', marginBottom: '20px', maxWidth: '400px', marginLeft: 'auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
             <span>Subtotal:</span>
             <span>{pesos(factura.subtotal)}</span>
           </div>
           {factura.descuentoMonto > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#dc2626' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: 'var(--status-red-solid)' }}>
               <span>Descuento ({factura.descuentoPorcentaje}%):</span>
               <span>-{pesos(factura.descuentoMonto)}</span>
             </div>
           )}
           {factura.impuesto > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#2563eb' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: 'var(--status-blue-text)' }}>
               <span>Impuesto:</span>
               <span>+{pesos(factura.impuesto)}</span>
             </div>
           )}
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '18px', borderTop: '2px solid #ddd', paddingTop: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '18px', borderTop: '2px solid var(--gray-light)', paddingTop: '10px', color: 'var(--gold-dark)' }}>
             <span>Total:</span>
             <span>{pesos(factura.total)}</span>
           </div>
         </div>
 
         {factura.observaciones && (
-          <div style={{ backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '4px', marginBottom: '20px' }}>
-            <p style={{ margin: '0 0 5px 0', color: '#666', fontWeight: 'bold' }}>Observaciones:</p>
+          <div style={{ backgroundColor: 'var(--beige-light)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+            <p style={{ margin: '0 0 5px 0', color: 'var(--gray-secondary)', fontWeight: 'bold' }}>Observaciones:</p>
             <p style={{ margin: 0 }}>{factura.observaciones}</p>
           </div>
         )}
@@ -360,7 +342,7 @@ export default function FacturaPage() {
                       ? `Se registrará un abono de ${pesos(saldoPendiente)} para dejar el saldo en cero`
                       : 'La factura ya está saldada'
                   }
-                  style={estiloBoton('#10b981')}
+                  style={estiloBoton('var(--status-green-text)')}
                 >
                   {saving
                     ? 'Procesando...'
@@ -370,19 +352,19 @@ export default function FacturaPage() {
                 </button>
               )}
 
-              <button onClick={anular} disabled={saving} style={estiloBoton('#ef4444')}>
+              <button onClick={anular} disabled={saving} style={estiloBoton('var(--status-red-solid)')}>
                 {saving ? 'Procesando...' : 'Anular Factura'}
               </button>
             </>
           )}
 
           {factura.estado === 'pagado' && puedeAbonar && (
-            <button onClick={() => cambiarEstado('entregado')} disabled={saving} style={estiloBoton('#0891b2')}>
+            <button onClick={() => cambiarEstado('entregado')} disabled={saving} style={estiloBoton('var(--status-teal-text)')}>
               {saving ? 'Procesando...' : 'Marcar como Entregado'}
             </button>
           )}
 
-          <button onClick={descargarPdf} style={estiloBoton('#8b5cf6')}>
+          <button onClick={descargarPdf} style={estiloBoton('var(--gold-dark)')}>
             Descargar PDF
           </button>
 

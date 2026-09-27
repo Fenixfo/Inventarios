@@ -30,15 +30,11 @@ export function PermissionProtector({ children, requiredPermission }: Props) {
   }, [cargando, datos, autorizado, router])
 
   if (cargando) {
-    return <div style={{ padding: '20px', color: '#666' }}>Verificando permisos...</div>
+    return <div style={{ padding: '20px', color: 'var(--gray-secondary)' }}>Verificando permisos...</div>
   }
 
   if (!autorizado) {
-    return (
-      <div style={{ padding: '20px', color: '#666' }}>
-        No tienes permiso para ver esta sección.
-      </div>
-    )
+    return <div className="alert-box error">No tienes permiso para ver esta sección.</div>
   }
 
   return <>{children}</>

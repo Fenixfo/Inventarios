@@ -54,9 +54,10 @@ export function alternar(conjunto: Set<string>, valor: string) {
 }
 
 export const estiloTarjeta = {
-  backgroundColor: 'white',
-  borderRadius: '8px',
+  backgroundColor: 'var(--white-off)',
+  borderRadius: '12px',
   padding: '20px',
   marginBottom: '20px',
-  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+  border: '1px solid var(--gray-light)',
+  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
 }

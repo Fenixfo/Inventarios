@@ -201,41 +201,36 @@ export default function NuevaLiquidacionPage() {
 
   return (
     <PermissionProtector requiredPermission="liquidaciones.crear">
-      <div style={{ padding: '20px', maxWidth: '1100px' }}>
-        <div style={{ marginBottom: '20px' }}>
-          <Link href="/admin/reportes/liquidaciones" style={{ color: '#2563eb', textDecoration: 'none' }}>
+      <div className="card" style={{ maxWidth: 1100 }}>
+        <div className="mb-4">
+          <Link href="/admin/reportes/liquidaciones" style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}>
             ← Volver a Liquidaciones
           </Link>
         </div>
 
-        <h1 style={{ marginBottom: '6px' }}>Nueva liquidación</h1>
-        <p style={{ marginTop: 0, color: '#6b7280', fontSize: '14px' }}>
+        <h1 className="card-title mb-1" style={{ fontSize: 20 }}>Nueva liquidación</h1>
+        <p className="mb-5 text-sm" style={{ color: 'var(--gray-secondary)' }}>
           Solo facturas pagadas o entregadas que aún no se han liquidado. Ganancia = venta sin
           impuesto − costo.
         </p>
 
-        {error && (
-          <div style={{ padding: '10px', marginBottom: '16px', backgroundColor: '#fee2e2', color: '#b91c1c', borderRadius: '6px' }}>
-            {error}
-          </div>
-        )}
+        {error && <div className="alert-box error">{error}</div>}
 
         {cargando ? (
-          <p style={{ color: '#666' }}>Cargando...</p>
+          <p style={{ color: 'var(--gray-secondary)' }}>Cargando...</p>
         ) : vendedores.length === 0 ? (
-          <p style={{ color: '#666' }}>No hay facturas cobradas pendientes de liquidar.</p>
+          <p style={{ color: 'var(--gray-secondary)' }}>No hay facturas cobradas pendientes de liquidar.</p>
         ) : (
           <>
-            <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', marginBottom: '20px' }}>
+            <div className="flex gap-4 flex-wrap mb-5">
               <div>
-                <label htmlFor="vendedor" style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>
-                  Vendedor
-                </label>
+                <label htmlFor="vendedor" className="field-label">Vendedor</label>
                 <select
                   id="vendedor"
                   value={vendedorId}
                   onChange={(e) => elegirVendedor(e.target.value)}
-                  style={{ padding: '8px', border: '1px solid #d1d5db', borderRadius: '6px', minWidth: '260px' }}
+                  className="field-select"
+                  style={{ minWidth: '260px' }}
                 >
                   <option value="">Elige un vendedor…</option>
                   {vendedores.map((v) => (
@@ -247,9 +242,7 @@ export default function NuevaLiquidacionPage() {
               </div>
 
               <div>
-                <label htmlFor="porcentaje" style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>
-                  Porcentaje del vendedor
-                </label>
+                <label htmlFor="porcentaje" className="field-label">Porcentaje del vendedor</label>
                 <input
                   id="porcentaje"
                   type="number"
@@ -259,18 +252,19 @@ export default function NuevaLiquidacionPage() {
                   value={porcentaje}
                   onChange={(e) => setPorcentaje(e.target.value)}
                   onWheel={(e) => e.currentTarget.blur()}
-                  style={{ padding: '8px', border: `1px solid ${porcentajeValido(pct) ? '#d1d5db' : '#dc2626'}`, borderRadius: '6px', width: '110px' }}
+                  className={`field-input ${porcentajeValido(pct) ? '' : 'has-error'}`}
+                  style={{ width: '110px' }}
                 />{' '}
                 %
               </div>
             </div>
 
-            {cargandoFacturas && <p style={{ color: '#666' }}>Cargando facturas...</p>}
+            {cargandoFacturas && <p style={{ color: 'var(--gray-secondary)' }}>Cargando facturas...</p>}
 
             {facturas.length > 0 && (
               <>
                 {totalPendientes > facturas.length && (
-                  <p style={{ fontSize: '13px', color: '#92400e', backgroundColor: '#fef3c7', padding: '8px 12px', borderRadius: '6px' }}>
+                  <p className="alert-box" style={{ fontSize: '13px' }}>
                     Se muestran las {facturas.length} más antiguas de {totalPendientes}. Las demás
                     quedan para la siguiente liquidación.
                   </p>
@@ -284,32 +278,32 @@ export default function NuevaLiquidacionPage() {
                     <div
                       key={f.id}
                       style={{
-                        border: `1px solid ${marcada && costo === null ? '#f59e0b' : '#e5e7eb'}`,
+                        border: `1px solid ${marcada && costo === null ? 'var(--gold)' : 'var(--gray-light)'}`,
                         borderRadius: '8px',
                         padding: '12px',
                         marginBottom: '12px',
                         opacity: marcada ? 1 : 0.55,
-                        backgroundColor: 'white',
+                        backgroundColor: 'var(--white-off)',
                       }}
                     >
                       <label style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', cursor: 'pointer', marginBottom: '8px' }}>
                         <input type="checkbox" checked={marcada} onChange={() => alternar(f.id)} />
                         <strong>{f.numeroFactura}</strong>
-                        <span style={{ color: '#6b7280', fontSize: '13px' }}>{fechaYHora(f.fecha)}</span>
+                        <span style={{ color: 'var(--gray-secondary)', fontSize: '13px' }}>{fechaYHora(f.fecha)}</span>
                         <span style={{ fontSize: '13px' }}>{f.cliente || 'Cliente General'}</span>
                         <span style={{ marginLeft: 'auto', fontSize: '13px' }}>
                           Venta {pesos(f.venta)} · Costo {costo === null ? '—' : pesos(costo)} · Ganancia{' '}
-                          <strong style={{ color: costo !== null && f.venta - costo < 0 ? '#dc2626' : '#059669' }}>
+                          <strong style={{ color: costo !== null && f.venta - costo < 0 ? 'var(--status-red-solid)' : 'var(--status-green-text)' }}>
                             {costo === null ? '—' : pesos(f.venta - costo)}
                           </strong>
                         </span>
                       </label>
 
                       <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <table className="table-luxe">
                           <thead>
-                            <tr style={{ borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
-                              <th style={{ ...celda, textAlign: 'left' }}>Producto</th>
+                            <tr>
+                              <th style={celda}>Producto</th>
                               <th style={{ ...celda, textAlign: 'right' }}>Vendido</th>
                               <th style={{ ...celda, textAlign: 'right' }}>Con stock (costo al facturar)</th>
                               <th style={{ ...celda, textAlign: 'right' }}>Sin stock · costo unitario</th>
@@ -322,15 +316,15 @@ export default function NuevaLiquidacionPage() {
                               const falta = item.pendiente > 0 && costoPuesto(item.id) === null
 
                               return (
-                                <tr key={item.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                <tr key={item.id}>
                                   <td style={celda}>
                                     {item.nombre}
                                     {!item.productoExiste && (
-                                      <span style={{ marginLeft: '6px', fontSize: '10px', color: '#6b7280' }}>(personalizado)</span>
+                                      <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--gray-secondary)' }}>(personalizado)</span>
                                     )}
                                   </td>
                                   <td style={{ ...celda, textAlign: 'right' }}>{item.cantidadM2}</td>
-                                  <td style={{ ...celda, textAlign: 'right', color: '#6b7280' }}>
+                                  <td style={{ ...celda, textAlign: 'right', color: 'var(--gray-secondary)' }}>
                                     {item.cantidadConCosto > 0
                                       ? `${item.cantidadConCosto} × ${pesos(item.costoUnitario ?? 0)}`
                                       : '—'}
@@ -352,14 +346,14 @@ export default function NuevaLiquidacionPage() {
                                           style={{
                                             width: '100px',
                                             padding: '4px 6px',
-                                            border: `1px solid ${falta && marcada ? '#f59e0b' : '#d1d5db'}`,
+                                            border: `1px solid ${falta && marcada ? 'var(--gold)' : 'var(--gray-light)'}`,
                                             borderRadius: '4px',
                                             textAlign: 'right',
                                           }}
                                         />
                                       </span>
                                     ) : (
-                                      <span style={{ color: '#9ca3af' }}>—</span>
+                                      <span style={{ color: 'var(--gray-secondary)' }}>—</span>
                                     )}
                                   </td>
                                   <td style={{ ...celda, textAlign: 'right', fontWeight: 'bold' }}>
@@ -375,35 +369,33 @@ export default function NuevaLiquidacionPage() {
                   )
                 })}
 
-                <div style={{ marginBottom: '16px' }}>
-                  <label htmlFor="observaciones" style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>
-                    Observaciones (opcional)
-                  </label>
+                <div className="mb-4">
+                  <label htmlFor="observaciones" className="field-label">Observaciones (opcional)</label>
                   <textarea
                     id="observaciones"
                     value={observaciones}
                     onChange={(e) => setObservaciones(e.target.value)}
                     rows={2}
-                    style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '6px', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                    className="field-textarea"
                   />
                 </div>
 
-                <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+                <div style={{ backgroundColor: 'var(--status-green-bg)', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
-                    <div><div style={{ fontSize: '12px', color: '#6b7280' }}>Facturas</div><strong>{elegidas.length}</strong></div>
-                    <div><div style={{ fontSize: '12px', color: '#6b7280' }}>Venta sin impuesto</div><strong>{pesos(totales.totalVenta)}</strong></div>
-                    <div><div style={{ fontSize: '12px', color: '#6b7280' }}>Costo</div><strong>{pesos(totales.totalCosto)}</strong></div>
+                    <div><div style={{ fontSize: '12px', color: 'var(--gray-secondary)' }}>Facturas</div><strong>{elegidas.length}</strong></div>
+                    <div><div style={{ fontSize: '12px', color: 'var(--gray-secondary)' }}>Venta sin impuesto</div><strong>{pesos(totales.totalVenta)}</strong></div>
+                    <div><div style={{ fontSize: '12px', color: 'var(--gray-secondary)' }}>Costo</div><strong>{pesos(totales.totalCosto)}</strong></div>
                     <div>
-                      <div style={{ fontSize: '12px', color: '#6b7280' }}>Ganancia</div>
-                      <strong style={{ color: totales.totalGanancia < 0 ? '#dc2626' : 'inherit' }}>{pesos(totales.totalGanancia)}</strong>
+                      <div style={{ fontSize: '12px', color: 'var(--gray-secondary)' }}>Ganancia</div>
+                      <strong style={{ color: totales.totalGanancia < 0 ? 'var(--status-red-solid)' : 'inherit' }}>{pesos(totales.totalGanancia)}</strong>
                     </div>
                     <div>
-                      <div style={{ fontSize: '12px', color: '#6b7280' }}>Pago al vendedor ({porcentajeValido(pct) ? pct : '—'}%)</div>
-                      <strong style={{ fontSize: '18px', color: '#059669' }}>{pesos(totales.pagoVendedor)}</strong>
+                      <div style={{ fontSize: '12px', color: 'var(--gray-secondary)' }}>Pago al vendedor ({porcentajeValido(pct) ? pct : '—'}%)</div>
+                      <strong style={{ fontSize: '18px', color: 'var(--status-green-text)' }}>{pesos(totales.pagoVendedor)}</strong>
                     </div>
                   </div>
                   {totales.totalGanancia < 0 && (
-                    <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#92400e' }}>
+                    <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: 'var(--status-amber-text)' }}>
                       En conjunto se vendió a pérdida: no hay comisión, pero tampoco se le descuenta
                       nada al vendedor.
                     </p>
@@ -411,26 +403,13 @@ export default function NuevaLiquidacionPage() {
                 </div>
 
                 {incompletas.length > 0 && (
-                  <p style={{ fontSize: '13px', color: '#92400e' }}>
+                  <p style={{ fontSize: '13px', color: 'var(--status-amber-text)' }}>
                     Falta el costo de lo vendido sin stock en {incompletas.length} factura
                     {incompletas.length !== 1 ? 's' : ''} marcada{incompletas.length !== 1 ? 's' : ''} (en naranja).
                   </p>
                 )}
 
-                <button
-                  onClick={guardar}
-                  disabled={!puedeGuardar}
-                  style={{
-                    padding: '12px 24px',
-                    backgroundColor: puedeGuardar ? '#059669' : '#9ca3af',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: puedeGuardar ? 'pointer' : 'not-allowed',
-                    fontWeight: 'bold',
-                    fontSize: '15px',
-                  }}
-                >
+                <button onClick={guardar} disabled={!puedeGuardar} className="btn-primary">
                   {guardando ? 'Liquidando...' : `Liquidar ${elegidas.length} factura${elegidas.length !== 1 ? 's' : ''}`}
                 </button>
               </>

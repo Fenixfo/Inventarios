@@ -67,86 +67,68 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Dashboard</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8" style={{ color: 'var(--black-primary)' }}>
+        Dashboard
+      </h1>
 
       {/* Dos tarjetas por fila en móvil: una sola dejaría la pantalla en
           blanco hasta el tercer scroll. */}
       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
-        <StatCard
-          title="Productos"
-          value={stats.totalProductos}
-          color="blue"
-        />
-        <StatCard
-          title="Clientes"
-          value={stats.totalClientes}
-          color="green"
-        />
-        <StatCard
-          title="Facturas Hoy"
-          value={stats.facturasHoy}
-          color="purple"
-        />
-        <StatCard
-          title="Stock Bajo"
-          value={stats.stockBajo}
-          color="red"
-        />
+        <StatCard icon="📦" title="Productos" value={stats.totalProductos} />
+        <StatCard icon="👥" title="Clientes" value={stats.totalClientes} />
+        <StatCard icon="📄" title="Facturas Hoy" value={stats.facturasHoy} />
+        <StatCard icon="⚠️" title="Stock Bajo" value={stats.stockBajo} />
       </div>
 
       {/* Alertas de stock bajo */}
       {productosAlerta.length > 0 && puede('productos.ver') && (
-        <div className="bg-white rounded-lg shadow mb-8 overflow-hidden border-l-4 border-red-500">
-          <div className="flex items-center justify-between px-6 py-4 bg-red-50">
-            <h2 className="text-lg font-bold text-red-800">
+        <div className="card mb-8" style={{ padding: 0, overflow: 'hidden' }}>
+          <div
+            className="flex items-center justify-between gap-3 flex-wrap px-6 py-4"
+            style={{ backgroundColor: 'var(--status-amber-bg)' }}
+          >
+            <h2 className="text-lg font-bold" style={{ color: 'var(--status-amber-text)' }}>
               ⚠️ Stock bajo mínimo
-              <span className="ml-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+              <span className="badge badge-red-solid ml-2">
                 {stats.stockBajo ?? productosAlerta.length}
               </span>
             </h2>
-            <Link href="/admin/inventario" className="text-sm text-red-700 hover:text-red-900 font-medium">
+            <Link href="/admin/inventario" className="text-sm font-medium" style={{ color: 'var(--gold-dark)' }}>
               Registrar entrada →
             </Link>
           </div>
 
-          <table className="w-full">
+          <table className="table-luxe">
             <thead>
-              <tr className="bg-gray-50 border-b text-xs text-gray-600">
-                <th className="px-6 py-2 text-left font-medium">Producto</th>
-                <th className="px-6 py-2 text-right font-medium">Actual</th>
-                <th className="px-6 py-2 text-right font-medium">Mínimo</th>
-                <th className="px-6 py-2 text-right font-medium">Faltante</th>
-                <th className="px-6 py-2"></th>
+              <tr>
+                <th>Producto</th>
+                <th style={{ textAlign: 'right' }}>Actual</th>
+                <th style={{ textAlign: 'right' }}>Mínimo</th>
+                <th style={{ textAlign: 'right' }}>Faltante</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               {productosAlerta.map((p) => {
                 const faltante = p.stockMinimo - p.stockActual
                 return (
-                  <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50">
-                    <td className="px-6 py-3">
+                  <tr key={p.id}>
+                    <td>
                       <span className="font-medium text-sm">{p.nombre}</span>
-                      <span className="text-xs text-gray-500 ml-2">{p.sku}</span>
-                      {p.stockActual <= 0 && (
-                        <span className="ml-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded">
-                          AGOTADO
-                        </span>
-                      )}
+                      <span className="text-xs ml-2" style={{ color: 'var(--gray-secondary)' }}>{p.sku}</span>
+                      {p.stockActual <= 0 && <span className="badge badge-red-solid ml-2">AGOTADO</span>}
                     </td>
-                    <td className="px-6 py-3 text-right font-mono text-sm font-bold text-red-600">
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 'bold', color: 'var(--status-red-solid)' }}>
                       {p.stockActual.toFixed(2)}
                     </td>
-                    <td className="px-6 py-3 text-right font-mono text-sm text-gray-500">
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace', color: 'var(--gray-secondary)' }}>
                       {p.stockMinimo.toFixed(2)}
                     </td>
-                    <td className="px-6 py-3 text-right font-mono text-sm font-bold text-amber-600">
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 'bold', color: 'var(--status-amber-text)' }}>
                       +{faltante.toFixed(2)}
                     </td>
-                    <td className="px-6 py-3 text-right">
-                      <Link
-                        href={`/admin/productos/${p.id}`}
-                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                      >
+                    <td style={{ textAlign: 'right' }}>
+                      <Link href={`/admin/productos/${p.id}`} className="btn-action">
                         Editar
                       </Link>
                     </td>
@@ -157,9 +139,12 @@ export default function AdminDashboard() {
           </table>
 
           {(stats.stockBajo ?? 0) > productosAlerta.length && (
-            <div className="px-6 py-3 bg-gray-50 text-sm text-gray-600 border-t">
+            <div
+              className="px-6 py-3 text-sm"
+              style={{ backgroundColor: 'var(--beige-light)', color: 'var(--gray-secondary)', borderTop: '1px solid var(--gray-light)' }}
+            >
               y {(stats.stockBajo ?? 0) - productosAlerta.length} producto{(stats.stockBajo ?? 0) - productosAlerta.length !== 1 ? 's' : ''} más —{' '}
-              <Link href="/admin/reportes/inventario" className="text-blue-600 hover:text-blue-800 font-medium">
+              <Link href="/admin/reportes/inventario" className="font-medium" style={{ color: 'var(--gold-dark)' }}>
                 ver reporte completo
               </Link>
             </div>
@@ -167,38 +152,29 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-bold mb-4">Acciones Rápidas</h2>
-          <div className="space-y-2">
-            {puede('productos.ver') && (
-              <Link
-                href="/admin/productos/nuevo"
-                className="block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Nuevo Producto
-              </Link>
-            )}
-            {puede('clientes.ver') && (
-              <Link
-                href="/admin/clientes/nuevo"
-                className="block px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              >
-                Nuevo Cliente
-              </Link>
-            )}
-            {puede('facturas.ver') && (
-              <Link
-                href="/admin/facturas/nueva"
-                className="block px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-              >
-                Nueva Factura
-              </Link>
-            )}
-            {!puede('productos.ver') && !puede('clientes.ver') && !puede('facturas.ver') && (
-              <p className="text-gray-600 text-sm">No tienes permisos para crear elementos</p>
-            )}
-          </div>
+      <div className="card">
+        <h2 className="card-title mb-4">Acciones Rápidas</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {puede('productos.ver') && (
+            <Link href="/admin/productos/nuevo" className="btn-quick">
+              + Nuevo Producto
+            </Link>
+          )}
+          {puede('clientes.ver') && (
+            <Link href="/admin/clientes/nuevo" className="btn-quick">
+              + Nuevo Cliente
+            </Link>
+          )}
+          {puede('facturas.ver') && (
+            <Link href="/admin/facturas/nueva" className="btn-quick">
+              + Nueva Factura
+            </Link>
+          )}
+          {!puede('productos.ver') && !puede('clientes.ver') && !puede('facturas.ver') && (
+            <p className="text-sm" style={{ color: 'var(--gray-secondary)' }}>
+              No tienes permisos para crear elementos
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -206,26 +182,20 @@ export default function AdminDashboard() {
 }
 
 function StatCard({
+  icon,
   title,
   value,
-  color,
 }: {
+  icon: string
   title: string
   value: number | null
-  color: 'blue' | 'green' | 'purple' | 'red'
 }) {
-  const colorClasses = {
-    blue: 'bg-blue-50 border-blue-200 text-blue-600',
-    green: 'bg-green-50 border-green-200 text-green-600',
-    purple: 'bg-purple-50 border-purple-200 text-purple-600',
-    red: 'bg-red-50 border-red-200 text-red-600',
-  }
-
   return (
-    <div className={`${colorClasses[color]} border rounded-lg p-4 sm:p-6`}>
-      <p className="text-xs sm:text-sm font-semibold opacity-75">{title}</p>
+    <div className="indicator-card">
+      <div style={{ position: 'absolute', top: 8, right: 8, fontSize: 18 }}>{icon}</div>
+      <div className="indicator-label">{title}</div>
       {/* Sin permiso para esa cifra se muestra un guion, no un cero engañoso. */}
-      <p className="text-2xl sm:text-3xl font-bold">{value ?? '—'}</p>
+      <div className="indicator-value">{value ?? '—'}</div>
     </div>
   )
 }

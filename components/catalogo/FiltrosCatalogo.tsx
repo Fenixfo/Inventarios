@@ -32,8 +32,8 @@ export function FiltrosCatalogo({
   const muyCorto = texto.length > 0 && texto.length < 3
 
   return (
-    <div className="bg-white p-4 sm:p-6 rounded-lg shadow mb-6 sm:mb-8">
-      <label htmlFor="buscar" className="block font-semibold text-gray-700 mb-2">
+    <div className="card mb-6 sm:mb-8">
+      <label htmlFor="buscar" className="field-label">
         Buscar por nombre:
       </label>
 
@@ -43,7 +43,8 @@ export function FiltrosCatalogo({
       <div className="mb-2 flex gap-2">
         <div className="relative flex-1">
           <span
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            className="absolute left-3 top-1/2 -translate-y-1/2"
+            style={{ color: 'var(--gray-secondary)' }}
             aria-hidden="true"
           >
             🔍
@@ -58,7 +59,8 @@ export function FiltrosCatalogo({
               if (e.key === 'Escape') onLimpiarBusqueda()
             }}
             placeholder="Ej: carrara, porcelanato, café…"
-            className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+            className="field-input"
+            style={{ paddingLeft: 40, paddingRight: 40 }}
           />
           {textoBusqueda && (
             <button
@@ -67,23 +69,20 @@ export function FiltrosCatalogo({
               // resultados": dos controles con el mismo nombre se
               // anuncian igual y no hay forma de distinguirlos.
               aria-label="Limpiar el campo de búsqueda"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-xl leading-none"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xl leading-none"
+              style={{ color: 'var(--gray-secondary)' }}
             >
               ×
             </button>
           )}
         </div>
 
-        <button
-          onClick={onBuscar}
-          disabled={muyCorto}
-          className="px-6 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:bg-gray-300 transition"
-        >
+        <button onClick={onBuscar} disabled={muyCorto} className="btn-primary">
           Buscar
         </button>
       </div>
 
-      <p className="text-xs text-gray-500 mb-6">
+      <p className="field-help mb-6">
         {muyCorto
           ? 'Escribe al menos 3 letras.'
           : 'Pulsa Enter para buscar. Se busca en todo el catálogo, también en los productos sin foto, y respeta los filtros que tengas puestos.'}
@@ -94,14 +93,15 @@ export function FiltrosCatalogo({
           productos fuera de la pantalla. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="categoria" className="block font-semibold text-gray-700 mb-2">
+          <label htmlFor="categoria" className="field-label">
             Categoría
           </label>
           <select
             id="categoria"
             value={categoria}
             onChange={(e) => onCategoria(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white capitalize focus:outline-none focus:ring-2 focus:ring-red-600"
+            className="field-select capitalize"
+            style={{ width: '100%' }}
           >
             <option value="">Todas las categorías</option>
             {categorias.map((cat) => (
@@ -116,14 +116,15 @@ export function FiltrosCatalogo({
             dice nada y ocupa sitio. */}
         {tiendas.length > 1 && (
           <div>
-            <label htmlFor="tienda" className="block font-semibold text-gray-700 mb-2">
+            <label htmlFor="tienda" className="field-label">
               Tienda
             </label>
             <select
               id="tienda"
               value={tienda}
               onChange={(e) => onTienda(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="field-select"
+              style={{ width: '100%' }}
             >
               <option value="">Todas las tiendas</option>
               {tiendas.map((t) => (

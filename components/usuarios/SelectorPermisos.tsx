@@ -28,10 +28,10 @@ export function SelectorPermisos({
 }: Props) {
   return (
     <div style={estiloTarjeta}>
-      <h2 style={{ fontSize: '16px', marginTop: 0, marginBottom: '4px' }}>
+      <h2 style={{ fontSize: '16px', marginTop: 0, marginBottom: '4px', color: 'var(--black-primary)' }}>
         2. ¿Qué puede hacer?
       </h2>
-      <p style={{ fontSize: '13px', color: '#6b7280', marginTop: 0, marginBottom: '16px' }}>
+      <p style={{ fontSize: '13px', color: 'var(--gray-secondary)', marginTop: 0, marginBottom: '16px' }}>
         Empieza con una plantilla y ajusta lo que necesites, o marca los permisos uno por uno.
       </p>
 
@@ -47,20 +47,21 @@ export function SelectorPermisos({
               title={vedada ? 'Solo el dueño puede nombrar administradores' : p.descripcion}
               style={{
                 padding: '10px 16px',
-                border: '1px solid #d1d5db',
+                border: '1px solid var(--gray-light)',
                 borderRadius: '8px',
-                backgroundColor: 'white',
+                backgroundColor: 'var(--white-off)',
                 cursor: vedada ? 'not-allowed' : 'pointer',
                 opacity: vedada ? 0.5 : 1,
                 fontSize: '13px',
                 fontFamily: 'inherit',
                 textAlign: 'left',
+                color: 'var(--black-primary)',
               }}
             >
               <div style={{ fontWeight: 'bold' }}>
                 {p.icono} {p.nombre}
               </div>
-              <div style={{ color: '#6b7280', fontSize: '11px', maxWidth: '230px' }}>
+              <div style={{ color: 'var(--gray-secondary)', fontSize: '11px', maxWidth: '230px' }}>
                 {p.descripcion}
               </div>
             </button>
@@ -69,12 +70,12 @@ export function SelectorPermisos({
       </div>
 
       {nombrarAdmin && (
-        <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '12px', marginBottom: '18px', fontSize: '13px' }}>
+        <div className="alert-box" style={{ marginBottom: '18px' }}>
           👑 Se nombrará <strong>administrador</strong>, con acceso a todo dentro de la
           tienda. No podrá retirarte permisos a ti como dueño.
           <button
             onClick={onQuitarAdmin}
-            style={{ marginLeft: '10px', background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '12px' }}
+            style={{ marginLeft: '10px', background: 'none', border: 'none', color: 'var(--gold-dark)', cursor: 'pointer', fontSize: '12px' }}
           >
             quitar
           </button>
@@ -83,8 +84,8 @@ export function SelectorPermisos({
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
         {modulos.map((m) => (
-          <div key={m.modulo} style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '14px' }}>
-            <p style={{ fontWeight: 'bold', fontSize: '13px', margin: '0 0 10px 0' }}>
+          <div key={m.modulo} style={{ border: '1px solid var(--gray-light)', borderRadius: '8px', padding: '14px' }}>
+            <p style={{ fontWeight: 'bold', fontSize: '13px', margin: '0 0 10px 0', color: 'var(--black-primary)' }}>
               {m.icono} {m.nombre}
             </p>
 

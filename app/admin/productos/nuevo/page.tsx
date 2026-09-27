@@ -144,308 +144,243 @@ export default function NuevoProductoPage() {
 
   return (
     <PermissionProtector requiredPermission="productos">
-      <div style={{ padding: '20px', maxWidth: '800px' }}>
-      <h1 style={{ marginBottom: '20px' }}>Nuevo Producto</h1>
+      <div className="card" style={{ maxWidth: 800 }}>
+        <h1 className="card-title mb-4" style={{ fontSize: 20 }}>Nuevo Producto</h1>
 
-      {error && (
-        <div style={{
-          padding: '15px',
-          backgroundColor: '#fee',
-          color: '#c33',
-          borderRadius: '4px',
-          marginBottom: '20px'
-        }}>
-          {error}
-        </div>
-      )}
+        {error && <div className="alert-box error">{error}</div>}
 
-      <form onSubmit={handleSubmit}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>SKU *</label>
-            <input
-              type="text"
-              name="sku"
-              value={formData.sku}
-              onChange={handleChange}
-              onBlur={checkSkuExists}
-              required
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: skuError ? '2px solid #dc2626' : '1px solid #ddd',
-                borderRadius: '4px',
-                boxSizing: 'border-box'
-              }}
-            />
-            {skuError && (
-              <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
-                {skuError}
-              </div>
-            )}
-          </div>
+        <form onSubmit={handleSubmit}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+            <div>
+              <label className="field-label">SKU *</label>
+              <input
+                type="text"
+                name="sku"
+                value={formData.sku}
+                onChange={handleChange}
+                onBlur={checkSkuExists}
+                required
+                className={`field-input ${skuError ? 'has-error' : ''}`}
+              />
+              {skuError && (
+                <div style={{ color: 'var(--status-red-solid)', fontSize: '12px', marginTop: '4px' }}>
+                  {skuError}
+                </div>
+              )}
+            </div>
 
-          <div style={{ position: 'relative' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Nombre *</label>
-            <input
-              type="text"
-              name="nombre"
-              value={formData.nombre}
-              onChange={handleChange}
-              required
-              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' }}
-            />
+            <div style={{ position: 'relative' }}>
+              <label className="field-label">Nombre *</label>
+              <input
+                type="text"
+                name="nombre"
+                value={formData.nombre}
+                onChange={handleChange}
+                required
+                className="field-input"
+              />
 
-            {mostrarSugerenciasNombre && formData.nombre.trim() !== '' && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                right: 0,
-                backgroundColor: 'white',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                maxHeight: '200px',
-                overflow: 'auto',
-                zIndex: 10,
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                marginTop: '2px'
-              }}>
-                {sugerenciasNombre.map(producto => (
+              {mostrarSugerenciasNombre && formData.nombre.trim() !== '' && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    backgroundColor: 'var(--white-off)',
+                    border: '1px solid var(--gray-light)',
+                    borderRadius: '8px',
+                    maxHeight: '200px',
+                    overflow: 'auto',
+                    zIndex: 10,
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    marginTop: '2px',
+                  }}
+                >
+                  {sugerenciasNombre.map(producto => (
+                    <div
+                      key={producto.id}
+                      onClick={() => seleccionarProductoExistente(producto)}
+                      style={{ padding: '10px', borderBottom: '1px solid var(--gray-light)', cursor: 'pointer' }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--beige-light)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
+                      <div style={{ fontWeight: 'bold' }}>{producto.nombre}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--gray-secondary)' }}>SKU: {producto.sku}</div>
+                    </div>
+                  ))}
                   <div
-                    key={producto.id}
-                    onClick={() => seleccionarProductoExistente(producto)}
+                    onClick={() => crearNombreNuevo()}
                     style={{
                       padding: '10px',
-                      borderBottom: '1px solid #eee',
-                      cursor: 'pointer'
+                      borderTop: sugerenciasNombre.length > 0 ? '1px solid var(--gray-light)' : 'none',
+                      cursor: 'pointer',
+                      color: 'var(--gold-dark)',
+                      backgroundColor: 'var(--beige-light)',
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(212, 175, 55, 0.15)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--beige-light)')}
                   >
-                    <div style={{ fontWeight: 'bold' }}>{producto.nombre}</div>
-                    <div style={{ fontSize: '12px', color: '#666' }}>SKU: {producto.sku}</div>
+                    <div style={{ fontWeight: 'bold' }}>➕ Nuevo: {formData.nombre}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--gray-secondary)' }}>Crear producto con este nombre</div>
                   </div>
-                ))}
-                <div
-                  onClick={() => crearNombreNuevo()}
-                  style={{
-                    padding: '10px',
-                    borderTop: sugerenciasNombre.length > 0 ? '1px solid #eee' : 'none',
-                    cursor: 'pointer',
-                    color: '#2563eb',
-                    backgroundColor: '#f9f9f9'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f9f9f9'}
-                >
-                  <div style={{ fontWeight: 'bold' }}>➕ Nuevo: {formData.nombre}</div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>Crear producto con este nombre</div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+
+            <div>
+              <label className="field-label">Categoría *</label>
+              <SelectorCategoria
+                value={formData.categoria}
+                onChange={(categoria) => setFormData((prev) => ({ ...prev, categoria }))}
+                categorias={categoriasExistentes}
+              />
+              <p className="field-help">Escribe para buscar entre las que ya usas, o crea una nueva.</p>
+            </div>
+
+            <div>
+              <label className="field-label">Color</label>
+              <input type="text" name="color" value={formData.color} onChange={handleChange} className="field-input" />
+            </div>
+
+            <div>
+              <label className="field-label">Dimensiones</label>
+              <input
+                type="text"
+                name="dimensiones"
+                value={formData.dimensiones}
+                onChange={handleChange}
+                placeholder="ej: 30x30"
+                className="field-input"
+              />
+            </div>
+
+            <div>
+              <label className="field-label">Acabado</label>
+              <input type="text" name="acabado" value={formData.acabado} onChange={handleChange} className="field-input" />
+            </div>
+
+            <div>
+              <label className="field-label">Precio al público *</label>
+              <input
+                type="number"
+                name="precioUnitario"
+                value={formData.precioUnitario}
+                onChange={handleChange}
+                onWheel={preventWheelChange}
+                step="0.01"
+                required
+                className="field-input"
+              />
+              <p className="field-help">Es el que ve el cliente en el catálogo.</p>
+            </div>
+
+            <div>
+              <label className="field-label">Precio de bodega</label>
+              <input
+                type="number"
+                name="precioBodega"
+                value={formData.precioBodega}
+                onChange={handleChange}
+                onWheel={preventWheelChange}
+                step="0.01"
+                className="field-input"
+              />
+              <p className="field-help">
+                Para las facturas marcadas como bodega. Si lo dejas vacío se cobra el precio al público.
+              </p>
+            </div>
+
+            <div>
+              <label className="field-label">Costo (precio de compra)</label>
+              <input
+                type="number"
+                name="costo"
+                value={formData.costo}
+                onChange={handleChange}
+                onWheel={preventWheelChange}
+                step="0.01"
+                className="field-input"
+              />
+              <p className="field-help">No se muestra al cliente. Con él se valora el inventario.</p>
+            </div>
+
+            <div>
+              <label className="field-label">Stock Actual</label>
+              <input
+                type="number"
+                name="stockActual"
+                value={formData.stockActual}
+                onChange={handleChange}
+                onWheel={preventWheelChange}
+                step="0.01"
+                className="field-input"
+              />
+            </div>
+
+            <div>
+              <label className="field-label">Stock Mínimo</label>
+              <input
+                type="number"
+                name="stockMinimo"
+                value={formData.stockMinimo}
+                onChange={handleChange}
+                onWheel={preventWheelChange}
+                step="0.01"
+                className="field-input"
+              />
+            </div>
+
+            <div>
+              <label className="field-label">Proveedor</label>
+              <input type="text" name="proveedor" value={formData.proveedor} onChange={handleChange} className="field-input" />
+            </div>
+
+            <div>
+              <label className="field-label">M² por caja</label>
+              <input
+                type="number"
+                name="m2PorCaja"
+                value={formData.m2PorCaja}
+                onChange={handleChange}
+                onWheel={preventWheelChange}
+                step="0.01"
+                className="field-input"
+              />
+            </div>
           </div>
 
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Categoría *</label>
-            <SelectorCategoria
-              value={formData.categoria}
-              onChange={(categoria) => setFormData((prev) => ({ ...prev, categoria }))}
-              categorias={categoriasExistentes}
-            />
-            <small style={{ color: '#6b7280', fontSize: '12px' }}>
-              Escribe para buscar entre las que ya usas, o crea una nueva.
-            </small>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Color</label>
-            <input
-              type="text"
-              name="color"
-              value={formData.color}
+          <div className="mb-5">
+            <label className="field-label">Descripción</label>
+            <textarea
+              name="descripcion"
+              value={formData.descripcion}
               onChange={handleChange}
-              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+              rows={4}
+              className="field-textarea"
             />
           </div>
 
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Dimensiones</label>
-            <input
-              type="text"
-              name="dimensiones"
-              value={formData.dimensiones}
-              onChange={handleChange}
-              placeholder="ej: 30x30"
-              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+          <div className="mb-4">
+            <ImageUploader
+              etiqueta="Imagen del producto"
+              valor={formData.imagenUrl}
+              onChange={(url) => setFormData((prev) => ({ ...prev, imagenUrl: url }))}
+              carpeta="productos"
+              ayuda="Es lo que ven tus clientes en el catálogo. Se reduce y optimiza automáticamente."
             />
           </div>
 
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Acabado</label>
-            <input
-              type="text"
-              name="acabado"
-              value={formData.acabado}
-              onChange={handleChange}
-              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-            />
+          <div className="flex gap-3">
+            <button type="submit" disabled={loading || !!skuError} className="btn-primary">
+              {loading ? 'Guardando...' : 'Guardar Producto'}
+            </button>
+            <button type="button" onClick={() => router.back()} className="btn-secondary">
+              Cancelar
+            </button>
           </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Precio al público *</label>
-            <input
-              type="number"
-              name="precioUnitario"
-              value={formData.precioUnitario}
-              onChange={handleChange}
-              onWheel={preventWheelChange}
-              step="0.01"
-              required
-              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-            />
-            <small style={{ color: '#6b7280', fontSize: '12px' }}>
-              Es el que ve el cliente en el catálogo.
-            </small>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Precio de bodega</label>
-            <input
-              type="number"
-              name="precioBodega"
-              value={formData.precioBodega}
-              onChange={handleChange}
-              onWheel={preventWheelChange}
-              step="0.01"
-              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-            />
-            <small style={{ color: '#6b7280', fontSize: '12px' }}>
-              Para las facturas marcadas como bodega. Si lo dejas vacío se cobra el precio al público.
-            </small>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Costo (precio de compra)</label>
-            <input
-              type="number"
-              name="costo"
-              value={formData.costo}
-              onChange={handleChange}
-              onWheel={preventWheelChange}
-              step="0.01"
-              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-            />
-            <small style={{ color: '#6b7280', fontSize: '12px' }}>
-              No se muestra al cliente. Con él se valora el inventario.
-            </small>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Stock Actual</label>
-            <input
-              type="number"
-              name="stockActual"
-              value={formData.stockActual}
-              onChange={handleChange}
-              onWheel={preventWheelChange}
-              step="0.01"
-              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Stock Mínimo</label>
-            <input
-              type="number"
-              name="stockMinimo"
-              value={formData.stockMinimo}
-              onChange={handleChange}
-              onWheel={preventWheelChange}
-              step="0.01"
-              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Proveedor</label>
-            <input
-              type="text"
-              name="proveedor"
-              value={formData.proveedor}
-              onChange={handleChange}
-              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>M² por caja</label>
-            <input
-              type="number"
-              name="m2PorCaja"
-              value={formData.m2PorCaja}
-              onChange={handleChange}
-              onWheel={preventWheelChange}
-              step="0.01"
-              style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-            />
-          </div>
-        </div>
-
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Descripción</label>
-          <textarea
-            name="descripcion"
-            value={formData.descripcion}
-            onChange={handleChange}
-            rows={4}
-            style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '15px' }}>
-          <ImageUploader
-            etiqueta="Imagen del producto"
-            valor={formData.imagenUrl}
-            onChange={(url) => setFormData((prev) => ({ ...prev, imagenUrl: url }))}
-            carpeta="productos"
-            ayuda="Es lo que ven tus clientes en el catálogo. Se reduce y optimiza automáticamente."
-          />
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button
-            type="submit"
-            disabled={loading || !!skuError}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: loading || skuError ? '#999' : '#2563eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: loading || skuError ? 'not-allowed' : 'pointer',
-              opacity: loading || skuError ? 0.6 : 1,
-            }}
-          >
-            {loading ? 'Guardando...' : 'Guardar Producto'}
-          </button>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#ccc',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
-            Cancelar
-          </button>
-        </div>
-      </form>
+        </form>
       </div>
     </PermissionProtector>
   )
 }
-

@@ -113,12 +113,14 @@ export function SelectorProducto({
   const inputStyle: React.CSSProperties = {
     padding: '8px 12px',
     paddingRight: value ? '30px' : '12px',
-    border: '1px solid #d1d5db',
-    borderRadius: '6px',
+    border: '1px solid var(--gray-light)',
+    borderRadius: '8px',
     fontSize: '14px',
     fontFamily: 'inherit',
     width: '100%',
     boxSizing: 'border-box',
+    backgroundColor: 'var(--white-off)',
+    color: 'var(--black-primary)',
   }
 
   return (
@@ -159,7 +161,7 @@ export function SelectorProducto({
             background: 'none',
             border: 'none',
             cursor: 'pointer',
-            color: '#6b7280',
+            color: 'var(--gray-secondary)',
             fontSize: '16px',
             lineHeight: 1,
             padding: '2px 4px',
@@ -182,9 +184,9 @@ export function SelectorProducto({
             margin: 0,
             padding: '4px 0',
             listStyle: 'none',
-            backgroundColor: 'white',
-            border: '1px solid #d1d5db',
-            borderRadius: '6px',
+            backgroundColor: 'var(--white-off)',
+            border: '1px solid var(--gray-light)',
+            borderRadius: '8px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
             maxHeight: '260px',
             overflowY: 'auto',
@@ -199,15 +201,15 @@ export function SelectorProducto({
               padding: '8px 12px',
               cursor: 'pointer',
               fontSize: '14px',
-              color: '#6b7280',
-              borderBottom: '1px solid #f3f4f6',
+              color: 'var(--gray-secondary)',
+              borderBottom: '1px solid var(--gray-light)',
             }}
           >
             {placeholder}
           </li>
 
           {visibles.length === 0 ? (
-            <li style={{ padding: '10px 12px', fontSize: '13px', color: '#9ca3af' }}>
+            <li style={{ padding: '10px 12px', fontSize: '13px', color: 'var(--gray-secondary)' }}>
               Ningún producto coincide
             </li>
           ) : (
@@ -223,7 +225,7 @@ export function SelectorProducto({
                   padding: '8px 12px',
                   cursor: 'pointer',
                   fontSize: '14px',
-                  backgroundColor: i === resaltado ? '#eff6ff' : 'transparent',
+                  backgroundColor: i === resaltado ? 'var(--beige-light)' : 'transparent',
                   fontWeight: p.id === value ? 'bold' : 'normal',
                 }}
               >
@@ -233,7 +235,7 @@ export function SelectorProducto({
           )}
 
           {visibles.length >= MAXIMO_RESULTADOS && (
-            <li style={{ padding: '8px 12px', fontSize: '12px', color: '#9ca3af' }}>
+            <li style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--gray-secondary)' }}>
               Se muestran los primeros {MAXIMO_RESULTADOS}: escribe para afinar la búsqueda
             </li>
           )}

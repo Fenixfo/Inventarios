@@ -93,18 +93,18 @@ export default function Catalogo() {
   return (
     <>
       <Header compact={true} showLogo={false} />
-      <main className="min-h-screen bg-gray-50 py-6 sm:py-12">
+      <main className="min-h-screen py-6 sm:py-12" style={{ backgroundColor: 'var(--beige-light)' }}>
         <div className="max-w-7xl mx-auto px-4">
           {/* Botón del carrito. En móvil queda fijo abajo a la derecha:
               arriba obligaría a subir toda la lista para llegar a él. */}
           <div className="hidden sm:flex justify-end mb-6">
-            <Link
-              href="/carrito"
-              className="relative bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 font-medium transition flex items-center gap-2"
-            >
+            <Link href="/carrito" className="relative btn-primary">
               🛒 Carrito
               {carrito.totalCantidad > 0 && (
-                <span className="absolute -top-2 -right-2 bg-yellow-400 text-red-600 text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
+                <span
+                  className="absolute -top-2 -right-2 text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: 'var(--black-primary)', color: 'var(--gold)' }}
+                >
                   {carrito.totalCantidad}
                 </span>
               )}
@@ -113,10 +113,10 @@ export default function Catalogo() {
 
           {/* Encabezado */}
           <div className="text-center mb-8 sm:mb-12">
-            <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2 sm:mb-4">
+            <h1 className="text-2xl sm:text-4xl font-bold mb-2 sm:mb-4" style={{ color: 'var(--black-primary)' }}>
               Catálogo de Productos
             </h1>
-            <p className="text-base sm:text-xl text-gray-600">
+            <p className="text-base sm:text-xl" style={{ color: 'var(--gray-secondary)' }}>
               Baldosas, cerámicas y porcelanatos de alta calidad
             </p>
           </div>
@@ -136,7 +136,7 @@ export default function Catalogo() {
 
           {/* A quién se le está comprando: el pedido va a esa tienda. */}
           {tiendaDelCarrito?.nombre && (
-            <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+            <div className="alert-box mb-6" style={{ marginBottom: 24 }}>
               Tu pedido es de <strong>{tiendaDelCarrito.nombre}</strong>. Para pedirle a otra
               tienda tendrás que empezar un pedido nuevo.
             </div>
@@ -144,22 +144,18 @@ export default function Catalogo() {
 
           {/* Estado de carga */}
           {loading && (
-            <div className="text-center py-12 text-gray-600">
+            <div className="text-center py-12" style={{ color: 'var(--gray-secondary)' }}>
               <p className="text-lg">Cargando productos...</p>
             </div>
           )}
 
           {/* Error */}
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-              {error}
-            </div>
-          )}
+          {error && <div className="alert-box error mb-6">{error}</div>}
 
           {/* Cuántos resultados hay, y si es una muestra o el listado entero */}
           {!loading && !error && productos.length > 0 && (
             <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm" style={{ color: 'var(--gray-secondary)' }}>
                 {/* Sin filtros el total es la muestra misma, así que no
                     aporta decir "de cuántos". */}
                 {esMuestra
@@ -169,7 +165,7 @@ export default function Catalogo() {
               </p>
 
               {esMuestra && (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm" style={{ color: 'var(--gray-secondary)' }}>
                   Lo más reciente de cada tienda. Elige una categoría o una tienda para ver
                   todo.
                 </p>
@@ -201,11 +197,7 @@ export default function Catalogo() {
               traer. La portada sin filtros es una muestra fija. */}
           {!loading && !esMuestra && productos.length < total && (
             <div className="mt-8 text-center">
-              <button
-                onClick={verMas}
-                disabled={cargandoMas}
-                className="px-8 py-3 bg-white border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 disabled:text-gray-400 transition"
-              >
+              <button onClick={verMas} disabled={cargandoMas} className="btn-secondary">
                 {cargandoMas
                   ? 'Cargando...'
                   : `Ver más (quedan ${total - productos.length})`}
@@ -215,16 +207,13 @@ export default function Catalogo() {
 
           {/* Sin productos */}
           {!loading && productos.length === 0 && !error && (
-            <div className="text-center py-12 text-gray-600">
+            <div className="text-center py-12" style={{ color: 'var(--gray-secondary)' }}>
               {busqueda ? (
                 <>
                   <p className="text-lg">
                     Ningún producto coincide con “{busqueda}”
                   </p>
-                  <button
-                    onClick={limpiarBusqueda}
-                    className="mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded font-medium hover:bg-gray-300 transition"
-                  >
+                  <button onClick={limpiarBusqueda} className="btn-secondary mt-4">
                     Borrar búsqueda
                   </button>
                 </>
@@ -239,11 +228,15 @@ export default function Catalogo() {
         <Link
           href="/carrito"
           aria-label="Ver carrito"
-          className="sm:hidden fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-red-600 text-2xl text-white shadow-lg active:bg-red-700"
+          className="sm:hidden fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full text-2xl shadow-lg"
+          style={{ backgroundColor: 'var(--gold)', color: 'var(--black-primary)' }}
         >
           🛒
           {carrito.totalCantidad > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-6 min-w-6 items-center justify-center rounded-full bg-yellow-400 px-1 text-xs font-bold text-red-600">
+            <span
+              className="absolute -top-1 -right-1 flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-bold"
+              style={{ backgroundColor: 'var(--black-primary)', color: 'var(--gold)' }}
+            >
               {carrito.totalCantidad}
             </span>
           )}
