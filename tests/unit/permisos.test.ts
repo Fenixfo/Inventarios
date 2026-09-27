@@ -7,6 +7,7 @@ import {
   veTodasLasFacturas,
   elegirTienda,
   tiendaDe,
+  permisosFueraDeAlcance,
   type UsuarioAutenticado,
   type AccesoTienda,
 } from '@/lib/permisos'
@@ -272,6 +273,52 @@ describe('elección de la tienda activa', () => {
 
     expect(puede(u, 'facturas.crear')).toBe(true)
     expect(puede(u, 'productos.ver')).toBe(false)
+  })
+})
+
+describe('permisosFueraDeAlcance', () => {
+  // Regresión: 'usuarios.gestionar' se pensó para aprobar y organizar el
+  // acceso de las personas, no para convertirse en una llave maestra sobre
+  // todo el catálogo. Antes del arreglo, quien solo tenía ese permiso podía
+  // otorgarse a sí mismo (o a cualquiera) reportes.ver, auditoria.ver o
+  // facturas.ver_todas sin que el dueño se los hubiera dado nunca.
+  it('detecta la auto-concesión de permisos que el solicitante no tiene', () => {
+    const gestorSinAlcance = usuario(
+      acceso(TIENDA_A, ['productos.ver', 'usuarios.gestionar'])
+    )
+
+    expect(
+      permisosFueraDeAlcance(
+        gestorSinAlcance,
+        ['reportes.ver', 'auditoria.ver', 'facturas.ver_todas'],
+        TIENDA_A
+      )
+    ).toEqual(['reportes.ver', 'auditoria.ver', 'facturas.ver_todas'])
+  })
+
+  it('permite otorgar únicamente lo que el solicitante ya tiene', () => {
+    const cajero = usuario(acceso(TIENDA_A, ['facturas.crear', 'usuarios.gestionar']))
+
+    expect(permisosFueraDeAlcance(cajero, ['facturas.crear'], TIENDA_A)).toEqual([])
+    expect(
+      permisosFueraDeAlcance(cajero, ['facturas.crear', 'reportes.ver'], TIENDA_A)
+    ).toEqual(['reportes.ver'])
+  })
+
+  it('owner y administrador otorgan cualquier permiso sin límite', () => {
+    const owner = usuario(acceso(TIENDA_A, [], { esOwner: true }))
+    const admin = usuario(acceso(TIENDA_A, [], { esAdmin: true }))
+
+    expect(
+      permisosFueraDeAlcance(owner, ['reportes.ver', 'auditoria.ver'], TIENDA_A)
+    ).toEqual([])
+    expect(
+      permisosFueraDeAlcance(admin, ['reportes.ver', 'auditoria.ver'], TIENDA_A)
+    ).toEqual([])
+  })
+
+  it('sin sesión no se puede otorgar nada', () => {
+    expect(permisosFueraDeAlcance(null, ['productos.ver'])).toEqual(['productos.ver'])
   })
 })
 

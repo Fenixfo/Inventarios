@@ -233,6 +233,22 @@ export function puedeAlguno(
   return permisos.some((p) => puede(usuario, p, tiendaId))
 }
 
+/**
+ * De la lista que se quiere otorgar, los que el propio solicitante no tiene.
+ *
+ * 'usuarios.gestionar' deja administrar quién entra a la tienda; sin este
+ * tope también dejaba repartir cualquier otro permiso del catálogo —
+ * facturas, auditoría, reportes— aunque quien lo usara no los tuviera. Owner
+ * y administrador, que pasan cualquier `puede`, siguen sin límite.
+ */
+export function permisosFueraDeAlcance(
+  solicitante: UsuarioAutenticado | null,
+  permisos: string[],
+  tiendaId?: string
+): string[] {
+  return permisos.filter((p) => !puede(solicitante, p, tiendaId))
+}
+
 /** El owner es el único al que nadie puede degradar. */
 export function esOwner(usuario: UsuarioAutenticado | null, tiendaId?: string): boolean {
   const acceso = tiendaId ? usuario?.tiendas.find((t) => t.tiendaId === tiendaId) : usuario?.tienda

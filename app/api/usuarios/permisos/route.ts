@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { exigirTienda, esOwner, olvidarCache } from '@/lib/permisos'
+import { exigirTienda, esOwner, permisosFueraDeAlcance, olvidarCache } from '@/lib/permisos'
 import { z } from 'zod'
 
 const asignacionSchema = z.object({
@@ -48,6 +48,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: `Permisos no reconocidos: ${desconocidos.join(', ')}` },
         { status: 400 }
+      )
+    }
+
+    // Nadie concede más de lo que tiene: 'usuarios.gestionar' sirve para
+    // administrar el acceso de las personas, no para repartir cualquier
+    // permiso del catálogo (financiero, auditoría...) sin tenerlo uno mismo.
+    // Owner y administrador, que pasan cualquier comprobación de `puede`,
+    // siguen pudiendo otorgar lo que quieran.
+    const sinAlcance = permisosFueraDeAlcance(solicitante, permisos, tiendaId)
+    if (sinAlcance.length) {
+      return NextResponse.json(
+        {
+          error: `No puedes otorgar permisos que tú mismo no tienes: ${sinAlcance.join(', ')}`,
+        },
+        { status: 403 }
       )
     }
 
