@@ -1,6 +1,5 @@
 'use client'
 
-import { Header } from '@/components/Layout/Header'
 import { useCart } from '@/hooks/useCart'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -112,8 +111,6 @@ export default function Catalogo() {
 
   return (
     <>
-      <Header compact={true} showLogo={false} />
-
       {/* Portada: primero lo que ve quien llega al sitio, antes del catálogo. */}
       <section
         id="portada"
@@ -158,22 +155,6 @@ export default function Catalogo() {
 
       <main id="catalogo" className="min-h-screen py-6 sm:py-12" style={{ backgroundColor: 'var(--white-off)' }}>
         <div className="max-w-7xl mx-auto px-4">
-          {/* Botón del carrito. En móvil queda fijo abajo a la derecha:
-              arriba obligaría a subir toda la lista para llegar a él. */}
-          <div className="hidden sm:flex justify-end mb-6">
-            <Link href="/carrito" className="relative btn-primary">
-              🛒 Carrito
-              {carrito.totalCantidad > 0 && (
-                <span
-                  className="absolute -top-2 -right-2 text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: 'var(--black-primary)', color: 'var(--gold)' }}
-                >
-                  {carrito.totalCantidad}
-                </span>
-              )}
-            </Link>
-          </div>
-
           {/* Encabezado */}
           <div className="text-center mb-8 sm:mb-12">
             <h1 className="text-2xl sm:text-4xl font-bold mb-2 sm:mb-4" style={{ color: 'var(--black-primary)' }}>
@@ -287,12 +268,12 @@ export default function Catalogo() {
           )}
         </div>
 
-        {/* Carrito flotante en móvil, siempre a mano. A la izquierda, como
-            en la portada de referencia: a la derecha va el botón "subir". */}
+        {/* Carrito flotante, siempre a mano en cualquier tamaño de pantalla.
+            A la izquierda: a la derecha va el botón "subir". */}
         <Link
           href="/carrito"
           aria-label="Ver carrito"
-          className="sm:hidden fixed bottom-5 left-5 z-40 flex h-14 w-14 items-center justify-center rounded-full text-2xl shadow-lg"
+          className="fixed bottom-5 left-5 z-40 flex h-14 w-14 items-center justify-center rounded-full text-2xl shadow-lg"
           style={{ backgroundColor: 'var(--gold)', color: 'var(--black-primary)' }}
         >
           🛒
