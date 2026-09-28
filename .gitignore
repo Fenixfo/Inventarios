@@ -45,3 +45,7 @@ next-env.d.ts
 # Respaldos de base de datos (contienen datos reales)
 /backups
 scripts/backup.js
+
+# resultados de Playwright
+/test-results/
+/playwright-report/

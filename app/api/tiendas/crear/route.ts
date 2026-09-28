@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Error creando tienda:', error)
     return NextResponse.json(
-      { error: error.message || 'Error al crear la tienda' },
+      { error: 'Error al crear la tienda' },
       { status: 500 }
     )
   }

@@ -101,8 +101,8 @@ export function SelectorCategoria({
     padding: '10px',
     cursor: 'pointer',
     fontSize: '14px',
-    backgroundColor: activo ? '#eff6ff' : 'white',
-    borderBottom: '1px solid #eee',
+    backgroundColor: activo ? 'var(--beige-light)' : 'var(--white-off)',
+    borderBottom: '1px solid var(--gray-light)',
   })
 
   return (
@@ -127,15 +127,7 @@ export function SelectorCategoria({
           onChange(e.target.value)
         }}
         onKeyDown={alTeclear}
-        style={{
-          width: '100%',
-          padding: '8px',
-          border: '1px solid #ddd',
-          borderRadius: '4px',
-          boxSizing: 'border-box',
-          fontFamily: 'inherit',
-          fontSize: '14px',
-        }}
+        className="field-input"
       />
 
       {abierto && (
@@ -146,9 +138,9 @@ export function SelectorCategoria({
             top: '100%',
             left: 0,
             right: 0,
-            backgroundColor: 'white',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
+            backgroundColor: 'var(--white-off)',
+            border: '1px solid var(--gray-light)',
+            borderRadius: '8px',
             maxHeight: '220px',
             overflow: 'auto',
             zIndex: 10,

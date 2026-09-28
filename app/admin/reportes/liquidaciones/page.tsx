@@ -5,6 +5,8 @@ import { PermissionProtector } from '@/components/PermissionProtector'
 import { usePermisos } from '@/components/PermisosProvider'
 import { fechaYHora } from '@/lib/fechas'
 import { useListaPaginada } from '@/lib/use-lista-paginada'
+import { pesos } from '@/lib/formato'
+import { VerMas } from '@/components/Common/VerMas'
 
 interface Liquidacion {
   id: string
@@ -17,14 +19,6 @@ interface Liquidacion {
   pagoVendedor: number
 }
 
-const pesos = (valor: number) =>
-  new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(valor)
-
 export default function LiquidacionesPage() {
   const { puede } = usePermisos()
 
@@ -33,76 +27,70 @@ export default function LiquidacionesPage() {
 
   return (
     <PermissionProtector requiredPermission="liquidaciones">
-      <div style={{ padding: '20px', maxWidth: '1100px' }}>
-        <div style={{ marginBottom: '20px' }}>
-          <Link href="/admin/reportes" style={{ color: '#2563eb', textDecoration: 'none' }}>
+      <div className="card" style={{ maxWidth: 1100 }}>
+        <div className="mb-4">
+          <Link href="/admin/reportes" style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}>
             ← Volver a Reportes
           </Link>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
+        <div className="card-header">
           <div>
-            <h1 style={{ margin: 0 }}>💼 Liquidaciones</h1>
-            <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: '13px' }}>
+            <h1 className="card-title" style={{ fontSize: 20 }}>💼 Liquidaciones</h1>
+            <p style={{ margin: '4px 0 0 0', color: 'var(--gray-secondary)', fontSize: '13px' }}>
               El cierre de las facturas cobradas de cada vendedor: ganancia (venta sin impuesto −
               costo) y lo que se le paga.
             </p>
           </div>
           {puede('liquidaciones.crear') && (
-            <Link href="/admin/reportes/liquidaciones/nueva" style={{
-              padding: '10px 20px',
-              backgroundColor: '#2563eb',
-              color: 'white',
-              textDecoration: 'none',
-              borderRadius: '4px',
-            }}>
+            <Link href="/admin/reportes/liquidaciones/nueva" className="btn-primary">
               Nueva liquidación
             </Link>
           )}
         </div>
 
-        {error && <p style={{ color: '#dc2626' }}>Error: {error}</p>}
+        {error && <p style={{ color: 'var(--status-red-solid)' }}>Error: {error}</p>}
 
         {cargando ? (
-          <p style={{ color: '#666' }}>Cargando...</p>
+          <p style={{ color: 'var(--gray-secondary)' }}>Cargando...</p>
         ) : liquidaciones.length === 0 ? (
-          <p style={{ color: '#666' }}>Aún no hay liquidaciones.</p>
+          <p style={{ color: 'var(--gray-secondary)' }}>Aún no hay liquidaciones.</p>
         ) : (
           <>
-            <p style={{ color: '#6b7280', fontSize: '13px', margin: '0 0 10px 0' }}>
+            <p className="text-sm mb-2" style={{ color: 'var(--gray-secondary)' }}>
               Mostrando las {liquidaciones.length} más recientes de {total}
             </p>
 
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table className="table-luxe">
                 <thead>
-                  <tr style={{ borderBottom: '2px solid #ddd' }}>
-                    <th style={{ padding: '10px', textAlign: 'left' }}>Fecha</th>
-                    <th style={{ padding: '10px', textAlign: 'left' }}>Vendedor</th>
-                    <th style={{ padding: '10px', textAlign: 'right' }}>Facturas</th>
-                    <th style={{ padding: '10px', textAlign: 'right' }}>Venta</th>
-                    <th style={{ padding: '10px', textAlign: 'right' }}>Ganancia</th>
-                    <th style={{ padding: '10px', textAlign: 'right' }}>%</th>
-                    <th style={{ padding: '10px', textAlign: 'right' }}>Pago al vendedor</th>
-                    <th style={{ padding: '10px', textAlign: 'center' }}>Acciones</th>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Vendedor</th>
+                    <th style={{ textAlign: 'right' }}>Facturas</th>
+                    <th style={{ textAlign: 'right' }}>Venta</th>
+                    <th style={{ textAlign: 'right' }}>Ganancia</th>
+                    <th style={{ textAlign: 'right' }}>%</th>
+                    <th style={{ textAlign: 'right' }}>Pago al vendedor</th>
+                    <th style={{ textAlign: 'center' }}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {liquidaciones.map((l) => (
-                    <tr key={l.id} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>{fechaYHora(l.fecha)}</td>
-                      <td style={{ padding: '10px' }}>{l.vendedor}</td>
-                      <td style={{ padding: '10px', textAlign: 'right' }}>{l.facturas}</td>
-                      <td style={{ padding: '10px', textAlign: 'right' }}>{pesos(l.totalVenta)}</td>
-                      <td style={{ padding: '10px', textAlign: 'right', color: l.totalGanancia < 0 ? '#dc2626' : 'inherit' }}>
+                    <tr key={l.id}>
+                      <td style={{ whiteSpace: 'nowrap' }}>{fechaYHora(l.fecha)}</td>
+                      <td>{l.vendedor}</td>
+                      <td style={{ textAlign: 'right' }}>{l.facturas}</td>
+                      <td style={{ textAlign: 'right' }}>{pesos(l.totalVenta)}</td>
+                      <td style={{ textAlign: 'right', color: l.totalGanancia < 0 ? 'var(--status-red-solid)' : 'inherit' }}>
                         {pesos(l.totalGanancia)}
                       </td>
-                      <td style={{ padding: '10px', textAlign: 'right' }}>{l.porcentaje}%</td>
-                      <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold', color: '#059669' }}>
+                      <td style={{ textAlign: 'right' }}>{l.porcentaje}%</td>
+                      <td style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--status-green-text)' }}>
                         {pesos(l.pagoVendedor)}
                       </td>
-                      <td style={{ padding: '10px', textAlign: 'center' }}>
-                        <Link href={`/admin/reportes/liquidaciones/${l.id}`} style={{ color: '#2563eb', textDecoration: 'none' }}>
+                      <td style={{ textAlign: 'center' }}>
+                        <Link href={`/admin/reportes/liquidaciones/${l.id}`} className="btn-action">
                           Ver
                         </Link>
                       </td>
@@ -113,23 +101,7 @@ export default function LiquidacionesPage() {
             </div>
 
             {hayMas && (
-              <div style={{ textAlign: 'center', marginTop: '20px' }}>
-                <button
-                  onClick={verMas}
-                  disabled={cargandoMas}
-                  style={{
-                    padding: '10px 24px',
-                    backgroundColor: 'white',
-                    color: '#2563eb',
-                    border: '1px solid #2563eb',
-                    borderRadius: '4px',
-                    cursor: cargandoMas ? 'wait' : 'pointer',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  {cargandoMas ? 'Cargando...' : `Ver más (${total - liquidaciones.length} restantes)`}
-                </button>
-              </div>
+              <VerMas restantes={total - liquidaciones.length} cargando={cargandoMas} onClick={verMas} />
             )}
           </>
         )}

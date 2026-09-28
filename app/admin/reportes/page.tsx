@@ -6,7 +6,9 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
 import { PermissionProtector } from '@/components/PermissionProtector'
+import { diaColombiano } from '@/lib/fechas'
 import { usePermisos } from '@/components/PermisosProvider'
+import { pesos } from '@/lib/formato'
 
 interface ReporteFacturacion {
   periodo: {
@@ -45,10 +47,10 @@ export default function ReportesPage() {
   const [inicializado, setInicializado] = useState(false)
 
   // Obtener mes actual en formato YYYY-MM
+  // El mes de Colombia, no el del reloj del dispositivo: el resto de la app
+  // ya usa esa hora, y en la noche del último día del mes no coincidían.
   useEffect(() => {
-    const hoy = new Date()
-    const mes = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`
-    setMesSeleccionado(mes)
+    setMesSeleccionado(diaColombiano(new Date()).slice(0, 7))
   }, [])
 
   const cargarReporte = async (p: string = periodo, mes?: string, estadosFiltro: string[] = estados) => {
@@ -95,260 +97,186 @@ export default function ReportesPage() {
   }
 
   // Cargar reporte inicial
+  // Una vez al abrir; el resto de cambios recargan desde sus controles.
   useEffect(() => {
     if (!inicializado) {
       cargarReporte('hoy')
       setInicializado(true)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inicializado])
-
-  const formatearDinero = (valor: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(valor)
-  }
 
   return (
     <PermissionProtector requiredPermission="reportes">
-      <div style={{ padding: '20px', maxWidth: '1200px' }}>
-      <div style={{ marginBottom: '20px' }}>
-        <Link href="/admin" style={{ color: '#2563eb', textDecoration: 'none' }}>
-          ← Volver al Dashboard
-        </Link>
-      </div>
+      <div style={{ maxWidth: 1200 }}>
+        <div className="mb-4">
+          <Link href="/admin" style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}>
+            ← Volver al Dashboard
+          </Link>
+        </div>
 
-      <h1 style={{ marginBottom: '30px' }}>Reportes</h1>
+        <h1 className="text-2xl font-bold mb-6" style={{ color: 'var(--black-primary)' }}>Reportes</h1>
 
-      {/* Selector de tipo de reporte */}
-      <div style={{ marginBottom: '30px' }}>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#2563eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              fontSize: '14px'
-            }}
-            disabled
-          >
+        {/* Selector de tipo de reporte */}
+        <div className="flex gap-2 mb-6">
+          <button className="btn-primary" disabled>
             📊 Facturación
           </button>
-          <Link href="/admin/reportes/inventario" style={{
-            padding: '10px 20px',
-            backgroundColor: '#e5e7eb',
-            color: '#374151',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontWeight: 'normal',
-            fontSize: '14px',
-            textDecoration: 'none',
-            display: 'inline-block'
-          }}>
+          <Link href="/admin/reportes/inventario" className="btn-secondary">
             📦 Inventario
           </Link>
           {puede('liquidaciones.ver') && (
-            <Link href="/admin/reportes/liquidaciones" style={{
-              padding: '10px 20px',
-              backgroundColor: '#e5e7eb',
-              color: '#374151',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'normal',
-              fontSize: '14px',
-              textDecoration: 'none',
-              display: 'inline-block'
-            }}>
+            <Link href="/admin/reportes/liquidaciones" className="btn-secondary">
               💼 Liquidaciones
             </Link>
           )}
         </div>
-      </div>
 
-      {/* Selector de período */}
-      <div style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-          {['hoy', 'semana', 'mes'].map((p) => (
-            <button
-              key={p}
-              onClick={() => {
-                setPeriodo(p)
-                cargarReporte(p)
+        {/* Selector de período */}
+        <div className="card mb-6">
+          <div className="flex gap-2 mb-4">
+            {['hoy', 'semana', 'mes'].map((p) => (
+              <button
+                key={p}
+                onClick={() => {
+                  setPeriodo(p)
+                  cargarReporte(p)
+                }}
+                className={periodo === p && periodo !== 'personalizado' ? 'btn-primary' : 'btn-secondary'}
+              >
+                {p.charAt(0).toUpperCase() + p.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {/* Filtros de estado */}
+          <div style={{ padding: '15px', backgroundColor: 'var(--beige-light)', borderRadius: '8px', marginBottom: '15px' }}>
+            <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', fontSize: '14px', color: 'var(--black-primary)' }}>Estado de Facturas:</p>
+            <div className="flex gap-5 flex-wrap">
+              <label className="flex items-center gap-2 cursor-pointer text-sm">
+                <input type="checkbox" checked={estados.includes('pagado')} onChange={() => handleEstadoChange('pagado')} />
+                ✅ Pagado
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer text-sm">
+                <input type="checkbox" checked={estados.includes('entregado')} onChange={() => handleEstadoChange('entregado')} />
+                🚚 Entregado
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer text-sm">
+                <input type="checkbox" checked={estados.includes('pendiente')} onChange={() => handleEstadoChange('pendiente')} />
+                ⏳ Pendiente
+              </label>
+            </div>
+          </div>
+
+          <div className="flex gap-2 items-center">
+            <label className="field-label" style={{ margin: 0 }}>Ver mes específico:</label>
+            <input
+              type="month"
+              value={mesSeleccionado}
+              onChange={(e) => {
+                setMesSeleccionado(e.target.value)
+                setPeriodo('personalizado')
+                cargarReporte('personalizado', e.target.value)
               }}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: periodo === p && periodo !== 'personalizado' ? '#2563eb' : '#e5e7eb',
-                color: periodo === p && periodo !== 'personalizado' ? 'white' : '#374151',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: periodo === p && periodo !== 'personalizado' ? 'bold' : 'normal',
-              }}
-            >
-              {p.charAt(0).toUpperCase() + p.slice(1)}
-            </button>
-          ))}
-        </div>
-
-      {/* Filtros de estado */}
-      <div style={{ padding: '15px', backgroundColor: '#f3f4f6', borderRadius: '4px', marginBottom: '15px' }}>
-        <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', fontSize: '14px', color: '#374151' }}>Estado de Facturas:</p>
-        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
-            <input
-              type="checkbox"
-              checked={estados.includes('pagado')}
-              onChange={() => handleEstadoChange('pagado')}
-              style={{ cursor: 'pointer' }}
+              className="field-input"
+              style={{ width: 'auto' }}
             />
-            ✅ Pagado
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
-            <input
-              type="checkbox"
-              checked={estados.includes('entregado')}
-              onChange={() => handleEstadoChange('entregado')}
-              style={{ cursor: 'pointer' }}
-            />
-            🚚 Entregado
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
-            <input
-              type="checkbox"
-              checked={estados.includes('pendiente')}
-              onChange={() => handleEstadoChange('pendiente')}
-              style={{ cursor: 'pointer' }}
-            />
-            ⏳ Pendiente
-          </label>
+          </div>
         </div>
-      </div>
 
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Ver mes específico:</label>
-          <input
-            type="month"
-            value={mesSeleccionado}
-            onChange={(e) => {
-              setMesSeleccionado(e.target.value)
-              setPeriodo('personalizado')
-              cargarReporte('personalizado', e.target.value)
-            }}
-            style={{
-              padding: '8px 12px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontFamily: 'system-ui',
-            }}
-          />
-        </div>
-      </div>
+        {error && <div className="alert-box error">{error}</div>}
 
-      {error && (
-        <div style={{ backgroundColor: '#fee', color: '#c00', padding: '10px', borderRadius: '4px', marginBottom: '20px' }}>
-          {error}
-        </div>
-      )}
-
-      {loading ? (
-        <div style={{ textAlign: 'center', color: '#666' }}>Cargando reporte...</div>
-      ) : reporte ? (
-        <>
-          {/* Métricas principales */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px', marginBottom: '30px' }}>
-            <div style={{ backgroundColor: '#f0f9ff', padding: '20px', borderRadius: '8px', borderLeft: '4px solid #0ea5e9' }}>
-              <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '12px' }}>TOTAL VENDIDO</p>
-              <p style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: '#0369a1', fontFamily: 'monospace' }}>
-                {formatearDinero(reporte.metricas.totalVendido)}
-              </p>
-            </div>
-
-            <div style={{ backgroundColor: '#f0fdf4', padding: '20px', borderRadius: '8px', borderLeft: '4px solid #10b981' }}>
-              <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '12px' }}>NÚMERO DE FACTURAS</p>
-              <p style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: '#047857', fontFamily: 'monospace' }}>
-                {reporte.metricas.numeroFacturas}
-              </p>
-            </div>
-
-            <div style={{ backgroundColor: '#fef3c7', padding: '20px', borderRadius: '8px', borderLeft: '4px solid #f59e0b' }}>
-              <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '12px' }}>PROMEDIO POR FACTURA</p>
-              <p style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: '#92400e', fontFamily: 'monospace' }}>
-                {formatearDinero(reporte.metricas.promedioPorFactura)}
-              </p>
-            </div>
-
-            {reporte.metricas.clienteTop && (
-              <div style={{ backgroundColor: '#fce7f3', padding: '20px', borderRadius: '8px', borderLeft: '4px solid #ec4899' }}>
-                <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '12px' }}>CLIENTE TOP</p>
-                <p style={{ margin: '0 0 5px 0', fontSize: '14px', fontWeight: 'bold', color: '#be185d' }}>
-                  {reporte.metricas.clienteTop.nombre}
-                </p>
-                <p style={{ margin: 0, fontSize: '12px', color: '#ec4899' }}>
-                  {formatearDinero(reporte.metricas.clienteTop.total)} ({reporte.metricas.clienteTop.cantidad} facturas)
-                </p>
+        {loading ? (
+          <div style={{ textAlign: 'center', color: 'var(--gray-secondary)' }}>Cargando reporte...</div>
+        ) : reporte ? (
+          <>
+            {/* Métricas principales */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <div className="indicator-card">
+                <div className="indicator-label">TOTAL VENDIDO</div>
+                <div className="indicator-value" style={{ fontFamily: 'monospace', fontSize: 22 }}>
+                  {pesos(reporte.metricas.totalVendido)}
+                </div>
               </div>
-            )}
-          </div>
 
-          {/* Tabla de ventas por día */}
-          <div style={{ marginBottom: '30px' }}>
-            <h2 style={{ fontSize: '16px', marginBottom: '15px' }}>Ventas por Día</h2>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #ddd', backgroundColor: '#f0f0f0' }}>
-                  <th style={{ padding: '10px', textAlign: 'left', fontSize: '12px' }}>Fecha</th>
-                  <th style={{ padding: '10px', textAlign: 'right', fontSize: '12px' }}>Ventas</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reporte.ventasPorDia.map((dia, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '10px', fontSize: '12px' }}>{dia.fecha}</td>
-                    <td style={{ padding: '10px', textAlign: 'right', fontSize: '12px', fontFamily: 'monospace', fontWeight: 'bold' }}>
-                      {formatearDinero(dia.total)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              <div className="indicator-card">
+                <div className="indicator-label">NÚMERO DE FACTURAS</div>
+                <div className="indicator-value" style={{ fontFamily: 'monospace' }}>
+                  {reporte.metricas.numeroFacturas}
+                </div>
+              </div>
 
-          {/* Tabla de productos más vendidos */}
-          <div>
-            <h2 style={{ fontSize: '16px', marginBottom: '15px' }}>Top 10 Productos Más Vendidos</h2>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #ddd', backgroundColor: '#f0f0f0' }}>
-                  <th style={{ padding: '10px', textAlign: 'left', fontSize: '12px' }}>Producto</th>
-                  <th style={{ padding: '10px', textAlign: 'right', fontSize: '12px' }}>Cantidad (m²)</th>
-                  <th style={{ padding: '10px', textAlign: 'right', fontSize: '12px' }}>Ingresos</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reporte.productosTop.map((prod, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '10px', fontSize: '12px' }}>{prod.nombre}</td>
-                    <td style={{ padding: '10px', textAlign: 'right', fontSize: '12px', fontFamily: 'monospace' }}>
-                      {Number(prod.cantidad).toFixed(2)}
-                    </td>
-                    <td style={{ padding: '10px', textAlign: 'right', fontSize: '12px', fontFamily: 'monospace', fontWeight: 'bold', color: '#10b981' }}>
-                      {formatearDinero(prod.ingresos)}
-                    </td>
+              <div className="indicator-card">
+                <div className="indicator-label">PROMEDIO POR FACTURA</div>
+                <div className="indicator-value" style={{ fontFamily: 'monospace', fontSize: 22 }}>
+                  {pesos(reporte.metricas.promedioPorFactura)}
+                </div>
+              </div>
+
+              {reporte.metricas.clienteTop && (
+                <div className="indicator-card">
+                  <div className="indicator-label">CLIENTE TOP</div>
+                  <p style={{ margin: '0 0 5px 0', fontSize: '14px', fontWeight: 'bold', color: 'var(--gold-dark)' }}>
+                    {reporte.metricas.clienteTop.nombre}
+                  </p>
+                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--gray-secondary)' }}>
+                    {pesos(reporte.metricas.clienteTop.total)} ({reporte.metricas.clienteTop.cantidad} facturas)
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Tabla de ventas por día */}
+            <div className="card mb-6">
+              <h2 className="card-title mb-4">Ventas por Día</h2>
+              <table className="table-luxe">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th style={{ textAlign: 'right' }}>Ventas</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      ) : null}
+                </thead>
+                <tbody>
+                  {reporte.ventasPorDia.map((dia) => (
+                    <tr key={dia.fecha}>
+                      <td>{dia.fecha}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 'bold' }}>
+                        {pesos(dia.total)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Tabla de productos más vendidos */}
+            <div className="card">
+              <h2 className="card-title mb-4">Top 10 Productos Más Vendidos</h2>
+              <table className="table-luxe">
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th style={{ textAlign: 'right' }}>Cantidad (m²)</th>
+                    <th style={{ textAlign: 'right' }}>Ingresos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reporte.productosTop.map((prod) => (
+                    <tr key={prod.nombre}>
+                      <td>{prod.nombre}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
+                        {Number(prod.cantidad).toFixed(2)}
+                      </td>
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 'bold', color: 'var(--status-green-text)' }}>
+                        {pesos(prod.ingresos)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : null}
       </div>
     </PermissionProtector>
   )

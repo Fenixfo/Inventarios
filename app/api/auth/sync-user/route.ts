@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Error sincronizando usuario:', error)
     return NextResponse.json(
-      { error: error.message || 'Error al sincronizar usuario' },
+      { error: 'Error al sincronizar usuario' },
       { status: 500 }
     )
   }

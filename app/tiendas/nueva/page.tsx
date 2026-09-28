@@ -77,47 +77,20 @@ export default function NuevaTiendaPage() {
     }
   }
 
-  const campo = {
-    width: '100%',
-    padding: '10px',
-    border: '1px solid #ddd',
-    borderRadius: '6px',
-    fontSize: '14px',
-    boxSizing: 'border-box' as const,
-    fontFamily: 'inherit',
-  }
-
-  const etiqueta = {
-    display: 'block',
-    marginBottom: '6px',
-    fontWeight: 500,
-    fontSize: '14px',
-  }
-
   return (
     <>
       <Header showNav={false} />
-      <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6', padding: '20px' }}>
-        <div
-          style={{
-            backgroundColor: 'white',
-            padding: 'clamp(20px, 6vw, 40px)',
-            borderRadius: '8px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            width: '100%',
-            maxWidth: '560px',
-            margin: '0 auto',
-          }}
-        >
+      <div style={{ minHeight: '100vh', backgroundColor: 'var(--beige-light)', padding: '20px' }}>
+        <div className="card" style={{ padding: 'clamp(24px, 6vw, 40px)', width: '100%', maxWidth: '560px', margin: '0 auto' }}>
           {creada ? (
             <>
-              <h1 style={{ marginTop: 0, fontSize: '24px' }}>Tienda creada</h1>
-              <p style={{ color: '#4b5563', fontSize: '14px' }}>
+              <h1 style={{ marginTop: 0, fontSize: '24px', color: 'var(--black-primary)' }}>Tienda creada</h1>
+              <p style={{ color: 'var(--gray-secondary)', fontSize: '14px' }}>
                 <strong>{creada.nombre}</strong> ya existe y eres su dueño.
               </p>
 
-              <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '16px', margin: '20px 0' }}>
-                <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#166534' }}>
+              <div className="alert-box success" style={{ margin: '20px 0' }}>
+                <p style={{ margin: '0 0 8px 0', fontSize: '13px' }}>
                   Este es el código de tu tienda. Compártelo con quien quieras que trabaje
                   contigo: es lo que necesita para pedirte acceso.
                 </p>
@@ -127,7 +100,8 @@ export default function NuevaTiendaPage() {
                     fontSize: '26px',
                     fontWeight: 'bold',
                     letterSpacing: '6px',
-                    backgroundColor: 'white',
+                    backgroundColor: 'var(--white-off)',
+                    color: 'var(--black-primary)',
                     padding: '10px 18px',
                     borderRadius: '8px',
                     fontFamily: 'monospace',
@@ -137,148 +111,102 @@ export default function NuevaTiendaPage() {
                 </code>
               </div>
 
-              <p style={{ color: '#6b7280', fontSize: '13px', marginBottom: '20px' }}>
+              <p style={{ color: 'var(--gray-secondary)', fontSize: '13px', marginBottom: '20px' }}>
                 El logo y los datos que hayas dejado en blanco se completan desde
                 Configuración, dentro del panel.
               </p>
 
-              <button
-                onClick={() => router.push('/admin')}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
+              <button onClick={() => router.push('/admin')} className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
                 Entrar al panel
               </button>
             </>
           ) : (
             <>
-              <h1 style={{ marginTop: 0, marginBottom: '8px', fontSize: '24px' }}>
+              <h1 style={{ marginTop: 0, marginBottom: '8px', fontSize: '24px', color: 'var(--black-primary)' }}>
                 Crear una tienda
               </h1>
-              <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '24px' }}>
+              <p style={{ color: 'var(--gray-secondary)', fontSize: '14px', marginBottom: '24px' }}>
                 Quedarás como dueño: acceso a todo y nadie te lo puede quitar. Solo el nombre
                 es obligatorio.
               </p>
 
-              {error && (
-                <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '12px', borderRadius: '6px', marginBottom: '20px', fontSize: '14px' }}>
-                  {error}
-                </div>
-              )}
+              {error && <div className="alert-box error">{error}</div>}
 
-              <div style={{ marginBottom: '16px' }}>
-                <label style={etiqueta}>Nombre de la tienda *</label>
+              <div className="mb-4">
+                <label className="field-label">Nombre de la tienda *</label>
                 <input
                   value={datos.nombre}
                   onChange={(e) => actualizar('nombre', e.target.value)}
                   placeholder="Cerámicas del Norte"
                   autoFocus
-                  style={campo}
+                  className="field-input"
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label style={etiqueta}>Ciudad</label>
+                  <label className="field-label">Ciudad</label>
                   <input
                     value={datos.ciudad}
                     onChange={(e) => actualizar('ciudad', e.target.value)}
                     placeholder="Bogotá"
-                    style={campo}
+                    className="field-input"
                   />
                 </div>
                 <div>
-                  <label style={etiqueta}>NIT</label>
-                  <input
-                    value={datos.nit_empresa}
-                    onChange={(e) => actualizar('nit_empresa', e.target.value)}
-                    style={campo}
-                  />
+                  <label className="field-label">NIT</label>
+                  <input value={datos.nit_empresa} onChange={(e) => actualizar('nit_empresa', e.target.value)} className="field-input" />
                 </div>
               </div>
 
-              <div style={{ marginBottom: '16px' }}>
-                <label style={etiqueta}>Eslogan</label>
+              <div className="mb-4">
+                <label className="field-label">Eslogan</label>
                 <input
                   value={datos.eslogan_empresa}
                   onChange={(e) => actualizar('eslogan_empresa', e.target.value)}
                   placeholder="Distribuidora de cerámicas y porcelanatos"
-                  style={campo}
+                  className="field-input"
                 />
               </div>
 
-              <div style={{ marginBottom: '16px' }}>
-                <label style={etiqueta}>Dirección</label>
-                <input
-                  value={datos.direccion_empresa}
-                  onChange={(e) => actualizar('direccion_empresa', e.target.value)}
-                  style={campo}
-                />
+              <div className="mb-4">
+                <label className="field-label">Dirección</label>
+                <input value={datos.direccion_empresa} onChange={(e) => actualizar('direccion_empresa', e.target.value)} className="field-input" />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label style={etiqueta}>Teléfono</label>
-                  <input
-                    value={datos.telefono_empresa}
-                    onChange={(e) => actualizar('telefono_empresa', e.target.value)}
-                    style={campo}
-                  />
+                  <label className="field-label">Teléfono</label>
+                  <input value={datos.telefono_empresa} onChange={(e) => actualizar('telefono_empresa', e.target.value)} className="field-input" />
                 </div>
                 <div>
-                  <label style={etiqueta}>Correo</label>
+                  <label className="field-label">Correo</label>
                   <input
                     type="email"
                     value={datos.email_empresa}
                     onChange={(e) => actualizar('email_empresa', e.target.value)}
-                    style={campo}
+                    className="field-input"
                   />
                 </div>
               </div>
 
-              <div style={{ marginBottom: '24px' }}>
-                <label style={etiqueta}>WhatsApp para pedidos</label>
+              <div className="mb-6">
+                <label className="field-label">WhatsApp para pedidos</label>
                 <input
                   value={datos.whatsapp_pedidos}
                   onChange={(e) => actualizar('whatsapp_pedidos', e.target.value)}
                   placeholder="573001234567"
-                  style={campo}
+                  className="field-input"
                 />
-                <small style={{ color: '#6b7280', fontSize: '12px' }}>
-                  Con indicativo de país. Es el número al que llegan los pedidos del catálogo.
-                </small>
+                <p className="field-help">Con indicativo de país. Es el número al que llegan los pedidos del catálogo.</p>
               </div>
 
-              <button
-                onClick={crear}
-                disabled={guardando}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  backgroundColor: guardando ? '#9ca3af' : '#2563eb',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: guardando ? 'wait' : 'pointer',
-                  marginBottom: '14px',
-                }}
-              >
+              <button onClick={crear} disabled={guardando} className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginBottom: '14px' }}>
                 {guardando ? 'Creando...' : 'Crear la tienda'}
               </button>
 
               <div style={{ textAlign: 'center', fontSize: '13px' }}>
-                <Link href="/request-access" style={{ color: '#2563eb', textDecoration: 'none' }}>
+                <Link href="/request-access" style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}>
                   ¿Te dieron un código? Pide acceso a una tienda existente
                 </Link>
               </div>

@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
 
     console.error('Error creando movimiento:', error)
     return NextResponse.json(
-      { error: error.message || 'Error al registrar movimiento' },
+      { error: 'Error al registrar movimiento' },
       { status: 500 }
     )
   }

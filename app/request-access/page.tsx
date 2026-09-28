@@ -124,15 +124,6 @@ export default function RequestAccessPage() {
     }
   }
 
-  const inputStyle = {
-    width: '100%',
-    padding: '10px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    fontSize: '14px',
-    boxSizing: 'border-box' as const,
-  }
-
   return (
     <>
       <Header showNav={false} />
@@ -142,75 +133,43 @@ export default function RequestAccessPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#f3f4f6',
+          backgroundColor: 'var(--beige-light)',
           padding: '20px',
         }}
       >
-        <div
-          style={{
-            backgroundColor: 'white',
-            padding: 'clamp(20px, 6vw, 40px)',
-            borderRadius: '8px',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-            width: '100%',
-            maxWidth: '500px',
-          }}
-        >
-          <h1 style={{ marginTop: 0, marginBottom: '10px', fontSize: '24px' }}>
+        <div className="card" style={{ padding: 'clamp(24px, 6vw, 40px)', width: '100%', maxWidth: '500px' }}>
+          <h1 style={{ marginTop: 0, marginBottom: '10px', fontSize: '24px', color: 'var(--black-primary)' }}>
             Pedir acceso a una tienda
           </h1>
 
           {misTiendas.length > 0 && (
-            <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', padding: '15px', borderRadius: '6px', marginBottom: '20px' }}>
-              <p style={{ color: '#166534', margin: '0 0 10px 0', fontSize: '14px' }}>
+            <div className="alert-box success">
+              <p style={{ margin: '0 0 10px 0', fontSize: '14px' }}>
                 Ya trabajas en {misTiendas.length === 1 ? 'la tienda' : 'las tiendas'}{' '}
                 <strong>{misTiendas.map((t) => t.nombre).join(', ')}</strong>.
               </p>
-              <Link
-                href="/admin"
-                style={{
-                  display: 'inline-block',
-                  padding: '10px 20px',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  textDecoration: 'none',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                }}
-              >
+              <Link href="/admin" className="btn-primary">
                 Ir al panel
               </Link>
             </div>
           )}
 
-          <p style={{ color: '#666', marginBottom: '24px', fontSize: '14px' }}>
+          <p style={{ color: 'var(--gray-secondary)', marginBottom: '24px', fontSize: '14px' }}>
             Pídele el código de {LARGO_CODIGO} caracteres al dueño de la tienda. Con él puedes
             solicitar entrar; él decide si te deja y qué puedes hacer.
           </p>
 
           {message && (
-            <div
-              style={{
-                backgroundColor: message.type === 'success' ? '#f0fdf4' : '#fee2e2',
-                color: message.type === 'success' ? '#166534' : '#b91c1c',
-                padding: '12px',
-                borderRadius: '6px',
-                marginBottom: '20px',
-                fontSize: '14px',
-              }}
-            >
+            <div className={`alert-box ${message.type === 'success' ? 'success' : 'error'}`}>
               {message.text}
             </div>
           )}
 
           {loading ? (
-            <div style={{ textAlign: 'center', color: '#666' }}>Cargando...</div>
+            <div style={{ textAlign: 'center', color: 'var(--gray-secondary)' }}>Cargando...</div>
           ) : (
             <>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
-                Código de la tienda
-              </label>
+              <label className="field-label">Código de la tienda</label>
 
               <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                 <input
@@ -223,29 +182,15 @@ export default function RequestAccessPage() {
                   placeholder="AB3K9M"
                   maxLength={LARGO_CODIGO + 2}
                   autoFocus
+                  className="field-input"
                   style={{
-                    ...inputStyle,
                     fontFamily: 'monospace',
                     fontSize: '20px',
                     letterSpacing: '4px',
                     textAlign: 'center',
                   }}
                 />
-                <button
-                  onClick={buscarPorCodigo}
-                  disabled={buscando}
-                  style={{
-                    padding: '10px 20px',
-                    backgroundColor: buscando ? '#9ca3af' : '#2563eb',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: buscando ? 'wait' : 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
+                <button onClick={buscarPorCodigo} disabled={buscando} className="btn-primary" style={{ whiteSpace: 'nowrap' }}>
                   {buscando ? 'Buscando...' : 'Buscar'}
                 </button>
               </div>
@@ -253,27 +198,27 @@ export default function RequestAccessPage() {
               {/* La tienda se confirma antes de mandar nada: con un código
                   mal dictado se pediría acceso al negocio equivocado. */}
               {encontrada && (
-                <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px', marginBottom: '20px' }}>
-                  <p style={{ margin: 0, fontWeight: 'bold', fontSize: '16px' }}>
+                <div style={{ border: '1px solid var(--gray-light)', borderRadius: '8px', padding: '16px', marginBottom: '20px' }}>
+                  <p style={{ margin: 0, fontWeight: 'bold', fontSize: '16px', color: 'var(--black-primary)' }}>
                     {encontrada.nombre}
                   </p>
                   {encontrada.ciudad && (
-                    <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: '13px' }}>
+                    <p style={{ margin: '4px 0 0 0', color: 'var(--gray-secondary)', fontSize: '13px' }}>
                       {encontrada.ciudad}
                     </p>
                   )}
 
                   {encontrada.yaTieneAcceso ? (
-                    <p style={{ margin: '12px 0 0 0', color: '#166534', fontSize: '14px' }}>
+                    <p style={{ margin: '12px 0 0 0', color: 'var(--status-green-text)', fontSize: '14px' }}>
                       Ya tienes acceso a esta tienda.
                     </p>
                   ) : encontrada.solicitudPendiente ? (
-                    <p style={{ margin: '12px 0 0 0', color: '#92400e', fontSize: '14px' }}>
+                    <p style={{ margin: '12px 0 0 0', color: 'var(--status-amber-text)', fontSize: '14px' }}>
                       Ya enviaste una solicitud y está pendiente de respuesta.
                     </p>
                   ) : (
                     <>
-                      <label style={{ display: 'block', margin: '16px 0 8px 0', fontWeight: '500', fontSize: '14px' }}>
+                      <label className="field-label" style={{ margin: '16px 0 8px 0' }}>
                         ¿Por qué necesitas acceso?
                       </label>
                       <textarea
@@ -281,24 +226,15 @@ export default function RequestAccessPage() {
                         onChange={(e) => setRazon(e.target.value)}
                         placeholder="Trabajo en el mostrador y necesito facturar..."
                         disabled={submitting}
-                        style={{ ...inputStyle, minHeight: '90px', fontFamily: 'inherit' }}
+                        className="field-textarea"
+                        style={{ minHeight: '90px' }}
                       />
 
                       <button
                         onClick={enviarSolicitud}
                         disabled={submitting}
-                        style={{
-                          width: '100%',
-                          marginTop: '12px',
-                          padding: '12px',
-                          backgroundColor: submitting ? '#9ca3af' : '#2563eb',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '6px',
-                          fontSize: '14px',
-                          fontWeight: '600',
-                          cursor: submitting ? 'wait' : 'pointer',
-                        }}
+                        className="btn-primary"
+                        style={{ width: '100%', justifyContent: 'center', marginTop: '12px' }}
                       >
                         {submitting ? 'Enviando...' : `Pedir acceso a ${encontrada.nombre}`}
                       </button>
@@ -310,29 +246,17 @@ export default function RequestAccessPage() {
           )}
 
           {/* La otra salida para quien llega sin tienda: montar la suya. */}
-          <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '18px', marginTop: '4px', marginBottom: '18px', textAlign: 'center' }}>
-            <p style={{ fontSize: '13px', color: '#6b7280', margin: '0 0 10px 0' }}>
+          <div style={{ borderTop: '1px solid var(--gray-light)', paddingTop: '18px', marginTop: '4px', marginBottom: '18px', textAlign: 'center' }}>
+            <p style={{ fontSize: '13px', color: 'var(--gray-secondary)', margin: '0 0 10px 0' }}>
               ¿No trabajas en la tienda de nadie?
             </p>
-            <Link
-              href="/tiendas/nueva"
-              style={{
-                display: 'inline-block',
-                padding: '10px 20px',
-                border: '1px solid #2563eb',
-                color: '#2563eb',
-                textDecoration: 'none',
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontWeight: 500,
-              }}
-            >
+            <Link href="/tiendas/nueva" className="btn-secondary">
               Crear mi propia tienda
             </Link>
           </div>
 
-          <div style={{ textAlign: 'center', fontSize: '12px', color: '#666' }}>
-            <Link href="/login" style={{ color: '#2563eb', textDecoration: 'none' }}>
+          <div style={{ textAlign: 'center', fontSize: '13px' }}>
+            <Link href="/login" style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}>
               ← Volver al login
             </Link>
           </div>

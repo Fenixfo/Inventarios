@@ -1,5 +1,6 @@
 import { fechaYHora } from '@/lib/fechas'
 import { montoEnPalabras } from '@/lib/numero-a-palabras'
+import { pesos } from '@/lib/formato'
 
 /**
  * Enlaces de WhatsApp.
@@ -59,15 +60,6 @@ export interface FacturaParaMensaje {
   cliente?: { nombre?: string | null } | null
   items?: ItemFactura[]
   esBodega?: boolean
-}
-
-function pesos(valor: number | string): string {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(Number(valor))
 }
 
 /**

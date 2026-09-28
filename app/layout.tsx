@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import { connection } from 'next/server'
 import { SITE_URL } from '@/lib/site'
 import './globals.css'
 
@@ -68,11 +69,17 @@ export const viewport: Viewport = {
   themeColor: '#1d4ed8',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  // Cada página se renderiza al pedirla, no en el build: la CSP lleva un
+  // nonce nuevo por visita (proxy.ts) y un HTML generado de antemano no lo
+  // tendría, así que el navegador bloquearía sus scripts y la dejaría en
+  // blanco.
+  await connection()
+
   return (
     <html lang="es">
       <body className={inter.className}>

@@ -32,8 +32,10 @@ export async function GET(
 
     return NextResponse.json(producto)
   } catch (error: any) {
+    // El detalle queda en el log del servidor; al navegador va un texto genérico.
+    console.error('Error en /api/productos/[id]:', error)
     return NextResponse.json(
-      { error: error.message || 'Error fetching producto' },
+      { error: 'No se pudo obtener el producto' },
       { status: 500 }
     )
   }
@@ -62,8 +64,10 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
+    // El detalle queda en el log del servidor; al navegador va un texto genérico.
+    console.error('Error en /api/productos/[id]:', error)
     return NextResponse.json(
-      { error: error.message || 'Error deleting producto' },
+      { error: 'No se pudo eliminar el producto' },
       { status: 400 }
     )
   }

@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Error en auditoría:', error)
     return NextResponse.json(
-      { error: error.message || 'Error al obtener auditoría' },
+      { error: 'Error al obtener auditoría' },
       { status: 500 }
     )
   }
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Error creando registro de auditoría:', error)
     return NextResponse.json(
-      { error: error.message || 'Error al crear registro' },
+      { error: 'Error al crear registro' },
       { status: 500 }
     )
   }

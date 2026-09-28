@@ -42,8 +42,10 @@ export async function GET(
 
     return NextResponse.json(factura)
   } catch (error: any) {
+    // El detalle queda en el log del servidor; al navegador va un texto genérico.
+    console.error('Error en /api/facturas/[id]:', error)
     return NextResponse.json(
-      { error: error.message || 'Error fetching factura' },
+      { error: 'No se pudo obtener la factura' },
       { status: 500 }
     )
   }
@@ -54,7 +56,7 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { tiendaId, error: sinPermiso } = await exigirTienda(request, 'facturas.anular')
+    const { usuario, tiendaId, error: sinPermiso } = await exigirTienda(request, 'facturas.anular')
     if (sinPermiso) return sinPermiso
 
     const { id } = await context.params
@@ -85,6 +87,10 @@ export async function DELETE(
     try {
       await prisma.auditoria.create({
         data: {
+          // Quién anuló y en qué tienda: sin esto el registro no tenía autor
+          // ni aparecía en la auditoría de ninguna tienda.
+          usuarioId: usuario.id,
+          tiendaId,
           tablaAfectada: 'facturas',
           registroId: id,
           accion: 'UPDATE',
@@ -102,8 +108,10 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
+    // El detalle queda en el log del servidor; al navegador va un texto genérico.
+    console.error('Error en /api/facturas/[id]:', error)
     return NextResponse.json(
-      { error: error.message || 'Error deleting factura' },
+      { error: 'No se pudo anular la factura' },
       { status: 400 }
     )
   }

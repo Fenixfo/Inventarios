@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { entero, normalizarBusqueda } from '@/lib/paginacion'
+import { esUuid } from '@/lib/formato'
 
 /** La portada enseña como mucho esto de cada tienda, lo pida quien lo pida. */
 const MAXIMO_POR_TIENDA = 5
@@ -11,8 +12,6 @@ const MAXIMO_POR_TANDA = 9
 
 /** Y en total, por si algún día hay cientos de tiendas públicas. */
 const MAXIMO_EN_PORTADA = 300
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
  * Catálogo público: los productos de todas las tiendas que hayan elegido
@@ -64,7 +63,7 @@ export async function GET(request: NextRequest) {
     // La tienda llega en la URL y la columna es uuid: un valor inventado
     // hacía fallar la consulta con un 500. Una tienda que no existe no tiene
     // productos, así que se responde vacío.
-    if (tienda && !UUID.test(tienda)) {
+    if (tienda && !esUuid(tienda)) {
       return respuestaCacheable({ productos: [], total: 0 })
     }
 

@@ -3,7 +3,6 @@
 import { apiFetch } from '@/lib/api-client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase-client'
 import { PermissionProtector } from '@/components/PermissionProtector'
 import { soloFecha } from '@/lib/fechas'
 
@@ -22,18 +21,6 @@ export default function SolicitudesAccesoPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [procesando, setProcesando] = useState<string | null>(null)
-  const [adminUserId, setAdminUserId] = useState<string | null>(null)
-
-  useEffect(() => {
-    const getAdminUserId = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user?.id) {
-        setAdminUserId(session.user.id)
-      }
-    }
-    getAdminUserId()
-    cargarSolicitudes()
-  }, [])
 
   const cargarSolicitudes = async () => {
     try {
@@ -48,13 +35,19 @@ export default function SolicitudesAccesoPage() {
     }
   }
 
+  // Quién aprueba o rechaza lo saca el servidor del token: el adminId que se
+  // mandaba en el cuerpo, y la consulta de sesión para obtenerlo, sobraban.
+  useEffect(() => {
+    cargarSolicitudes()
+  }, [])
+
   const aprobar = async (id: string) => {
     setProcesando(id)
     try {
       const res = await apiFetch(`/api/solicitudes-acceso/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: 'aprobado', adminId: adminUserId }),
+        body: JSON.stringify({ estado: 'aprobado' }),
       })
       if (!res.ok) throw new Error('Error al aprobar')
       setSolicitudes(solicitudes.filter((s) => s.id !== id))
@@ -71,7 +64,7 @@ export default function SolicitudesAccesoPage() {
       const res = await apiFetch(`/api/solicitudes-acceso/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: 'rechazado', adminId: adminUserId }),
+        body: JSON.stringify({ estado: 'rechazado' }),
       })
       if (!res.ok) throw new Error('Error al rechazar')
       setSolicitudes(solicitudes.filter((s) => s.id !== id))
@@ -85,67 +78,63 @@ export default function SolicitudesAccesoPage() {
   return (
     <PermissionProtector requiredPermission="solicitudes-acceso">
       <div>
-        <h1 className="text-3xl font-bold mb-8">Solicitudes de Acceso</h1>
+        <h1 className="text-2xl font-bold mb-6" style={{ color: 'var(--black-primary)' }}>Solicitudes de Acceso</h1>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-          {error}
-        </div>
-      )}
+        {error && <div className="alert-box error">{error}</div>}
 
-      {loading ? (
-        <div className="text-center py-12">Cargando solicitudes...</div>
-      ) : solicitudes.length === 0 ? (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center text-gray-600">
-          ✅ No hay solicitudes pendientes. ¡Excelente!
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-100 border-b-2 border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left font-semibold text-gray-700">Email</th>
-                <th className="px-6 py-3 text-left font-semibold text-gray-700">Tienda</th>
-                <th className="px-6 py-3 text-left font-semibold text-gray-700">Razón</th>
-                <th className="px-6 py-3 text-left font-semibold text-gray-700">Fecha</th>
-                <th className="px-6 py-3 text-center font-semibold text-gray-700">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {solicitudes.map((solicitud, idx) => (
-                <tr key={solicitud.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                  <td className="px-6 py-4 font-medium text-gray-900">{solicitud.email}</td>
-                  <td className="px-6 py-4 text-gray-700">{solicitud.tienda.nombre}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600 max-w-xs">
-                    {solicitud.razon || '-'}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {soloFecha(solicitud.createdAt)}
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex justify-center gap-2">
-                      <button
-                        onClick={() => aprobar(solicitud.id)}
-                        disabled={procesando === solicitud.id}
-                        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                      >
-                        ✅ Aprobar
-                      </button>
-                      <button
-                        onClick={() => rechazar(solicitud.id)}
-                        disabled={procesando === solicitud.id}
-                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                      >
-                        ❌ Rechazar
-                      </button>
-                    </div>
-                  </td>
+        {loading ? (
+          <div className="text-center py-12" style={{ color: 'var(--gray-secondary)' }}>Cargando solicitudes...</div>
+        ) : solicitudes.length === 0 ? (
+          <div className="card text-center" style={{ color: 'var(--gray-secondary)' }}>
+            ✅ No hay solicitudes pendientes. ¡Excelente!
+          </div>
+        ) : (
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <table className="table-luxe">
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Tienda</th>
+                  <th>Razón</th>
+                  <th>Fecha</th>
+                  <th style={{ textAlign: 'center' }}>Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {solicitudes.map((solicitud) => (
+                  <tr key={solicitud.id}>
+                    <td style={{ fontWeight: 600 }}>{solicitud.email}</td>
+                    <td>{solicitud.tienda.nombre}</td>
+                    <td style={{ maxWidth: '280px', fontSize: '13px', color: 'var(--gray-secondary)' }}>
+                      {solicitud.razon || '-'}
+                    </td>
+                    <td style={{ fontSize: '13px', color: 'var(--gray-secondary)' }}>{soloFecha(solicitud.createdAt)}</td>
+                    <td style={{ textAlign: 'center' }}>
+                      <div className="flex justify-center gap-2">
+                        <button
+                          onClick={() => aprobar(solicitud.id)}
+                          disabled={procesando === solicitud.id}
+                          className="badge badge-green"
+                          style={{ cursor: 'pointer', border: 'none', fontSize: 12 }}
+                        >
+                          ✅ Aprobar
+                        </button>
+                        <button
+                          onClick={() => rechazar(solicitud.id)}
+                          disabled={procesando === solicitud.id}
+                          className="badge badge-red"
+                          style={{ cursor: 'pointer', border: 'none', fontSize: 12 }}
+                        >
+                          ❌ Rechazar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </PermissionProtector>
   )

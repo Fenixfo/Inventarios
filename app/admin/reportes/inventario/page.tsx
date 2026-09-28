@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { PermissionProtector } from '@/components/PermissionProtector'
 import { POR_PAGINA } from '@/lib/paginacion'
+import { VerMas } from '@/components/Common/VerMas'
+import { pesos } from '@/lib/formato'
 
 type Seccion = 'stockBajo' | 'sinMovimiento'
 
@@ -131,25 +133,14 @@ export default function ReportesInventarioPage() {
     const cargados = reporte ? reporte[seccion].length : 0
     if (cargados >= total) return null
 
+    // Mientras carga una sección, la otra también espera: así no se mezclan
+    // dos respuestas si se cambian los estados en medio.
     return (
-      <div style={{ textAlign: 'center', marginTop: '15px' }}>
-        <button
-          onClick={() => verMas(seccion)}
-          disabled={cargandoMas !== null}
-          style={{
-            padding: '8px 20px',
-            backgroundColor: 'white',
-            color: '#2563eb',
-            border: '1px solid #2563eb',
-            borderRadius: '4px',
-            cursor: cargandoMas ? 'wait' : 'pointer',
-            fontWeight: 'bold',
-            fontSize: '13px',
-          }}
-        >
-          {cargandoMas === seccion ? 'Cargando...' : `Ver más (${total - cargados} restantes)`}
-        </button>
-      </div>
+      <VerMas
+        restantes={total - cargados}
+        cargando={cargandoMas !== null}
+        onClick={() => verMas(seccion)}
+      />
     )
   }
 
@@ -161,148 +152,91 @@ export default function ReportesInventarioPage() {
     cargarReporte(nuevosEstados)
   }
 
+  // Una vez al abrir; los cambios de estados recargan desde su propio botón.
   useEffect(() => {
     cargarReporte()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  const formatearDinero = (valor: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(valor)
-  }
 
   return (
     <PermissionProtector requiredPermission="reportes">
-      <div style={{ padding: '20px', maxWidth: '1200px' }}>
-      <div style={{ marginBottom: '20px' }}>
-        <Link href="/admin" style={{ color: '#2563eb', textDecoration: 'none' }}>
-          ← Volver al Dashboard
-        </Link>
-      </div>
+      <div style={{ maxWidth: 1200 }}>
+        <div className="mb-4">
+          <Link href="/admin" style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}>
+            ← Volver al Dashboard
+          </Link>
+        </div>
 
-      <h1 style={{ marginBottom: '30px' }}>Reportes de Inventario</h1>
+        <h1 className="text-2xl font-bold mb-6" style={{ color: 'var(--black-primary)' }}>Reportes de Inventario</h1>
 
-      {/* Selector de tipo de reporte */}
-      <div style={{ marginBottom: '30px' }}>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <Link href="/admin/reportes" style={{
-            padding: '10px 20px',
-            backgroundColor: '#e5e7eb',
-            color: '#374151',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontWeight: 'normal',
-            fontSize: '14px',
-            textDecoration: 'none',
-            display: 'inline-block'
-          }}>
+        {/* Selector de tipo de reporte */}
+        <div className="flex gap-2 mb-6">
+          <Link href="/admin/reportes" className="btn-secondary">
             📊 Facturación
           </Link>
-          <button
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#2563eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              fontSize: '14px'
-            }}
-            disabled
-          >
+          <button className="btn-primary" disabled>
             📦 Inventario
           </button>
         </div>
-      </div>
 
-      {/* Filtros de estado */}
-      <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f3f4f6', borderRadius: '4px' }}>
-        <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', fontSize: '14px', color: '#374151' }}>Estado de Facturas:</p>
-        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
-            <input
-              type="checkbox"
-              checked={estados.includes('pagado')}
-              onChange={() => handleEstadoChange('pagado')}
-              style={{ cursor: 'pointer' }}
-            />
-            ✅ Pagado
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
-            <input
-              type="checkbox"
-              checked={estados.includes('entregado')}
-              onChange={() => handleEstadoChange('entregado')}
-              style={{ cursor: 'pointer' }}
-            />
-            🚚 Entregado
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
-            <input
-              type="checkbox"
-              checked={estados.includes('pendiente')}
-              onChange={() => handleEstadoChange('pendiente')}
-              style={{ cursor: 'pointer' }}
-            />
-            ⏳ Pendiente
-          </label>
+        {/* Filtros de estado */}
+        <div className="card mb-5">
+          <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', fontSize: '14px', color: 'var(--black-primary)' }}>Estado de Facturas:</p>
+          <div className="flex gap-5 flex-wrap">
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <input type="checkbox" checked={estados.includes('pagado')} onChange={() => handleEstadoChange('pagado')} />
+              ✅ Pagado
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <input type="checkbox" checked={estados.includes('entregado')} onChange={() => handleEstadoChange('entregado')} />
+              🚚 Entregado
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <input type="checkbox" checked={estados.includes('pendiente')} onChange={() => handleEstadoChange('pendiente')} />
+              ⏳ Pendiente
+            </label>
+          </div>
         </div>
-      </div>
 
-      {error && (
-        <div style={{ backgroundColor: '#fee', color: '#c00', padding: '10px', borderRadius: '4px', marginBottom: '20px' }}>
-          {error}
-        </div>
-      )}
+        {error && <div className="alert-box error">{error}</div>}
 
       {loading ? (
-        <div style={{ textAlign: 'center', color: '#666' }}>Cargando reporte...</div>
+        <div style={{ textAlign: 'center', color: 'var(--gray-secondary)' }}>Cargando reporte...</div>
       ) : reporte ? (
         <>
           {/* Métricas principales */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px', marginBottom: '30px' }}>
-            <div style={{ backgroundColor: '#f0f9ff', padding: '20px', borderRadius: '8px', borderLeft: '4px solid #0ea5e9' }}>
-              <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '12px' }}>TOTAL DE PRODUCTOS</p>
-              <p style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: '#0369a1', fontFamily: 'monospace' }}>
-                {reporte.metricas.totalProductos}
-              </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+            <div className="indicator-card">
+              <div className="indicator-label">TOTAL DE PRODUCTOS</div>
+              <div className="indicator-value" style={{ fontFamily: 'monospace' }}>{reporte.metricas.totalProductos}</div>
             </div>
 
-            <div style={{ backgroundColor: '#f0fdf4', padding: '20px', borderRadius: '8px', borderLeft: '4px solid #10b981' }}>
-              <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '12px' }}>PRODUCTOS CON STOCK</p>
-              <p style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: '#047857', fontFamily: 'monospace' }}>
-                {reporte.metricas.productosActivos}
-              </p>
+            <div className="indicator-card">
+              <div className="indicator-label">PRODUCTOS CON STOCK</div>
+              <div className="indicator-value" style={{ fontFamily: 'monospace' }}>{reporte.metricas.productosActivos}</div>
             </div>
 
-            <div style={{ backgroundColor: '#fef3c7', padding: '20px', borderRadius: '8px', borderLeft: '4px solid #f59e0b' }}>
-              <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '12px' }}>STOCK BAJO</p>
-              <p style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: '#92400e', fontFamily: 'monospace' }}>
+            <div className="indicator-card">
+              <div className="indicator-label">STOCK BAJO</div>
+              <div className="indicator-value" style={{ fontFamily: 'monospace', color: 'var(--status-amber-text)' }}>
                 {reporte.metricas.productosStockBajo}
-              </p>
+              </div>
             </div>
 
-            <div style={{ backgroundColor: '#fce7f3', padding: '20px', borderRadius: '8px', borderLeft: '4px solid #ec4899' }}>
-              <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '12px' }}>SIN MOVIMIENTO (30 DÍAS)</p>
-              <p style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: '#be185d', fontFamily: 'monospace' }}>
-                {reporte.metricas.productosSinMovimiento}
-              </p>
+            <div className="indicator-card">
+              <div className="indicator-label">SIN MOVIMIENTO (30 DÍAS)</div>
+              <div className="indicator-value" style={{ fontFamily: 'monospace' }}>{reporte.metricas.productosSinMovimiento}</div>
             </div>
 
-            <div style={{ backgroundColor: '#ede9fe', padding: '20px', borderRadius: '8px', borderLeft: '4px solid #a855f7' }}>
-              <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '12px' }}>VALOR INVENTARIO (AL COSTO)</p>
-              <p style={{ margin: 0, fontSize: '20px', fontWeight: 'bold', color: '#7c3aed', fontFamily: 'monospace' }}>
-                {formatearDinero(reporte.metricas.valorInventario)}
-              </p>
+            <div className="indicator-card">
+              <div className="indicator-label">VALOR INVENTARIO (AL COSTO)</div>
+              <div className="indicator-value" style={{ fontFamily: 'monospace', fontSize: 20, color: 'var(--gold-dark)' }}>
+                {pesos(reporte.metricas.valorInventario)}
+              </div>
               {/* Un producto sin costo cargado no suma, y la cifra se queda
                   corta sin explicación si no se avisa. */}
               {Boolean(reporte.metricas.productosSinCosto) && (
-                <p style={{ margin: '8px 0 0 0', fontSize: '11px', color: '#6b21a8' }}>
+                <p style={{ margin: '8px 0 0 0', fontSize: '11px', color: 'var(--gray-secondary)' }}>
                   {reporte.metricas.productosSinCosto} producto
                   {reporte.metricas.productosSinCosto !== 1 ? 's' : ''} sin costo, no suman
                 </p>
@@ -312,43 +246,34 @@ export default function ReportesInventarioPage() {
 
           {/* Stock Bajo */}
           {reporte.stockBajo.length > 0 && (
-            <div style={{ marginBottom: '30px' }}>
-              <h2 style={{ fontSize: '16px', marginBottom: '15px', color: '#ef4444' }}>
+            <div className="card mb-6">
+              <h2 className="card-title mb-4" style={{ color: 'var(--status-red-solid)' }}>
                 ⚠️ Productos con Stock Bajo ({reporte.stockBajo.length}/{reporte.metricas.productosStockBajo})
               </h2>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table className="table-luxe">
                 <thead>
-                  <tr style={{ borderBottom: '2px solid #ddd', backgroundColor: '#f0f0f0' }}>
-                    <th style={{ padding: '10px', textAlign: 'left', fontSize: '12px' }}>Producto</th>
-                    <th style={{ padding: '10px', textAlign: 'left', fontSize: '12px' }}>SKU</th>
-                    <th style={{ padding: '10px', textAlign: 'left', fontSize: '12px' }}>Categoría</th>
-                    <th style={{ padding: '10px', textAlign: 'right', fontSize: '12px' }}>Stock Actual</th>
-                    <th style={{ padding: '10px', textAlign: 'right', fontSize: '12px' }}>Stock Mínimo</th>
-                    <th style={{ padding: '10px', textAlign: 'right', fontSize: '12px', color: '#ef4444' }}>Diferencia</th>
+                  <tr>
+                    <th>Producto</th>
+                    <th>SKU</th>
+                    <th>Categoría</th>
+                    <th style={{ textAlign: 'right' }}>Stock Actual</th>
+                    <th style={{ textAlign: 'right' }}>Stock Mínimo</th>
+                    <th style={{ textAlign: 'right', color: 'var(--status-red-solid)' }}>Diferencia</th>
                   </tr>
                 </thead>
                 <tbody>
                   {reporte.stockBajo.map((producto) => (
-                    <tr key={producto.id} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '10px', fontSize: '12px' }}>{producto.nombre}</td>
-                      <td style={{ padding: '10px', fontSize: '12px' }}>{producto.sku}</td>
-                      <td style={{ padding: '10px', fontSize: '12px' }}>{producto.categoria}</td>
-                      <td style={{ padding: '10px', textAlign: 'right', fontSize: '12px', fontFamily: 'monospace' }}>
+                    <tr key={producto.id}>
+                      <td>{producto.nombre}</td>
+                      <td>{producto.sku}</td>
+                      <td>{producto.categoria}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
                         {Number(producto.stockActual).toFixed(2)} m²
                       </td>
-                      <td style={{ padding: '10px', textAlign: 'right', fontSize: '12px', fontFamily: 'monospace' }}>
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
                         {Number(producto.stockMinimo).toFixed(2)} m²
                       </td>
-                      <td
-                        style={{
-                          padding: '10px',
-                          textAlign: 'right',
-                          fontSize: '12px',
-                          fontFamily: 'monospace',
-                          fontWeight: 'bold',
-                          color: '#ef4444',
-                        }}
-                      >
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 'bold', color: 'var(--status-red-solid)' }}>
                         {Number(producto.diferencia).toFixed(2)} m²
                       </td>
                     </tr>
@@ -360,39 +285,28 @@ export default function ReportesInventarioPage() {
           )}
 
           {/* Rotación (Top 10) */}
-          <div style={{ marginBottom: '30px' }}>
-            <h2 style={{ fontSize: '16px', marginBottom: '15px' }}>
-              📈 Rotación de Productos - Últimos 30 Días (Top 10)
-            </h2>
+          <div className="card mb-6">
+            <h2 className="card-title mb-4">📈 Rotación de Productos - Últimos 30 Días (Top 10)</h2>
             {reporte.rotacion.length === 0 ? (
-              <p style={{ color: '#666', fontSize: '12px' }}>No hay datos de rotación en los últimos 30 días</p>
+              <p style={{ color: 'var(--gray-secondary)', fontSize: '12px' }}>No hay datos de rotación en los últimos 30 días</p>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table className="table-luxe">
                 <thead>
-                  <tr style={{ borderBottom: '2px solid #ddd', backgroundColor: '#f0f0f0' }}>
-                    <th style={{ padding: '10px', textAlign: 'left', fontSize: '12px' }}>Producto</th>
-                    <th style={{ padding: '10px', textAlign: 'right', fontSize: '12px' }}>Cantidad Vendida (m²)</th>
-                    <th style={{ padding: '10px', textAlign: 'right', fontSize: '12px' }}>Ingresos</th>
+                  <tr>
+                    <th>Producto</th>
+                    <th style={{ textAlign: 'right' }}>Cantidad Vendida (m²)</th>
+                    <th style={{ textAlign: 'right' }}>Ingresos</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {reporte.rotacion.map((prod, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '10px', fontSize: '12px' }}>{prod.nombre}</td>
-                      <td style={{ padding: '10px', textAlign: 'right', fontSize: '12px', fontFamily: 'monospace' }}>
+                  {reporte.rotacion.map((prod) => (
+                    <tr key={prod.nombre}>
+                      <td>{prod.nombre}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
                         {Number(prod.cantidad).toFixed(2)} m²
                       </td>
-                      <td
-                        style={{
-                          padding: '10px',
-                          textAlign: 'right',
-                          fontSize: '12px',
-                          fontFamily: 'monospace',
-                          fontWeight: 'bold',
-                          color: '#10b981',
-                        }}
-                      >
-                        {formatearDinero(prod.ingresos)}
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 'bold', color: 'var(--status-green-text)' }}>
+                        {pesos(prod.ingresos)}
                       </td>
                     </tr>
                   ))}
@@ -403,39 +317,31 @@ export default function ReportesInventarioPage() {
 
           {/* Sin Movimiento */}
           {reporte.sinMovimiento.length > 0 && (
-            <div>
-              <h2 style={{ fontSize: '16px', marginBottom: '15px', color: '#f59e0b' }}>
+            <div className="card">
+              <h2 className="card-title mb-4" style={{ color: 'var(--status-amber-text)' }}>
                 🔇 Productos Sin Movimiento en 30 Días ({reporte.sinMovimiento.length}/{reporte.metricas.productosSinMovimiento})
               </h2>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table className="table-luxe">
                 <thead>
-                  <tr style={{ borderBottom: '2px solid #ddd', backgroundColor: '#f0f0f0' }}>
-                    <th style={{ padding: '10px', textAlign: 'left', fontSize: '12px' }}>Producto</th>
-                    <th style={{ padding: '10px', textAlign: 'left', fontSize: '12px' }}>SKU</th>
-                    <th style={{ padding: '10px', textAlign: 'left', fontSize: '12px' }}>Categoría</th>
-                    <th style={{ padding: '10px', textAlign: 'right', fontSize: '12px' }}>Stock Disponible (m²)</th>
-                    <th style={{ padding: '10px', textAlign: 'right', fontSize: '12px' }}>Precio Unitario</th>
+                  <tr>
+                    <th>Producto</th>
+                    <th>SKU</th>
+                    <th>Categoría</th>
+                    <th style={{ textAlign: 'right' }}>Stock Disponible (m²)</th>
+                    <th style={{ textAlign: 'right' }}>Precio Unitario</th>
                   </tr>
                 </thead>
                 <tbody>
                   {reporte.sinMovimiento.map((producto) => (
-                    <tr key={producto.id} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '10px', fontSize: '12px' }}>{producto.nombre}</td>
-                      <td style={{ padding: '10px', fontSize: '12px' }}>{producto.sku}</td>
-                      <td style={{ padding: '10px', fontSize: '12px' }}>{producto.categoria}</td>
-                      <td style={{ padding: '10px', textAlign: 'right', fontSize: '12px', fontFamily: 'monospace' }}>
+                    <tr key={producto.id}>
+                      <td>{producto.nombre}</td>
+                      <td>{producto.sku}</td>
+                      <td>{producto.categoria}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
                         {Number(producto.stockActual).toFixed(2)} m²
                       </td>
-                      <td
-                        style={{
-                          padding: '10px',
-                          textAlign: 'right',
-                          fontSize: '12px',
-                          fontFamily: 'monospace',
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        {formatearDinero(Number(producto.precioUnitario))}
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 'bold' }}>
+                        {pesos(Number(producto.precioUnitario))}
                       </td>
                     </tr>
                   ))}

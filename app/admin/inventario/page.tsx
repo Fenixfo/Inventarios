@@ -1,13 +1,14 @@
 'use client'
 
 import { apiFetch } from '@/lib/api-client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { PermissionProtector } from '@/components/PermissionProtector'
-import { SelectorProducto } from '@/components/Common/SelectorProducto'
+import { SelectorProducto, type ProductoOpcion } from '@/components/Common/SelectorProducto'
 import { fechaYHora } from '@/lib/fechas'
 import { useListaPaginada } from '@/lib/use-lista-paginada'
 import { supabase } from '@/lib/supabase-client'
 import Link from 'next/link'
+import { VerMas } from '@/components/Common/VerMas'
 
 interface Movimiento {
   id: string
@@ -20,13 +21,6 @@ interface Movimiento {
   fechaMovimiento: string
   producto: { sku: string; nombre: string } | null
   usuario: { email: string } | null
-}
-
-interface Producto {
-  id: string
-  sku: string
-  nombre: string
-  stockActual: number
 }
 
 const COLORES_TIPO: Record<string, string> = {
@@ -42,7 +36,9 @@ const ICONOS_TIPO: Record<string, string> = {
 }
 
 export default function InventarioPage() {
-  const [productos, setProductos] = useState<Producto[]>([])
+  // El producto elegido en el formulario, con su stock, para la vista previa
+  // del movimiento. Antes se bajaba el catálogo entero para buscarlo.
+  const [productoSeleccionado, setProductoSeleccionado] = useState<ProductoOpcion | null>(null)
 
   const [filtroProducto, setFiltroProducto] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('')
@@ -75,28 +71,6 @@ export default function InventarioPage() {
   const [guardando, setGuardando] = useState(false)
   const [errorForm, setErrorForm] = useState<string | null>(null)
   const [exito, setExito] = useState<string | null>(null)
-
-  useEffect(() => {
-    cargarProductos()
-  }, [])
-
-  const cargarProductos = async () => {
-    try {
-      const res = await apiFetch('/api/productos')
-      if (!res.ok) return
-      const data = await res.json()
-      setProductos(
-        data.map((p: any) => ({
-          id: p.id,
-          sku: p.sku,
-          nombre: p.nombre,
-          stockActual: Number(p.stockActual),
-        }))
-      )
-    } catch {
-      // El selector queda vacío; la tabla de movimientos sigue siendo usable.
-    }
-  }
 
   const registrarMovimiento = async () => {
     setErrorForm(null)
@@ -132,7 +106,10 @@ export default function InventarioPage() {
       setFormCantidad('')
       setFormMotivo('')
       recargar()
-      await cargarProductos()
+      // El stock nuevo lo dice la respuesta: sin volver a pedir el catálogo.
+      setProductoSeleccionado((previo) =>
+        previo && previo.id === formProducto ? { ...previo, stockActual: Number(data.stockDespues) } : previo
+      )
     } catch (err: any) {
       setErrorForm(err.message)
     } finally {
@@ -149,58 +126,35 @@ export default function InventarioPage() {
 
   const hayFiltros = filtroProducto || filtroTipo || filtroDesde || filtroHasta
 
-  const productoSeleccionado = productos.find((p) => p.id === formProducto)
-
-  const inputStyle = {
-    padding: '8px 12px',
-    border: '1px solid #d1d5db',
-    borderRadius: '6px',
-    fontSize: '14px',
-    fontFamily: 'inherit',
-  }
 
   return (
     <PermissionProtector requiredPermission="productos">
-      <div style={{ padding: '20px', maxWidth: '1200px' }}>
-        <div style={{ marginBottom: '20px' }}>
-          <Link href="/admin" style={{ color: '#2563eb', textDecoration: 'none' }}>
+      <div style={{ maxWidth: 1200 }}>
+        <div className="mb-4">
+          <Link href="/admin" style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}>
             ← Volver al Dashboard
           </Link>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-          <h1 style={{ margin: 0 }}>Movimientos de Inventario</h1>
-          <button
-            onClick={() => setFormAbierto(!formAbierto)}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: formAbierto ? '#6b7280' : '#2563eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              fontSize: '14px',
-            }}
-          >
+        <div className="flex justify-between items-center gap-3 flex-wrap mb-6">
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--black-primary)' }}>Movimientos de Inventario</h1>
+          <button onClick={() => setFormAbierto(!formAbierto)} className={formAbierto ? 'btn-secondary' : 'btn-primary'}>
             {formAbierto ? '✕ Cerrar' : '+ Registrar Movimiento'}
           </button>
         </div>
 
         {/* Formulario de registro */}
         {formAbierto && (
-          <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', marginBottom: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <h2 style={{ fontSize: '16px', marginTop: 0, marginBottom: '15px' }}>Nuevo Movimiento</h2>
+          <div className="card mb-5">
+            <h2 className="card-title mb-4">Nuevo Movimiento</h2>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '15px' }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', color: '#374151' }}>
-                  Producto
-                </label>
+                <label className="field-label">Producto</label>
                 <SelectorProducto
-                  productos={productos}
                   value={formProducto}
                   onChange={setFormProducto}
+                  onElegir={setProductoSeleccionado}
                   placeholder="Selecciona..."
                   mostrarStock
                   ancho="100%"
@@ -208,14 +162,8 @@ export default function InventarioPage() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', color: '#374151' }}>
-                  Tipo
-                </label>
-                <select
-                  value={formTipo}
-                  onChange={(e) => setFormTipo(e.target.value as any)}
-                  style={{ ...inputStyle, width: '100%' }}
-                >
+                <label className="field-label">Tipo</label>
+                <select value={formTipo} onChange={(e) => setFormTipo(e.target.value as any)} className="field-select" style={{ width: '100%' }}>
                   <option value="entrada">⬆️ Entrada (sumar stock)</option>
                   <option value="salida">⬇️ Salida (restar stock)</option>
                   <option value="ajuste">⚖️ Ajuste (fijar stock real)</option>
@@ -223,7 +171,7 @@ export default function InventarioPage() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', color: '#374151' }}>
+                <label className="field-label">
                   {formTipo === 'ajuste' ? 'Stock real contado (m²)' : 'Cantidad (m²)'}
                 </label>
                 <input
@@ -233,27 +181,25 @@ export default function InventarioPage() {
                   value={formCantidad}
                   onChange={(e) => setFormCantidad(e.target.value)}
                   placeholder="0.00"
-                  style={{ ...inputStyle, width: '100%' }}
+                  className="field-input"
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', color: '#374151' }}>
-                  Motivo
-                </label>
+                <label className="field-label">Motivo</label>
                 <input
                   type="text"
                   value={formMotivo}
                   onChange={(e) => setFormMotivo(e.target.value)}
                   placeholder="Compra a proveedor, rotura, conteo físico..."
-                  style={{ ...inputStyle, width: '100%' }}
+                  className="field-input"
                 />
               </div>
             </div>
 
             {/* Vista previa del efecto */}
             {productoSeleccionado && parseFloat(formCantidad) > 0 && (
-              <div style={{ backgroundColor: '#f3f4f6', padding: '12px', borderRadius: '6px', marginBottom: '15px', fontSize: '14px' }}>
+              <div className="mb-4 text-sm" style={{ backgroundColor: 'var(--beige-light)', padding: '12px', borderRadius: '8px' }}>
                 Stock: <strong>{productoSeleccionado.stockActual}</strong> →{' '}
                 <strong style={{ color: COLORES_TIPO[formTipo] }}>
                   {formTipo === 'entrada'
@@ -266,58 +212,26 @@ export default function InventarioPage() {
               </div>
             )}
 
-            {errorForm && (
-              <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '10px', borderRadius: '6px', marginBottom: '15px', fontSize: '14px' }}>
-                {errorForm}
-              </div>
-            )}
+            {errorForm && <div className="alert-box error mb-4">{errorForm}</div>}
+            {exito && <div className="alert-box success mb-4">✅ {exito}</div>}
 
-            {exito && (
-              <div style={{ backgroundColor: '#d1fae5', color: '#065f46', padding: '10px', borderRadius: '6px', marginBottom: '15px', fontSize: '14px' }}>
-                ✅ {exito}
-              </div>
-            )}
-
-            <button
-              onClick={registrarMovimiento}
-              disabled={guardando}
-              style={{
-                padding: '10px 24px',
-                backgroundColor: guardando ? '#9ca3af' : '#10b981',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: guardando ? 'not-allowed' : 'pointer',
-                fontWeight: 'bold',
-                fontSize: '14px',
-              }}
-            >
+            <button onClick={registrarMovimiento} disabled={guardando} className="btn-primary">
               {guardando ? 'Guardando...' : 'Registrar'}
             </button>
           </div>
         )}
 
         {/* Filtros */}
-        <div style={{ backgroundColor: 'white', padding: '15px', borderRadius: '8px', marginBottom: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-          <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="card mb-5">
+          <div className="filters-row" style={{ alignItems: 'flex-end' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', color: '#374151' }}>
-                Producto
-              </label>
-              <SelectorProducto
-                productos={productos}
-                value={filtroProducto}
-                onChange={setFiltroProducto}
-                placeholder="Todos"
-                ancho="280px"
-              />
+              <label className="field-label">Producto</label>
+              <SelectorProducto value={filtroProducto} onChange={setFiltroProducto} placeholder="Todos" ancho="280px" />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', color: '#374151' }}>
-                Tipo
-              </label>
-              <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)} style={inputStyle}>
+              <label className="field-label">Tipo</label>
+              <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)} className="filter-select">
                 <option value="">Todos</option>
                 <option value="entrada">⬆️ Entrada</option>
                 <option value="salida">⬇️ Salida</option>
@@ -326,124 +240,101 @@ export default function InventarioPage() {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', color: '#374151' }}>
-                Desde
-              </label>
-              <input type="date" value={filtroDesde} onChange={(e) => setFiltroDesde(e.target.value)} style={inputStyle} />
+              <label className="field-label">Desde</label>
+              <input type="date" value={filtroDesde} onChange={(e) => setFiltroDesde(e.target.value)} className="filter-input" style={{ minWidth: 0 }} />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', color: '#374151' }}>
-                Hasta
-              </label>
-              <input type="date" value={filtroHasta} onChange={(e) => setFiltroHasta(e.target.value)} style={inputStyle} />
+              <label className="field-label">Hasta</label>
+              <input type="date" value={filtroHasta} onChange={(e) => setFiltroHasta(e.target.value)} className="filter-input" style={{ minWidth: 0 }} />
             </div>
 
             {hayFiltros && (
-              <button
-                onClick={limpiarFiltros}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#e5e7eb',
-                  color: '#374151',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                }}
-              >
+              <button onClick={limpiarFiltros} className="btn-secondary">
                 Limpiar filtros
               </button>
             )}
           </div>
         </div>
 
-        {error && (
-          <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '10px', borderRadius: '6px', marginBottom: '20px' }}>
-            {error}
-          </div>
-        )}
+        {error && <div className="alert-box error">{error}</div>}
 
         {/* Tabla de movimientos */}
         {loading ? (
-          <div style={{ textAlign: 'center', color: '#666', padding: '40px' }}>Cargando movimientos...</div>
+          <div style={{ textAlign: 'center', color: 'var(--gray-secondary)', padding: '40px' }}>Cargando movimientos...</div>
         ) : movimientos.length === 0 ? (
-          <div style={{ textAlign: 'center', color: '#666', padding: '40px', backgroundColor: 'white', borderRadius: '8px' }}>
+          <div className="card" style={{ textAlign: 'center', color: 'var(--gray-secondary)' }}>
             {hayFiltros ? 'No hay movimientos que coincidan con los filtros' : 'Aún no hay movimientos registrados'}
           </div>
         ) : (
-          <div style={{ backgroundColor: 'white', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
-                  <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px' }}>Fecha</th>
-                  <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px' }}>Tipo</th>
-                  <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px' }}>Producto</th>
-                  <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px' }}>Cantidad</th>
-                  <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px' }}>Antes</th>
-                  <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px' }}>Después</th>
-                  <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px' }}>Motivo</th>
-                  <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px' }}>Usuario</th>
-                </tr>
-              </thead>
-              <tbody>
-                {movimientos.map((m) => (
-                  <tr key={m.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    <td style={{ padding: '12px', fontSize: '12px', whiteSpace: 'nowrap' }}>
-                      {fechaYHora(m.fechaMovimiento)}
-                    </td>
-                    <td style={{ padding: '12px', fontSize: '12px' }}>
-                      <span
-                        style={{
-                          backgroundColor: COLORES_TIPO[m.tipo] || '#6b7280',
-                          color: 'white',
-                          padding: '3px 8px',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          fontWeight: 'bold',
-                          textTransform: 'capitalize',
-                        }}
-                      >
-                        {ICONOS_TIPO[m.tipo] || ''} {m.tipo}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px', fontSize: '12px' }}>
-                      {m.producto ? (
-                        <>
-                          <strong>{m.producto.sku}</strong>
-                          <br />
-                          <span style={{ color: '#6b7280' }}>{m.producto.nombre}</span>
-                        </>
-                      ) : (
-                        <span style={{ color: '#9ca3af' }}>—</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '12px', fontSize: '12px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 'bold' }}>
-                      {m.cantidad.toFixed(2)}
-                    </td>
-                    <td style={{ padding: '12px', fontSize: '12px', textAlign: 'right', fontFamily: 'monospace', color: '#6b7280' }}>
-                      {m.stockAntes.toFixed(2)}
-                    </td>
-                    <td style={{ padding: '12px', fontSize: '12px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 'bold', color: COLORES_TIPO[m.tipo] }}>
-                      {m.stockDespues.toFixed(2)}
-                    </td>
-                    <td style={{ padding: '12px', fontSize: '12px', maxWidth: '220px' }}>
-                      {m.motivo || '—'}
-                      {m.referenciaTipo === 'factura' && (
-                        <span style={{ display: 'inline-block', marginLeft: '6px', backgroundColor: '#e0e7ff', color: '#3730a3', padding: '2px 6px', borderRadius: '4px', fontSize: '10px' }}>
-                          auto
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ padding: '12px', fontSize: '12px', color: '#6b7280' }}>
-                      {m.usuario?.email || '—'}
-                    </td>
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table-luxe">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Producto</th>
+                    <th style={{ textAlign: 'right' }}>Cantidad</th>
+                    <th style={{ textAlign: 'right' }}>Antes</th>
+                    <th style={{ textAlign: 'right' }}>Después</th>
+                    <th>Motivo</th>
+                    <th>Usuario</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {movimientos.map((m) => (
+                    <tr key={m.id}>
+                      <td style={{ whiteSpace: 'nowrap' }}>{fechaYHora(m.fechaMovimiento)}</td>
+                      <td>
+                        <span
+                          style={{
+                            backgroundColor: COLORES_TIPO[m.tipo] || 'var(--gray-secondary)',
+                            color: 'white',
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            textTransform: 'capitalize',
+                          }}
+                        >
+                          {ICONOS_TIPO[m.tipo] || ''} {m.tipo}
+                        </span>
+                      </td>
+                      <td>
+                        {m.producto ? (
+                          <>
+                            <strong>{m.producto.sku}</strong>
+                            <br />
+                            <span style={{ color: 'var(--gray-secondary)' }}>{m.producto.nombre}</span>
+                          </>
+                        ) : (
+                          <span style={{ color: 'var(--gray-secondary)' }}>—</span>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 'bold' }}>
+                        {m.cantidad.toFixed(2)}
+                      </td>
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace', color: 'var(--gray-secondary)' }}>
+                        {m.stockAntes.toFixed(2)}
+                      </td>
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 'bold', color: COLORES_TIPO[m.tipo] }}>
+                        {m.stockDespues.toFixed(2)}
+                      </td>
+                      <td style={{ maxWidth: '220px' }}>
+                        {m.motivo || '—'}
+                        {(m.referenciaTipo === 'factura' || m.referenciaTipo === 'edicion_producto') && (
+                          <span className="badge badge-indigo ml-1">auto</span>
+                        )}
+                      </td>
+                      <td style={{ color: 'var(--gray-secondary)' }}>{m.usuario?.email || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-            <div style={{ padding: '12px', fontSize: '12px', color: '#6b7280', borderTop: '1px solid #f3f4f6' }}>
+            <div style={{ padding: '12px 16px', fontSize: '12px', color: 'var(--gray-secondary)', borderTop: '1px solid var(--gray-light)' }}>
               Mostrando {movimientos.length} de {total} movimiento{total !== 1 ? 's' : ''}
               {hayFiltros ? ' que coinciden con los filtros' : ', los más recientes primero'}
             </div>
@@ -451,23 +342,7 @@ export default function InventarioPage() {
         )}
 
         {!loading && hayMas && (
-          <div style={{ textAlign: 'center', marginTop: '20px' }}>
-            <button
-              onClick={verMas}
-              disabled={cargandoMas}
-              style={{
-                padding: '10px 24px',
-                backgroundColor: 'white',
-                color: '#2563eb',
-                border: '1px solid #2563eb',
-                borderRadius: '6px',
-                cursor: cargandoMas ? 'wait' : 'pointer',
-                fontWeight: 'bold',
-              }}
-            >
-              {cargandoMas ? 'Cargando...' : `Ver más (${total - movimientos.length} restantes)`}
-            </button>
-          </div>
+          <VerMas restantes={total - movimientos.length} cargando={cargandoMas} onClick={verMas} />
         )}
       </div>
     </PermissionProtector>

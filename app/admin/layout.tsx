@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { AdminProtector } from '@/components/AdminProtector'
 import { PermisosProvider, usePermisos, invalidarPermisos } from '@/components/PermisosProvider'
 import { MenuTiendas } from '@/components/Layout/MenuTiendas'
@@ -76,11 +77,17 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
     (item) => !item.permiso || esAdmin || permisos.includes(item.permiso)
   )
 
-  const seccionActual =
-    [...visibles]
-      .sort((a, b) => b.href.length - a.href.length)
-      .find((item) => pathname === item.href || pathname.startsWith(item.href + '/'))?.label ||
-    'Panel'
+  // Se toma el href más específico que calce (el más largo), para que rutas
+  // anidadas como /admin/reportes/liquidaciones no dejen resaltados a la vez
+  // a "Reportes" y a "Liquidaciones".
+  const itemActivo = [...visibles]
+    .sort((a, b) => b.href.length - a.href.length)
+    .find(
+      (item) =>
+        pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href + '/'))
+    )
+
+  const seccionActual = itemActivo?.label || 'Panel'
 
   const handleLogout = async () => {
     invalidarPermisos()
@@ -93,15 +100,24 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
 
   return (
     <AdminProtector>
-      {/* Una sola barra superior. Antes había dos: la cabecera general y
-          esta; el correo y el cerrar sesión se movieron al menú de la
-          tienda, que es donde están las cosas de la cuenta. */}
-      <div className="sticky top-0 z-30 flex items-center gap-3 bg-gray-900 px-4 py-3 text-white shadow-lg">
+      {/* Barra superior: a la izquierda el burger (móvil) y el título de la
+          sección; a la derecha, el menú de tienda/cuenta. El correo y el
+          cerrar sesión viven ahí, no aquí: tenerlos en los dos sitios era
+          mostrar dos botones de salir a la vez. */}
+      <div
+        className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 md:pl-8"
+        style={{
+          backgroundColor: 'var(--black-primary)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+          color: 'white',
+        }}
+      >
         <button
           onClick={() => setMenuAbierto(true)}
           aria-label="Abrir menú"
           aria-expanded={menuAbierto}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10 text-xl active:bg-white/20 md:hidden"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xl text-white md:hidden"
+          style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
         >
           ☰
         </button>
@@ -114,7 +130,7 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
         </div>
       </div>
 
-      <div className="flex min-h-screen bg-gray-100">
+      <div className="flex min-h-screen" style={{ backgroundColor: 'var(--beige-light)' }}>
         {/* Fondo oscuro al abrir el cajón */}
         {menuAbierto && (
           <div
@@ -125,21 +141,22 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
 
         <aside
           className={`
-            fixed inset-y-0 left-0 z-50 w-[270px] max-w-[85vw] overflow-y-auto p-5 text-white
-            shadow-[2px_0_10px_rgba(0,0,0,0.1)] transition-transform duration-300
-            md:static md:z-auto md:w-[250px] md:max-w-none md:translate-x-0
+            fixed inset-y-0 left-0 z-50 w-[270px] max-w-[85vw] overflow-y-auto p-5
+            transition-transform duration-300
+            md:static md:z-auto md:w-[260px] md:max-w-none md:translate-x-0
             ${menuAbierto ? 'translate-x-0' : '-translate-x-full'}
           `}
-          style={{ background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)' }}
+          style={{ backgroundColor: 'var(--black-primary)', color: 'white' }}
         >
           <div className="mb-6 flex items-center justify-between gap-2">
-            <a
+            <Link
               href="/"
-              className="flex items-center gap-2 rounded-lg p-2 no-underline transition hover:bg-white/10"
+              className="flex items-center gap-2 rounded-lg p-2 text-lg font-bold no-underline transition hover:bg-white/10"
+              style={{ color: 'white' }}
             >
-              <span className="rounded-md bg-white px-2 py-1 text-lg">🏠</span>
-              <span className="text-base font-bold text-white">Home</span>
-            </a>
+              <span style={{ color: 'var(--gold)' }}>◆</span>
+              Beraca
+            </Link>
 
             <button
               onClick={() => setMenuAbierto(false)}
@@ -152,31 +169,40 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
 
           <nav className="flex flex-col gap-2">
             {visibles.map((item) => {
-              const activo =
-                pathname === item.href ||
-                (item.href !== '/admin' && pathname.startsWith(item.href + '/'))
+              const activo = item.href === itemActivo?.href
 
               return (
-                <a
+                <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium text-white no-underline transition hover:bg-blue-500/20 md:hover:translate-x-1 ${
-                    activo ? 'bg-blue-500/25' : ''
-                  }`}
+                  className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium no-underline transition"
+                  style={
+                    activo
+                      ? { backgroundColor: 'var(--gold)', color: 'var(--black-primary)', fontWeight: 600 }
+                      : { color: '#D0D0D0' }
+                  }
+                  onMouseEnter={(e) => {
+                    if (!activo) {
+                      e.currentTarget.style.backgroundColor = 'rgba(212, 175, 55, 0.1)'
+                      e.currentTarget.style.color = 'var(--gold)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!activo) {
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                      e.currentTarget.style.color = '#D0D0D0'
+                    }
+                  }}
                 >
                   <span>{item.icono || '📌'}</span>
                   {item.label}
-                </a>
+                </Link>
               )
             })}
-
-            {/* El correo y el cerrar sesión viven en el menú de la tienda:
-                tenerlos también aquí eran dos botones de salir a la vista
-                al mismo tiempo. */}
           </nav>
         </aside>
 
-        <main className="admin-main min-w-0 flex-1 bg-gray-50 p-5">
+        <main className="admin-main min-w-0 flex-1 p-5">
           {children}
         </main>
       </div>

@@ -48,10 +48,6 @@ export default function ConfiguracionPage() {
   const [publica, setPublica] = useState(true)
   const [publicaOriginal, setPublicaOriginal] = useState(true)
 
-  useEffect(() => {
-    cargarConfig()
-  }, [])
-
   const cargarConfig = async () => {
     setLoading(true)
     setError(null)
@@ -82,6 +78,10 @@ export default function ConfiguracionPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    cargarConfig()
+  }, [])
 
   const copiarCodigo = async () => {
     if (!codigoTienda) return
@@ -132,12 +132,14 @@ export default function ConfiguracionPage() {
 
   const inputStyle = {
     width: '100%',
-    padding: '9px 12px',
-    border: '1px solid #d1d5db',
-    borderRadius: '6px',
+    padding: '10px 12px',
+    border: '1px solid var(--gray-light)',
+    borderRadius: '8px',
     fontSize: '14px',
     fontFamily: 'inherit',
     boxSizing: 'border-box' as const,
+    backgroundColor: 'var(--white-off)',
+    color: 'var(--black-primary)',
   }
 
   const labelStyle = {
@@ -145,39 +147,40 @@ export default function ConfiguracionPage() {
     fontSize: '13px',
     fontWeight: 'bold' as const,
     marginBottom: '6px',
-    color: '#374151',
+    color: 'var(--black-primary)',
   }
 
   const ayudaStyle = {
     fontSize: '12px',
-    color: '#6b7280',
+    color: 'var(--gray-secondary)',
     marginTop: '5px',
   }
 
   const cardStyle = {
-    backgroundColor: 'white',
+    backgroundColor: 'var(--white-off)',
     padding: '24px',
-    borderRadius: '8px',
+    borderRadius: '12px',
     marginBottom: '20px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    border: '1px solid var(--gray-light)',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
   }
 
   return (
     <PermissionProtector requiredPermission="administrador">
-      <div style={{ padding: '20px', maxWidth: '800px' }}>
-        <div style={{ marginBottom: '20px' }}>
-          <Link href="/admin" style={{ color: '#2563eb', textDecoration: 'none' }}>
+      <div style={{ maxWidth: 800 }}>
+        <div className="mb-4">
+          <Link href="/admin" style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}>
             ← Volver al Dashboard
           </Link>
         </div>
 
-        <h1 style={{ marginBottom: '8px' }}>Configuración</h1>
-        <p style={{ color: '#6b7280', marginBottom: '30px', fontSize: '14px' }}>
+        <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--black-primary)' }}>Configuración</h1>
+        <p style={{ color: 'var(--gray-secondary)', marginBottom: '30px', fontSize: '14px' }}>
           Estos datos se usan en el catálogo público y en las facturas.
         </p>
 
         {loading ? (
-          <div style={{ textAlign: 'center', color: '#666', padding: '40px' }}>
+          <div style={{ textAlign: 'center', color: 'var(--gray-secondary)', padding: '40px' }}>
             Cargando configuración...
           </div>
         ) : (
@@ -185,7 +188,7 @@ export default function ConfiguracionPage() {
             {/* Código de la tienda */}
             {codigoTienda && (
               <div style={cardStyle}>
-                <h2 style={{ fontSize: '16px', marginTop: 0, marginBottom: '6px' }}>
+                <h2 style={{ fontSize: '16px', marginTop: 0, marginBottom: '6px', color: 'var(--black-primary)' }}>
                   🔑 Código de la tienda
                 </h2>
                 <p style={{ ...ayudaStyle, marginTop: 0, marginBottom: '14px' }}>
@@ -199,7 +202,8 @@ export default function ConfiguracionPage() {
                       fontSize: '26px',
                       fontWeight: 'bold',
                       letterSpacing: '6px',
-                      backgroundColor: '#f3f4f6',
+                      backgroundColor: 'var(--beige-light)',
+                      color: 'var(--black-primary)',
                       padding: '10px 18px',
                       borderRadius: '8px',
                       fontFamily: 'monospace',
@@ -208,19 +212,7 @@ export default function ConfiguracionPage() {
                     {codigoTienda}
                   </code>
 
-                  <button
-                    onClick={copiarCodigo}
-                    style={{
-                      padding: '10px 18px',
-                      backgroundColor: copiado ? '#10b981' : '#2563eb',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                    }}
-                  >
+                  <button onClick={copiarCodigo} className="btn-primary">
                     {copiado ? '✓ Copiado' : 'Copiar'}
                   </button>
                 </div>
@@ -229,7 +221,7 @@ export default function ConfiguracionPage() {
 
             {/* Visibilidad en el catálogo */}
             <div style={cardStyle}>
-              <h2 style={{ fontSize: '16px', marginTop: 0, marginBottom: '6px' }}>
+              <h2 style={{ fontSize: '16px', marginTop: 0, marginBottom: '6px', color: 'var(--black-primary)' }}>
                 🌎 Catálogo público
               </h2>
               <p style={{ ...ayudaStyle, marginTop: 0, marginBottom: '16px' }}>
@@ -245,8 +237,8 @@ export default function ConfiguracionPage() {
                   gap: '10px',
                   cursor: 'pointer',
                   padding: '12px',
-                  border: `1px solid ${publica ? '#bbf7d0' : '#e5e7eb'}`,
-                  backgroundColor: publica ? '#f0fdf4' : '#f9fafb',
+                  border: `1px solid ${publica ? 'var(--gold)' : 'var(--gray-light)'}`,
+                  backgroundColor: publica ? 'var(--beige-light)' : 'transparent',
                   borderRadius: '8px',
                 }}
               >
@@ -261,7 +253,7 @@ export default function ConfiguracionPage() {
                 />
                 <span style={{ fontSize: '14px' }}>
                   <strong>Mostrar mis productos en el catálogo público</strong>
-                  <span style={{ display: 'block', color: '#6b7280', fontSize: '13px', marginTop: '3px' }}>
+                  <span style={{ display: 'block', color: 'var(--gray-secondary)', fontSize: '13px', marginTop: '3px' }}>
                     {publica
                       ? 'Cualquiera puede ver tus productos y pedirte por WhatsApp.'
                       : 'Tus productos no aparecen para nadie fuera de la tienda.'}
@@ -272,7 +264,7 @@ export default function ConfiguracionPage() {
 
             {/* Pedidos */}
             <div style={cardStyle}>
-              <h2 style={{ fontSize: '16px', marginTop: 0, marginBottom: '18px' }}>
+              <h2 style={{ fontSize: '16px', marginTop: 0, marginBottom: '18px', color: 'var(--black-primary)' }}>
                 📱 Pedidos por WhatsApp
               </h2>
 
@@ -290,7 +282,7 @@ export default function ConfiguracionPage() {
               </p>
 
               {!config.whatsapp_pedidos && (
-                <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '6px', padding: '12px', marginTop: '12px', fontSize: '13px', color: '#92400e' }}>
+                <div className="alert-box" style={{ marginTop: '12px', marginBottom: 0 }}>
                   Sin este número, el carrito le pide al cliente escribirlo a mano en cada pedido.
                 </div>
               )}
@@ -298,7 +290,7 @@ export default function ConfiguracionPage() {
 
             {/* Empresa */}
             <div style={cardStyle}>
-              <h2 style={{ fontSize: '16px', marginTop: 0, marginBottom: '18px' }}>
+              <h2 style={{ fontSize: '16px', marginTop: 0, marginBottom: '18px', color: 'var(--black-primary)' }}>
                 🏢 Datos de la empresa
               </h2>
 
@@ -376,7 +368,7 @@ export default function ConfiguracionPage() {
 
             {/* Logo */}
             <div style={cardStyle}>
-              <h2 style={{ fontSize: '16px', marginTop: 0, marginBottom: '18px' }}>🖼️ Logo</h2>
+              <h2 style={{ fontSize: '16px', marginTop: 0, marginBottom: '18px', color: 'var(--black-primary)' }}>🖼️ Logo</h2>
 
               <ImageUploader
                 valor={config.logo_url}
@@ -386,59 +378,24 @@ export default function ConfiguracionPage() {
               />
             </div>
 
-            {error && (
-              <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '12px', borderRadius: '6px', marginBottom: '20px', fontSize: '14px' }}>
-                {error}
-              </div>
-            )}
-
-            {exito && (
-              <div style={{ backgroundColor: '#d1fae5', color: '#065f46', padding: '12px', borderRadius: '6px', marginBottom: '20px', fontSize: '14px' }}>
-                ✅ {exito}
-              </div>
-            )}
+            {error && <div className="alert-box error">{error}</div>}
+            {exito && <div className="alert-box success">✅ {exito}</div>}
 
             {/* Acciones */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', paddingBottom: '40px' }}>
-              <button
-                onClick={guardar}
-                disabled={guardando || !hayCambios}
-                style={{
-                  padding: '11px 26px',
-                  backgroundColor: guardando || !hayCambios ? '#9ca3af' : '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: guardando || !hayCambios ? 'not-allowed' : 'pointer',
-                  fontWeight: 'bold',
-                  fontSize: '14px',
-                }}
-              >
+            <div className="flex gap-3 items-center" style={{ paddingBottom: '40px' }}>
+              <button onClick={guardar} disabled={guardando || !hayCambios} className="btn-primary">
                 {guardando ? 'Guardando...' : 'Guardar cambios'}
               </button>
 
               {hayCambios && (
-                <button
-                  onClick={() => setConfig(original)}
-                  disabled={guardando}
-                  style={{
-                    padding: '11px 20px',
-                    backgroundColor: '#e5e7eb',
-                    color: '#374151',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                  }}
-                >
+                <button onClick={() => setConfig(original)} disabled={guardando} className="btn-secondary">
                   Descartar
                 </button>
               )}
 
               {!hayCambios && actualizadoEn && (
-                <span style={{ fontSize: '13px', color: '#6b7280' }}>
-                  Última actualización:{' '}
-                  {fechaYHora(actualizadoEn)}
+                <span style={{ fontSize: '13px', color: 'var(--gray-secondary)' }}>
+                  Última actualización: {fechaYHora(actualizadoEn)}
                 </span>
               )}
             </div>

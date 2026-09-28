@@ -1,0 +1,2277 @@
+{
+  "info": {
+    "_postman_id": "be3e1b6a-a22f-4721-9bd7-5d0c38214ccf",
+    "name": "Inventarios API",
+    "description": "Collection generada automáticamente a partir de las rutas app/api del proyecto.\n\nAutenticación: Bearer token de Supabase (variable {{token}}).\nMulti-tienda: la tienda activa se envía en el header `x-tienda-id` (variable {{tiendaId}}), excepto en endpoints públicos que usan el query param `tienda`, o endpoints de tienda que la reciben en el body/URL.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "Access token de Supabase (Bearer)"
+    },
+    {
+      "key": "tiendaId",
+      "value": "",
+      "type": "string",
+      "description": "UUID de la tienda activa (header x-tienda-id)"
+    },
+    {
+      "key": "tiendaCodigo",
+      "value": "",
+      "type": "string",
+      "description": "Código de 6 caracteres de una tienda"
+    },
+    {
+      "key": "clienteId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "facturaId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cotizacionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "liquidacionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "solicitudId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "vendedorId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /api/auth/sync-user",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/sync-user",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "sync-user"
+              ]
+            },
+            "description": "Crea el usuario en la BD la primera vez que entra (login) y devuelve sus tiendas\n\nPermisos: Solo Bearer token de Supabase, sin permiso"
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/auth/register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Registra un usuario nuevo en Supabase Auth + Prisma, sin ningún acceso a tiendas\n\nPermisos: Ninguno (endpoint público de registro)",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nuevo@correo.com\",\n  \"password\": \"contraseñaSegura123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Tiendas",
+      "item": [
+        {
+          "name": "GET /api/tiendas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tiendas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tiendas"
+              ]
+            },
+            "description": "Tiendas a las que pertenece el usuario (con su código si es owner/admin)\n\nPermisos: Sesión válida"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/tiendas/codigo/:tiendaCodigo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tiendas/codigo/{{tiendaCodigo}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tiendas",
+                "codigo",
+                "{{tiendaCodigo}}"
+              ]
+            },
+            "description": "Busca una tienda por su código de 6 caracteres, para confirmarla antes de pedir acceso\n\nPermisos: Sesión válida"
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/tiendas/salir",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tiendas/salir",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tiendas",
+                "salir"
+              ]
+            },
+            "description": "El usuario se sale de una tienda por cuenta propia (el owner no puede)\n\nPermisos: Sesión válida",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tiendaId\": \"<uuid-tienda>\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/tiendas/crear",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tiendas/crear",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tiendas",
+                "crear"
+              ]
+            },
+            "description": "Crea una tienda nueva; el creador queda como owner (1 tienda propia por persona)\n\nPermisos: Sesión válida",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Mi Tienda\",\n  \"ciudad\": \"Bogotá\",\n  \"descripcion\": \"\",\n  \"eslogan_empresa\": \"\",\n  \"nit_empresa\": \"\",\n  \"direccion_empresa\": \"\",\n  \"telefono_empresa\": \"\",\n  \"email_empresa\": \"\",\n  \"whatsapp_pedidos\": \"573001234567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Solicitudes de Acceso",
+      "item": [
+        {
+          "name": "POST /api/solicitudes-acceso",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/solicitudes-acceso",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "solicitudes-acceso"
+              ]
+            },
+            "description": "Solicita acceso a una tienda usando su código de 6 caracteres\n\nPermisos: Sesión válida (sin permiso de tienda)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"AB12CD\",\n  \"razon\": \"Soy nuevo vendedor\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/solicitudes-acceso",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/solicitudes-acceso?estado=pendiente",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "solicitudes-acceso"
+              ],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "pendiente",
+                  "description": "default 'pendiente' (opcional)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lista las solicitudes de acceso a la tienda activa\n\nPermisos: solicitudes-acceso"
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH /api/solicitudes-acceso/:solicitudId",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/solicitudes-acceso/{{solicitudId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "solicitudes-acceso",
+                "{{solicitudId}}"
+              ]
+            },
+            "description": "Aprueba o rechaza una solicitud de acceso\n\nPermisos: solicitudes-acceso.gestionar",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"aprobado\",\n  \"comentarioAdmin\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Usuarios",
+      "item": [
+        {
+          "name": "GET /api/usuarios",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios"
+              ]
+            },
+            "description": "Lista los usuarios de la tienda activa con sus permisos\n\nPermisos: usuarios.ver"
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/usuarios/permisos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/permisos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "permisos"
+              ]
+            },
+            "description": "Asigna permisos (y opcionalmente admin) a uno o varios usuarios\n\nPermisos: usuarios.gestionar (esAdmin solo lo puede tocar el owner)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioIds\": [\n    \"<uuid-usuario>\"\n  ],\n  \"permisos\": [\n    \"productos.ver\",\n    \"facturas.crear\"\n  ],\n  \"modo\": \"agregar\",\n  \"esAdmin\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/usuarios/permisos",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/permisos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "permisos"
+              ]
+            },
+            "description": "Quita permisos a uno o varios usuarios (o todos con todos:true)\n\nPermisos: usuarios.gestionar",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioIds\": [\n    \"<uuid-usuario>\"\n  ],\n  \"permisos\": [\n    \"productos.ver\"\n  ],\n  \"todos\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/usuarios/acceso",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/acceso",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "acceso"
+              ]
+            },
+            "description": "Saca a uno o varios usuarios de la tienda (borra el vínculo, no la cuenta)\n\nPermisos: usuarios.gestionar",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioIds\": [\n    \"<uuid-usuario>\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Permisos",
+      "item": [
+        {
+          "name": "GET /api/permisos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/permisos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "permisos"
+              ]
+            },
+            "description": "Catálogo de permisos agrupado por módulo, más las plantillas disponibles\n\nPermisos: usuarios.ver"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Configuración",
+      "item": [
+        {
+          "name": "GET /api/configuracion",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/configuracion",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "configuracion"
+              ]
+            },
+            "description": "Obtiene la configuración (datos de empresa, whatsapp, etc.) de la tienda activa\n\nPermisos: configuracion.ver"
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/configuracion",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/configuracion",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "configuracion"
+              ]
+            },
+            "description": "Guarda la configuración de la tienda activa\n\nPermisos: configuracion.editar",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre_empresa\": \"Mi Tienda\",\n  \"whatsapp_pedidos\": \"573001234567\",\n  \"eslogan_empresa\": \"Calidad y precio\",\n  \"nit_empresa\": \"900123456-1\",\n  \"direccion_empresa\": \"Calle 1 # 2-3\",\n  \"telefono_empresa\": \"6011234567\",\n  \"email_empresa\": \"contacto@mitienda.com\",\n  \"logo_url\": \"https://.../logo.png\",\n  \"publica\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/configuracion/publica",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/configuracion/publica?tienda={{tiendaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "configuracion",
+                "publica"
+              ],
+              "query": [
+                {
+                  "key": "tienda",
+                  "value": "{{tiendaId}}",
+                  "description": "uuid de la tienda; sin él usa la más antigua (opcional)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Configuración pública (whatsapp y nombre) para el catálogo, sin sesión\n\nPermisos: Ninguno",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Tablero",
+      "item": [
+        {
+          "name": "GET /api/tablero",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tablero",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tablero"
+              ]
+            },
+            "description": "KPIs del dashboard: totales, facturas de hoy, alertas de stock bajo\n\nPermisos: cualquiera de: productos.ver, clientes.ver, facturas.ver, facturas.crear, cotizaciones.crear"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Productos",
+      "item": [
+        {
+          "name": "GET /api/productos/categorias",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/categorias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "categorias"
+              ]
+            },
+            "description": "Categorías distintas usadas por la tienda\n\nPermisos: productos.ver | productos.crear | productos.editar"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/productos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos?limite=10&desde=0&busqueda=porcelanato&categoria=&sku=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "limite",
+                  "value": "10",
+                  "description": "paginación (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "desde",
+                  "value": "0",
+                  "description": "offset (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "busqueda",
+                  "value": "porcelanato",
+                  "description": "por nombre (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "categoria",
+                  "value": "",
+                  "description": "filtro exacto (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "sku",
+                  "value": "",
+                  "description": "búsqueda exacta por SKU (opcional)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lista productos activos, o busca por ?sku=\n\nPermisos: productos.ver | facturas.crear | cotizaciones.crear"
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/productos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            },
+            "description": "Crea un producto\n\nPermisos: productos.crear",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"POR-GRIS-60\",\n  \"nombre\": \"Porcelanato Gris 60x60\",\n  \"categoria\": \"Porcelanato\",\n  \"dimensiones\": \"60x60\",\n  \"color\": \"Gris\",\n  \"acabado\": \"Mate\",\n  \"espesorMm\": 9,\n  \"m2PorCaja\": 1.44,\n  \"precioUnitario\": 35000,\n  \"precioBodega\": 30000,\n  \"costo\": 20000,\n  \"stockActual\": 100,\n  \"stockMinimo\": 10,\n  \"proveedor\": \"Proveedor S.A.S\",\n  \"descripcion\": \"\",\n  \"imagenUrl\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/productos",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos"
+              ]
+            },
+            "description": "Actualiza un producto (id en el body); si cambia stockActual crea un movimiento de ajuste\n\nPermisos: productos.editar",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"<uuid-producto>\",\n  \"sku\": \"POR-GRIS-60\",\n  \"nombre\": \"Porcelanato Gris 60x60\",\n  \"categoria\": \"Porcelanato\",\n  \"precioUnitario\": 35000,\n  \"stockActual\": 100,\n  \"stockMinimo\": 10,\n  \"dimensiones\": \"60x60\",\n  \"color\": \"Gris\",\n  \"acabado\": \"Mate\",\n  \"espesorMm\": 9,\n  \"m2PorCaja\": 1.44,\n  \"precioBodega\": 30000,\n  \"costo\": 20000,\n  \"proveedor\": \"Proveedor S.A.S\",\n  \"descripcion\": \"\",\n  \"imagenUrl\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/productos/:productoId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/{{productoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{productoId}}"
+              ]
+            },
+            "description": "Detalle de un producto\n\nPermisos: productos.ver | facturas.crear"
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/productos/:productoId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/{{productoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "{{productoId}}"
+              ]
+            },
+            "description": "Desactiva (soft delete) un producto\n\nPermisos: productos.editar"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/productos/buscar",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/buscar?q=porcelanato",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "buscar"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "porcelanato",
+                  "description": "texto de búsqueda; vacío devuelve los primeros 10 (opcional)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Búsqueda rápida de productos por nombre o SKU (para factura/cotización/inventario)\n\nPermisos: productos.ver | facturas.crear | cotizaciones.crear"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/productos/catalogo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/catalogo?categoria=&tienda={{tiendaId}}&limitePorTienda=5&busqueda=porcelanato&limite=10&desde=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "catalogo"
+              ],
+              "query": [
+                {
+                  "key": "categoria",
+                  "value": "",
+                  "description": "filtro exacto (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "tienda",
+                  "value": "{{tiendaId}}",
+                  "description": "uuid, filtra por una tienda (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "limitePorTienda",
+                  "value": "5",
+                  "description": "muestra N por tienda en la portada, tope 5 (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "busqueda",
+                  "value": "porcelanato",
+                  "description": "mínimo 3 caracteres (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "limite",
+                  "value": "10",
+                  "description": "tope 9 por tanda (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "desde",
+                  "value": "0",
+                  "description": "offset (opcional)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Catálogo público de productos de todas las tiendas visibles, sin sesión\n\nPermisos: Ninguno",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/productos/catalogo/filtros",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/catalogo/filtros?categoria=&tienda={{tiendaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "catalogo",
+                "filtros"
+              ],
+              "query": [
+                {
+                  "key": "categoria",
+                  "value": "",
+                  "description": "acota la lista de tiendas devuelta (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "tienda",
+                  "value": "{{tiendaId}}",
+                  "description": "uuid, acota la lista de categorías devuelta (opcional)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Categorías y tiendas disponibles para los filtros del catálogo público\n\nPermisos: Ninguno",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Clientes",
+      "item": [
+        {
+          "name": "GET /api/clientes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes?cedula=123456789&limite=10&desde=0&busqueda=porcelanato",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes"
+              ],
+              "query": [
+                {
+                  "key": "cedula",
+                  "value": "123456789",
+                  "description": "búsqueda exacta de duplicados (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "limite",
+                  "value": "10",
+                  "description": "paginación (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "desde",
+                  "value": "0",
+                  "description": "offset (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "busqueda",
+                  "value": "porcelanato",
+                  "description": "por nombre o cédula (opcional)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lista clientes activos, o busca por cédula exacta con ?cedula=\n\nPermisos: clientes.ver | facturas.crear | cotizaciones.crear"
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/clientes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes"
+              ]
+            },
+            "description": "Crea un cliente\n\nPermisos: clientes.crear | facturas.crear | cotizaciones.crear",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Juan Pérez\",\n  \"email\": \"juan@correo.com\",\n  \"telefono\": \"3001234567\",\n  \"cedulaCc\": \"123456789\",\n  \"direccion\": \"Calle 1 # 2-3\",\n  \"terminoPago\": \"Contado\",\n  \"limiteCredito\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/clientes",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes"
+              ]
+            },
+            "description": "Actualiza un cliente (id va en el body)\n\nPermisos: clientes.editar",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"<uuid-cliente>\",\n  \"nombre\": \"Juan Pérez\",\n  \"email\": \"juan@correo.com\",\n  \"telefono\": \"3001234567\",\n  \"cedulaCc\": \"123456789\",\n  \"direccion\": \"Calle 1 # 2-3\",\n  \"terminoPago\": \"Contado\",\n  \"limiteCredito\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/clientes/:clienteId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/{{clienteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "{{clienteId}}"
+              ]
+            },
+            "description": "Detalle de un cliente\n\nPermisos: clientes.ver | facturas.crear"
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/clientes/:clienteId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/{{clienteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "{{clienteId}}"
+              ]
+            },
+            "description": "Desactiva (soft delete) un cliente\n\nPermisos: clientes.editar"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/clientes/buscar",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/buscar?q=porcelanato",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "buscar"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "porcelanato",
+                  "description": "mínimo 2 caracteres (requerido)",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Búsqueda rápida de clientes mientras se escribe (para factura/cotización)\n\nPermisos: clientes.ver | facturas.crear | cotizaciones.crear"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cotizaciones",
+      "item": [
+        {
+          "name": "GET /api/cotizaciones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cotizaciones?limite=10&desde=0&busqueda=porcelanato",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cotizaciones"
+              ],
+              "query": [
+                {
+                  "key": "limite",
+                  "value": "10",
+                  "description": "paginación (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "desde",
+                  "value": "0",
+                  "description": "offset (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "busqueda",
+                  "value": "porcelanato",
+                  "description": "por número, nombre o cédula del cliente (opcional)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lista cotizaciones (propias, o todas con cotizaciones.ver_todas)\n\nPermisos: cotizaciones.ver"
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/cotizaciones",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cotizaciones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cotizaciones"
+              ]
+            },
+            "description": "Crea una cotización con sus items\n\nPermisos: cotizaciones.crear",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteId\": \"<uuid-cliente o null>\",\n  \"terminoPago\": \"Contado\",\n  \"metodoPago\": \"Efectivo\",\n  \"subtotal\": 100000,\n  \"descuentoPorcentaje\": 0,\n  \"descuentoMonto\": 0,\n  \"impuesto\": 19000,\n  \"total\": 119000,\n  \"esBodega\": false,\n  \"observaciones\": \"\",\n  \"items\": [\n    {\n      \"productoId\": \"<uuid-producto o null>\",\n      \"productoNombre\": \"Porcelanato Gris 60x60\",\n      \"cantidadM2\": 10,\n      \"precioUnitario\": 10000,\n      \"subtotal\": 100000\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/cotizaciones/:cotizacionId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cotizaciones/{{cotizacionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cotizaciones",
+                "{{cotizacionId}}"
+              ]
+            },
+            "description": "Detalle de una cotización\n\nPermisos: cotizaciones.ver (+ cotizaciones.ver_todas para ver las de otros)"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/cotizaciones/:cotizacionId/pdf",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cotizaciones/{{cotizacionId}}/pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cotizaciones",
+                "{{cotizacionId}}",
+                "pdf"
+              ]
+            },
+            "description": "Descarga la cotización como PDF\n\nPermisos: cotizaciones.ver"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Facturas",
+      "item": [
+        {
+          "name": "GET /api/facturas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/facturas?limite=10&desde=0&busqueda=porcelanato&estado=pendiente&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "facturas"
+              ],
+              "query": [
+                {
+                  "key": "limite",
+                  "value": "10",
+                  "description": "activa paginación (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "desde",
+                  "value": "0",
+                  "description": "offset (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "busqueda",
+                  "value": "porcelanato",
+                  "description": "número, cliente o cédula (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "estado",
+                  "value": "pendiente",
+                  "description": "pendiente|pagado|entregado|anulado|liquidado (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "solo si no se usa 'limite': tope simple sin paginar (opcional)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lista facturas (propias, o todas con facturas.ver_todas)\n\nPermisos: facturas.ver"
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/facturas",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/facturas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "facturas"
+              ]
+            },
+            "description": "Crea una factura, descuenta stock y registra movimientos de inventario\n\nPermisos: facturas.crear (+ facturas.abonar si trae anticipo)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteId\": \"<uuid-cliente o null>\",\n  \"terminoPago\": \"Contado\",\n  \"metodoPago\": \"Efectivo\",\n  \"anticipo\": 0,\n  \"contraEntrega\": 0,\n  \"subtotal\": 100000,\n  \"descuentoPorcentaje\": 0,\n  \"descuentoMonto\": 0,\n  \"impuesto\": 19000,\n  \"total\": 119000,\n  \"esBodega\": false,\n  \"observaciones\": \"\",\n  \"items\": [\n    {\n      \"productoId\": \"<uuid-producto o null>\",\n      \"productoNombre\": \"Porcelanato Gris 60x60\",\n      \"cantidadM2\": 10,\n      \"precioUnitario\": 10000,\n      \"subtotal\": 100000\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/facturas",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/facturas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "facturas"
+              ]
+            },
+            "description": "Actualiza una factura o cambia su estado (id va en el body)\n\nPermisos: facturas.anular (estado=anulado) | facturas.abonar (pagado/entregado o sube anticipo) | facturas.crear (resto)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"<uuid-factura>\",\n  \"estado\": \"pagado\",\n  \"terminoPago\": \"Contado\",\n  \"metodoPago\": \"Efectivo\",\n  \"anticipo\": 119000,\n  \"contraEntrega\": 0,\n  \"subtotal\": 100000,\n  \"descuentoPorcentaje\": 0,\n  \"descuentoMonto\": 0,\n  \"impuesto\": 19000,\n  \"total\": 119000,\n  \"observaciones\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/facturas/:facturaId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/facturas/{{facturaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "facturas",
+                "{{facturaId}}"
+              ]
+            },
+            "description": "Detalle de una factura\n\nPermisos: facturas.ver (+ facturas.ver_todas para ver las de otros)"
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/facturas/:facturaId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/facturas/{{facturaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "facturas",
+                "{{facturaId}}"
+              ]
+            },
+            "description": "Anula una factura (no se puede si ya está liquidada)\n\nPermisos: facturas.anular"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/facturas/:facturaId/pdf",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/facturas/{{facturaId}}/pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "facturas",
+                "{{facturaId}}",
+                "pdf"
+              ]
+            },
+            "description": "Descarga la factura como PDF\n\nPermisos: facturas.ver"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Abonos",
+      "item": [
+        {
+          "name": "POST /api/abonos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/abonos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "abonos"
+              ]
+            },
+            "description": "Registra un abono a una factura; la pasa a 'pagado' si completa el total\n\nPermisos: facturas.abonar",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"facturaId\": \"<uuid-factura>\",\n  \"monto\": 50000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/abonos/:facturaId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/abonos/{{facturaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "abonos",
+                "{{facturaId}}"
+              ]
+            },
+            "description": "Lista los abonos de una factura (:facturaId es el id de la factura)\n\nPermisos: facturas.ver (+ facturas.ver_todas)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Inventario",
+      "item": [
+        {
+          "name": "GET /api/inventario/movimientos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/inventario/movimientos?productoId={{productoId}}&tipo=entrada&fechaDesde=&fechaHasta=&limite=10&desde=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "movimientos"
+              ],
+              "query": [
+                {
+                  "key": "productoId",
+                  "value": "{{productoId}}",
+                  "description": "uuid del producto (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "tipo",
+                  "value": "entrada",
+                  "description": "entrada | salida | ajuste (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "fechaDesde",
+                  "value": "",
+                  "description": "YYYY-MM-DD (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "fechaHasta",
+                  "value": "",
+                  "description": "YYYY-MM-DD (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "limite",
+                  "value": "10",
+                  "description": "si se envía, pagina la respuesta (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "desde",
+                  "value": "0",
+                  "description": "offset de paginación (opcional)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lista movimientos de inventario (entradas/salidas/ajustes)\n\nPermisos: inventario.ver"
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/inventario/movimientos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/inventario/movimientos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventario",
+                "movimientos"
+              ]
+            },
+            "description": "Crea un movimiento manual de inventario y ajusta el stock del producto\n\nPermisos: inventario.movimientos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productoId\": \"<uuid-producto>\",\n  \"tipo\": \"entrada\",\n  \"cantidad\": 10,\n  \"motivo\": \"Reposición de stock\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Liquidaciones",
+      "item": [
+        {
+          "name": "GET /api/liquidaciones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/liquidaciones?limite=10&desde=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "liquidaciones"
+              ],
+              "query": [
+                {
+                  "key": "limite",
+                  "value": "10",
+                  "description": "paginación (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "desde",
+                  "value": "0",
+                  "description": "offset (opcional)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lista liquidaciones de vendedores\n\nPermisos: liquidaciones.ver"
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/liquidaciones",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/liquidaciones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "liquidaciones"
+              ]
+            },
+            "description": "Crea una liquidación de facturas cobradas de un vendedor\n\nPermisos: liquidaciones.crear",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vendedorId\": \"<uuid-usuario>\",\n  \"facturaIds\": [\n    \"<uuid-factura>\"\n  ],\n  \"porcentaje\": 10,\n  \"costos\": {\n    \"<uuid-item-factura>\": 5000\n  },\n  \"observaciones\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/liquidaciones/:liquidacionId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/liquidaciones/{{liquidacionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "liquidaciones",
+                "{{liquidacionId}}"
+              ]
+            },
+            "description": "Detalle de una liquidación con sus facturas y ganancia\n\nPermisos: liquidaciones.ver"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/liquidaciones/pendientes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/liquidaciones/pendientes?vendedorId={{vendedorId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "liquidaciones",
+                "pendientes"
+              ],
+              "query": [
+                {
+                  "key": "vendedorId",
+                  "value": "{{vendedorId}}",
+                  "description": "uuid del vendedor; sin él devuelve el resumen por vendedor (opcional)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Vendedores con facturas cobradas sin liquidar, o el detalle de uno con ?vendedorId=\n\nPermisos: liquidaciones.crear"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auditoría",
+      "item": [
+        {
+          "name": "GET /api/auditoria",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auditoria?tabla=productos&registroId=&accion=UPDATE&limit=10&offset=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auditoria"
+              ],
+              "query": [
+                {
+                  "key": "tabla",
+                  "value": "productos",
+                  "description": "nombre de la tabla afectada (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "registroId",
+                  "value": "",
+                  "description": "id del registro auditado (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "accion",
+                  "value": "UPDATE",
+                  "description": "CREATE | UPDATE | DELETE (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "default 100 (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "offset",
+                  "value": "",
+                  "description": "default 0 (opcional)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lista el log de auditoría de la tienda\n\nPermisos: auditoria.ver"
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/auditoria",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auditoria",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auditoria"
+              ]
+            },
+            "description": "Crea un registro de auditoría manual\n\nPermisos: auditoria.ver",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tablaAfectada\": \"productos\",\n  \"registroId\": \"<uuid>\",\n  \"accion\": \"UPDATE\",\n  \"datosAntes\": {},\n  \"datosDespues\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reportes",
+      "item": [
+        {
+          "name": "GET /api/reportes/inventario",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/inventario?estados=pagado,entregado&seccion=&limite=10&desde=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "inventario"
+              ],
+              "query": [
+                {
+                  "key": "estados",
+                  "value": "pagado,entregado",
+                  "description": "csv de pagado,entregado,pendiente (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "seccion",
+                  "value": "",
+                  "description": "'sinMovimiento' o 'stockBajo', para paginar esa sección (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "limite",
+                  "value": "10",
+                  "description": "junto con seccion (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "desde",
+                  "value": "0",
+                  "description": "junto con seccion (opcional)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Reporte de inventario: valor, stock bajo, sin movimiento, rotación\n\nPermisos: reportes.ver"
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/reportes/facturacion",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tienda-id",
+                "value": "{{tiendaId}}",
+                "type": "text",
+                "description": "UUID de la tienda activa"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/facturacion?periodo=mes&fechaInicio=&fechaFin=&estados=pagado,entregado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "facturacion"
+              ],
+              "query": [
+                {
+                  "key": "periodo",
+                  "value": "mes",
+                  "description": "hoy | semana | mes | personalizado (default mes) (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "fechaInicio",
+                  "value": "",
+                  "description": "requerido si periodo=personalizado (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "fechaFin",
+                  "value": "",
+                  "description": "requerido si periodo=personalizado (opcional)",
+                  "disabled": true
+                },
+                {
+                  "key": "estados",
+                  "value": "pagado,entregado",
+                  "description": "csv de pagado,entregado,pendiente (opcional)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Reporte de ventas por período: totales, top clientes/productos, ventas por día\n\nPermisos: reportes.ver"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Upload",
+      "item": [
+        {
+          "name": "POST /api/upload/imagen",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/upload/imagen",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "upload",
+                "imagen"
+              ]
+            },
+            "description": "Sube una imagen (producto o logo) a Supabase Storage\n\nPermisos: Sesión + productos.crear/editar (carpeta=productos) o configuracion.editar (carpeta=logos)",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "archivo",
+                  "type": "file",
+                  "src": [],
+                  "description": "jpg/png/webp, máx 2MB"
+                },
+                {
+                  "key": "carpeta",
+                  "type": "text",
+                  "value": "productos",
+                  "description": "'productos' o 'logos'"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/upload/imagen",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/upload/imagen?ruta=productos/ejemplo.webp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "upload",
+                "imagen"
+              ],
+              "query": [
+                {
+                  "key": "ruta",
+                  "value": "productos/ejemplo.webp",
+                  "description": "ruta devuelta al subir, ej: productos/abc123.webp (requerido)",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Borra una imagen del storage\n\nPermisos: Sesión + mismo permiso que al subir"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Debug",
+      "item": [
+        {
+          "name": "GET /api/debug/usuario-actual",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/debug/usuario-actual",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "debug",
+                "usuario-actual"
+              ]
+            },
+            "description": "Datos de sesión de quien pregunta: tiendas, nivel y permisos\n\nPermisos: Sesión válida (Bearer token)"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

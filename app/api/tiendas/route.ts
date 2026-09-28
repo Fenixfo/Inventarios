@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Error fetching tiendas:', error)
     return NextResponse.json(
-      { error: error.message || 'Error al obtener tiendas' },
+      { error: 'Error al obtener tiendas' },
       { status: 500 }
     )
   }

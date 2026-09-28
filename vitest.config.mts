@@ -9,6 +9,12 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./', import.meta.url)),
+      // `server-only` falla fuera de los componentes de servidor de Next, y
+      // las pruebas importan lib/prisma y lib/permisos directamente: se usa
+      // la versión vacía que el mismo paquete entrega al servidor.
+      'server-only': fileURLToPath(
+        new URL('./node_modules/server-only/empty.js', import.meta.url)
+      ),
     },
   },
   test: {
@@ -23,5 +29,16 @@ export default defineConfig({
     fileParallelism: false,
     // Los e2e corren con Playwright, no con Vitest.
     exclude: ['**/node_modules/**', '**/.next/**', '**/e2e/**'],
+    // `npm run test:coverage`. Solo mide lo que corre dentro de Vitest: las
+    // pruebas de integración llaman al servidor por HTTP, así que las rutas
+    // de app/api se ejecutan en otro proceso y salen sin cubrir aunque estén
+    // probadas. El número que importa es el de lib/.
+    coverage: {
+      provider: 'v8',
+      include: ['lib/**', 'components/**', 'hooks/**', 'app/**'],
+      exclude: ['**/*.d.ts'],
+      reporter: ['text-summary', 'html'],
+      reportsDirectory: './coverage',
+    },
   },
 })

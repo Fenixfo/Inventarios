@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { esUuid } from '@/lib/formato'
 
 /**
  * Categorías y tiendas que tienen algo que mostrar en el catálogo.
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
     // La columna es uuid: un valor inventado en la URL hacía fallar la
     // consulta con un 500. Se trata como una tienda que no existe.
     const tiendaPedida = searchParams.get('tienda')
-    const tienda = tiendaPedida && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tiendaPedida)
+    const tienda = tiendaPedida && esUuid(tiendaPedida)
       ? tiendaPedida
       : tiendaPedida
         ? '00000000-0000-0000-0000-000000000000'

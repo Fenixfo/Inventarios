@@ -8,6 +8,7 @@ interface Props {
   onBuscar: (texto: string) => void
   placeholder?: string
   etiqueta?: string
+  ocultarAyuda?: boolean
 }
 
 /**
@@ -18,7 +19,7 @@ interface Props {
  * así que la búsqueda tiene que ir a la base, y una consulta por letra sería
  * demasiado. Menos de tres letras no se busca.
  */
-export function BuscadorEnter({ onBuscar, placeholder = 'Buscar por nombre', etiqueta = 'Buscar' }: Props) {
+export function BuscadorEnter({ onBuscar, placeholder = 'Buscar por nombre', etiqueta = 'Buscar', ocultarAyuda = false }: Props) {
   const [texto, setTexto] = useState('')
 
   const limpio = texto.trim()
@@ -36,10 +37,7 @@ export function BuscadorEnter({ onBuscar, placeholder = 'Buscar por nombre', eti
 
   return (
     <div>
-      <label
-        htmlFor="buscador-enter"
-        style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}
-      >
+      <label htmlFor="buscador-enter" className="field-label">
         {etiqueta}
       </label>
 
@@ -55,13 +53,8 @@ export function BuscadorEnter({ onBuscar, placeholder = 'Buscar por nombre', eti
               if (e.key === 'Escape') limpiar()
             }}
             placeholder={placeholder}
-            style={{
-              width: '100%',
-              padding: '8px 30px 8px 8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              boxSizing: 'border-box',
-            }}
+            className="filter-input"
+            style={{ paddingRight: 30 }}
           />
           {texto && (
             <button
@@ -74,7 +67,7 @@ export function BuscadorEnter({ onBuscar, placeholder = 'Buscar por nombre', eti
                 transform: 'translateY(-50%)',
                 border: 'none',
                 background: 'none',
-                color: '#9ca3af',
+                color: 'var(--gray-secondary)',
                 fontSize: '18px',
                 cursor: 'pointer',
                 lineHeight: 1,
@@ -85,25 +78,16 @@ export function BuscadorEnter({ onBuscar, placeholder = 'Buscar por nombre', eti
           )}
         </div>
 
-        <button
-          onClick={buscar}
-          disabled={muyCorto}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: muyCorto ? '#d1d5db' : '#2563eb',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: muyCorto ? 'not-allowed' : 'pointer',
-          }}
-        >
+        <button onClick={buscar} disabled={muyCorto} className="btn-primary">
           Buscar
         </button>
       </div>
 
-      <p style={{ margin: '5px 0 0 0', fontSize: '12px', color: '#6b7280' }}>
-        {muyCorto ? `Escribe al menos ${MINIMO_BUSQUEDA} letras.` : 'Pulsa Enter para buscar.'}
-      </p>
+      {(muyCorto || !ocultarAyuda) && (
+        <p className="field-help">
+          {muyCorto ? `Escribe al menos ${MINIMO_BUSQUEDA} letras.` : 'Pulsa Enter para buscar.'}
+        </p>
+      )}
     </div>
   )
 }

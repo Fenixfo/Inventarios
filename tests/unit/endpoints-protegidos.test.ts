@@ -97,6 +97,44 @@ describe('endpoints protegidos', () => {
     }
   )
 
+  // La factura para imprimir era un HTML armado con los datos del cliente
+  // sin escapar, escrito con document.write en una pestaña del mismo origen:
+  // un nombre con código se ejecutaba con la sesión de quien la abría. Se
+  // cambió por el PDF. Si algún día hace falta HTML, que sea con escapado.
+  // El mensaje de un error inesperado (de Prisma, de la conexión) trae
+  // nombres de tablas y columnas. Va al log del servidor, no al navegador.
+  // Los mensajes pensados para la persona se escriben aparte.
+  it('ninguna ruta devuelve al navegador el mensaje interno de un error', () => {
+    const filtran = rutas.filter(
+      (r) =>
+        /error:\s*(error|err|e)\.message/.test(r.contenido) ||
+        /['"`]\s*\+\s*\w*[eE]rror\.message/.test(r.contenido)
+    )
+    expect(filtran.map((r) => r.relativa)).toEqual([])
+  })
+
+  it('ninguna ruta de la API devuelve HTML armado a mano', () => {
+    const conHtml = rutas.filter((r) => /['"]text\/html/.test(r.contenido))
+    expect(conHtml.map((r) => r.relativa)).toEqual([])
+  })
+
+  it('ninguna pantalla escribe con document.write lo que devuelve el servidor', () => {
+    const raiz = join(process.cwd(), 'app')
+    const pantallas: string[] = []
+    const buscar = (dir: string) => {
+      for (const e of readdirSync(dir)) {
+        const p = join(dir, e)
+        if (statSync(p).isDirectory()) buscar(p)
+        else if (/\.tsx$/.test(e)) pantallas.push(p)
+      }
+    }
+    buscar(raiz)
+
+    // Solo se permite escribir un texto fijo (el aviso de "Generando…").
+    const peligrosas = pantallas.filter((p) => /document\.write\((?!\s*['"`][^$]*['"`]\s*\))/.test(readFileSync(p, 'utf8')))
+    expect(peligrosas.map((p) => relative(process.cwd(), p))).toEqual([])
+  })
+
   it('las rutas públicas declaradas siguen existiendo', () => {
     // Si se renombra o borra una ruta pública, la lista queda mintiendo.
     for (const declarada of Object.keys(PUBLICAS)) {
@@ -114,6 +152,8 @@ describe('endpoints protegidos', () => {
     const DE_DATOS = [
       'productos/route.ts',
       'productos/[id]/route.ts',
+      'productos/buscar/route.ts',
+      'clientes/buscar/route.ts',
       'clientes/route.ts',
       'clientes/[id]/route.ts',
       'facturas/route.ts',

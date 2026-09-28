@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Error creando solicitud:', error)
     return NextResponse.json(
-      { error: error.message || 'Error al crear solicitud' },
+      { error: 'Error al crear solicitud' },
       { status: 500 }
     )
   }
@@ -169,7 +169,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Error obteniendo solicitudes:', error)
     return NextResponse.json(
-      { error: error.message || 'Error al obtener solicitudes' },
+      { error: 'Error al obtener solicitudes' },
       { status: 500 }
     )
   }

@@ -7,6 +7,8 @@ import { BuscadorEnter } from '@/components/Common/BuscadorEnter'
 import { usePermisos } from '@/components/PermisosProvider'
 import { fechaYHora } from '@/lib/fechas'
 import { useListaPaginada } from '@/lib/use-lista-paginada'
+import { pesos } from '@/lib/formato'
+import { VerMas } from '@/components/Common/VerMas'
 
 interface Cotizacion {
   id: string
@@ -37,14 +39,8 @@ export default function CotizacionesPage() {
             </p>
           </div>
           {puede('cotizaciones.crear') && (
-            <Link href="/admin/cotizaciones/nueva" style={{
-              padding: '10px 20px',
-              backgroundColor: '#2563eb',
-              color: 'white',
-              textDecoration: 'none',
-              borderRadius: '4px'
-            }}>
-              Nueva Cotización
+            <Link href="/admin/cotizaciones/nueva" className="btn-primary">
+              + Nueva Cotización
             </Link>
           )}
         </div>
@@ -92,7 +88,7 @@ export default function CotizacionesPage() {
                       <td style={{ padding: '10px' }}>{c.cliente?.nombre || 'Cliente General'}</td>
                       <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>{fechaYHora(c.fecha)}</td>
                       <td style={{ padding: '10px', color: '#6b7280' }}>{c.usuario?.email || '-'}</td>
-                      <td style={{ padding: '10px', textAlign: 'right' }}>${Number(c.total).toFixed(2)}</td>
+                      <td style={{ padding: '10px', textAlign: 'right' }}>{pesos(c.total)}</td>
                       <td style={{ padding: '10px', textAlign: 'center' }}>
                         <Link href={`/admin/cotizaciones/${c.id}`} style={{ color: '#2563eb', textDecoration: 'none' }}>
                           Ver
@@ -105,23 +101,7 @@ export default function CotizacionesPage() {
             </div>
 
             {hayMas && (
-              <div style={{ textAlign: 'center', marginTop: '20px' }}>
-                <button
-                  onClick={verMas}
-                  disabled={cargandoMas}
-                  style={{
-                    padding: '10px 24px',
-                    backgroundColor: 'white',
-                    color: '#2563eb',
-                    border: '1px solid #2563eb',
-                    borderRadius: '4px',
-                    cursor: cargandoMas ? 'wait' : 'pointer',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  {cargandoMas ? 'Cargando...' : `Ver más (${total - cotizaciones.length} restantes)`}
-                </button>
-              </div>
+              <VerMas restantes={total - cotizaciones.length} cargando={cargandoMas} onClick={verMas} />
             )}
           </>
         )}
