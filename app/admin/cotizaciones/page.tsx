@@ -39,14 +39,8 @@ export default function CotizacionesPage() {
             </p>
           </div>
           {puede('cotizaciones.crear') && (
-            <Link href="/admin/cotizaciones/nueva" style={{
-              padding: '10px 20px',
-              backgroundColor: '#2563eb',
-              color: 'white',
-              textDecoration: 'none',
-              borderRadius: '4px'
-            }}>
-              Nueva Cotización
+            <Link href="/admin/cotizaciones/nueva" className="btn-primary">
+              + Nueva Cotización
             </Link>
           )}
         </div>

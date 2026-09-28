@@ -77,11 +77,17 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
     (item) => !item.permiso || esAdmin || permisos.includes(item.permiso)
   )
 
-  const seccionActual =
-    [...visibles]
-      .sort((a, b) => b.href.length - a.href.length)
-      .find((item) => pathname === item.href || pathname.startsWith(item.href + '/'))?.label ||
-    'Panel'
+  // Se toma el href más específico que calce (el más largo), para que rutas
+  // anidadas como /admin/reportes/liquidaciones no dejen resaltados a la vez
+  // a "Reportes" y a "Liquidaciones".
+  const itemActivo = [...visibles]
+    .sort((a, b) => b.href.length - a.href.length)
+    .find(
+      (item) =>
+        pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href + '/'))
+    )
+
+  const seccionActual = itemActivo?.label || 'Panel'
 
   const handleLogout = async () => {
     invalidarPermisos()
@@ -163,9 +169,7 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
 
           <nav className="flex flex-col gap-2">
             {visibles.map((item) => {
-              const activo =
-                pathname === item.href ||
-                (item.href !== '/admin' && pathname.startsWith(item.href + '/'))
+              const activo = item.href === itemActivo?.href
 
               return (
                 <Link
