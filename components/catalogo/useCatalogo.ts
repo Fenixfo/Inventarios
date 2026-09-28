@@ -4,6 +4,14 @@ import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import type { Producto, TiendaCatalogo } from './tipos'
 
 /**
+ * Nombre (o parte de él) de la tienda que se muestra sola en la portada
+ * mientras el visitante no elija otra. Hay varias tiendas de prueba en la
+ * base, y volcarlas todas en la vitrina pública confunde a quien solo
+ * conoce esta.
+ */
+const TIENDA_PRINCIPAL = 'beraca'
+
+/**
  * Cuántos productos de cada tienda se enseñan en la portada.
  *
  * Es una vitrina, no el inventario: con varias tiendas y cientos de
@@ -71,6 +79,10 @@ export function useCatalogo() {
   // filtro, para no añadir productos de la búsqueda anterior a la nueva.
   const consultaEnCurso = useRef<AbortController | null>(null)
 
+  // Solo se elige la tienda principal una vez: si el visitante la cambia a
+  // "todas" o a otra, no debe volver a imponérsela.
+  const tiendaPorDefectoAplicada = useRef(false)
+
   // Los filtros se piden aparte de los productos —la portada trae solo unos
   // pocos por tienda— y se rehacen cada vez que cambia una selección, para
   // que cada lista muestre solo lo que combina con la otra.
@@ -105,6 +117,16 @@ export function useCatalogo() {
         }
         if (tiendaFiltro && !nuevasTiendas.some((t) => t.id === tiendaFiltro)) {
           setTiendaFiltro('')
+        }
+
+        // Primera carga sin nada elegido: se acota a la tienda principal en
+        // vez de dejar ver la mezcla de todas (incluidas las de prueba).
+        if (!tiendaFiltro && !tiendaPorDefectoAplicada.current) {
+          tiendaPorDefectoAplicada.current = true
+          const principal = nuevasTiendas.find((t) =>
+            t.nombre.toLowerCase().includes(TIENDA_PRINCIPAL)
+          )
+          if (principal) setTiendaFiltro(principal.id)
         }
       } catch {
         // Sin filtros el catálogo sigue viéndose; solo no se puede acotar.
