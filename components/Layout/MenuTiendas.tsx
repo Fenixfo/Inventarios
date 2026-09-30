@@ -40,6 +40,59 @@ export function MenuTiendas({ email, onCerrarSesion }: Props) {
   const [error, setError] = useState<string | null>(null)
   const contenedor = useRef<HTMLDivElement>(null)
 
+  // Perfil de la cuenta (nombre y teléfono). `editandoPerfil` abre la ventana.
+  const [perfil, setPerfil] = useState<{ nombre: string | null; telefono: string | null }>({ nombre: null, telefono: null })
+  const [editandoPerfil, setEditandoPerfil] = useState(false)
+  const [nombre, setNombre] = useState('')
+  const [telefono, setTelefono] = useState('')
+  const [guardandoPerfil, setGuardandoPerfil] = useState(false)
+  const [errorPerfil, setErrorPerfil] = useState<string | null>(null)
+
+  useEffect(() => {
+    const cargarPerfil = async () => {
+      try {
+        const res = await apiFetch('/api/usuarios/perfil')
+        if (res.ok) setPerfil(await res.json())
+      } catch {
+        // Sin perfil se muestra el correo, como antes.
+      }
+    }
+
+    cargarPerfil()
+  }, [])
+
+  const abrirPerfil = () => {
+    setNombre(perfil.nombre || '')
+    setTelefono(perfil.telefono || '')
+    setErrorPerfil(null)
+    setEditandoPerfil(true)
+    setAbierto(false)
+  }
+
+  const guardarPerfil = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setGuardandoPerfil(true)
+    setErrorPerfil(null)
+
+    try {
+      const res = await apiFetch('/api/usuarios/perfil', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, telefono }),
+      })
+
+      const datos = await res.json()
+      if (!res.ok) throw new Error(datos.error || 'No se pudo guardar')
+
+      setPerfil({ nombre: datos.nombre, telefono: datos.telefono })
+      setEditandoPerfil(false)
+    } catch (err: any) {
+      setErrorPerfil(err.message)
+    } finally {
+      setGuardandoPerfil(false)
+    }
+  }
+
   useEffect(() => {
     const cargar = async () => {
       try {
@@ -209,8 +262,19 @@ export function MenuTiendas({ email, onCerrarSesion }: Props) {
           {(email || onCerrarSesion) && (
             <div className="border-t bg-gray-50 px-4 py-3">
               {email && (
-                <p className="mb-2 break-all text-xs text-gray-500">👤 {email}</p>
+                <p className="mb-2 break-all text-xs text-gray-500">
+                  👤 {perfil.nombre ? <strong className="text-gray-700">{perfil.nombre}</strong> : email}
+                  {perfil.nombre && <span className="block">{email}</span>}
+                  {perfil.telefono && <span className="block">📞 {perfil.telefono}</span>}
+                </p>
               )}
+              <button
+                onClick={abrirPerfil}
+                className="mb-2 w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 transition hover:bg-gray-100"
+                role="menuitem"
+              >
+                ✏️ Mi perfil
+              </button>
               {onCerrarSesion && (
                 <button
                   onClick={onCerrarSesion}
@@ -222,6 +286,68 @@ export function MenuTiendas({ email, onCerrarSesion }: Props) {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {editandoPerfil && (
+        <div
+          onClick={() => !guardandoPerfil && setEditandoPerfil(false)}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+        >
+          <form
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={guardarPerfil}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mi perfil"
+            className="w-full max-w-md rounded-xl bg-white p-6 text-gray-900"
+          >
+            <h3 className="mb-1 text-lg font-bold">Mi perfil</h3>
+            <p className="mb-4 break-all text-xs text-gray-500">{email}</p>
+
+            {errorPerfil && (
+              <div className="mb-4 rounded-lg bg-red-100 px-3 py-2 text-sm text-red-700">{errorPerfil}</div>
+            )}
+
+            <label htmlFor="perfil-nombre" className="field-label">Nombre</label>
+            <input
+              id="perfil-nombre"
+              type="text"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              maxLength={120}
+              placeholder="Tu nombre"
+              autoFocus
+              disabled={guardandoPerfil}
+              className="field-input mb-4"
+            />
+
+            <label htmlFor="perfil-telefono" className="field-label">Teléfono</label>
+            <input
+              id="perfil-telefono"
+              type="tel"
+              value={telefono}
+              onChange={(e) => setTelefono(e.target.value)}
+              maxLength={30}
+              placeholder="300 123 4567"
+              disabled={guardandoPerfil}
+              className="field-input mb-5"
+            />
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setEditandoPerfil(false)}
+                disabled={guardandoPerfil}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-sm font-medium"
+              >
+                Cancelar
+              </button>
+              <button type="submit" disabled={guardandoPerfil} className="btn-primary flex-1 justify-center">
+                {guardandoPerfil ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

@@ -19,6 +19,10 @@ model Usuario {
   email     String   @unique
   lastLogin DateTime? @map("last_login") @db.Timestamptz
 
+  // Datos de perfil que cada persona configura desde su cuenta.
+  nombre    String?  @db.VarChar(120)
+  telefono  String?  @db.VarChar(30)
+
   // Relations
   // El acceso y los permisos viven en UsuarioTienda: son por tienda, así
   // que la misma persona puede ser administradora en una y vendedora en

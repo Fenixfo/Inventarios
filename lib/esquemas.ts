@@ -111,6 +111,15 @@ export const liquidacionNueva = z.object({
   observaciones: textoOpcional(2000),
 })
 
+/** Perfil de la cuenta: el nombre y el teléfono son opcionales y se pueden borrar. */
+export const perfilNuevo = z.object({
+  nombre: textoOpcional(120),
+  telefono: textoOpcional(30).refine(
+    (v) => v === null || /^\+?[\d\s()-]{7,30}$/.test(v),
+    'el teléfono solo puede llevar números, espacios, + ( ) y guiones (mínimo 7 dígitos)'
+  ),
+})
+
 /** "items.0.cantidadM2: debe ser mayor que cero" — el primer problema, legible. */
 export function primerError(error: z.ZodError): string {
   const problema = error.issues[0]
