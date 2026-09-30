@@ -3,6 +3,9 @@
 import { useCart } from '@/hooks/useCart'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase-client'
+import { sesionRestanteMs } from '@/lib/sesion'
 import type { Producto } from '@/components/catalogo/tipos'
 import { useCatalogo } from '@/components/catalogo/useCatalogo'
 import { FiltrosCatalogo } from '@/components/catalogo/FiltrosCatalogo'
@@ -15,7 +18,10 @@ import { RegisterModal } from '@/components/auth/RegisterModal'
 
 export default function Catalogo() {
   const { carrito, agregarAlCarrito, tiendaDelCarrito, esDeOtraTienda, vaciarCarrito } = useCart()
+  const router = useRouter()
   const [loginAbierto, setLoginAbierto] = useState(false)
+  // Si ya hay una sesión vigente, "Iniciar Sesión" entra directo al panel.
+  const [haySesion, setHaySesion] = useState(false)
   const [registroAbierto, setRegistroAbierto] = useState(false)
   // Botón "▲" flotante: aparece al bajar al catálogo, igual que en la portada
   // de referencia, para volver a la portada sin tener que hacer scroll a mano.
@@ -100,6 +106,16 @@ export default function Catalogo() {
   const irArriba = () => document.getElementById('portada')?.scrollIntoView({ behavior: 'smooth' })
 
   useEffect(() => {
+    let activo = true
+    supabase.auth.getSession().then(({ data }) => {
+      if (activo && data.session && sesionRestanteMs() > 0) setHaySesion(true)
+    })
+    return () => {
+      activo = false
+    }
+  }, [])
+
+  useEffect(() => {
     const alHacerScroll = () => {
       const catalogo = document.getElementById('catalogo')
       if (!catalogo) return
@@ -130,7 +146,7 @@ export default function Catalogo() {
           </p>
 
           <div className="flex flex-col gap-3 mb-8">
-            <button onClick={() => setLoginAbierto(true)} className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '13px' }}>
+            <button onClick={() => (haySesion ? router.push('/admin') : setLoginAbierto(true))} className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '13px' }}>
               Iniciar Sesión
             </button>
             <button onClick={() => setRegistroAbierto(true)} className="btn-secondary" style={{ width: '100%', justifyContent: 'center', padding: '13px' }}>
