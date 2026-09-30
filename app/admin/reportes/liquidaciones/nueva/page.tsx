@@ -323,9 +323,9 @@ export default function NuevaLiquidacionPage() {
                             <tr>
                               <th style={celda}>Producto</th>
                               <th style={{ ...celda, textAlign: 'right' }}>Vendido</th>
-                              <th style={{ ...celda, textAlign: 'right' }}>Con stock (costo al facturar)</th>
-                              <th style={{ ...celda, textAlign: 'right' }}>Sin stock · costo unitario</th>
-                              <th style={{ ...celda, textAlign: 'right' }}>Costo línea</th>
+                              <th style={{ ...celda, textAlign: 'right' }}>Costo</th>
+                              <th style={{ ...celda, textAlign: 'right' }}>Costo unitario</th>
+                              <th style={{ ...celda, textAlign: 'right' }}>Ganancia</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -365,6 +365,9 @@ export default function NuevaLiquidacionPage() {
                                           }}
                                         />
                                       </span>
+                                    ) : item.productoExiste && item.costoSugerido !== null ? (
+                                      // Sin stock: el costo del producto se ve aquí y se ajusta en "Costo unitario".
+                                      <span style={{ whiteSpace: 'nowrap' }}>{pesos(item.costoSugerido)}</span>
                                     ) : (
                                       '—'
                                     )}
@@ -397,7 +400,13 @@ export default function NuevaLiquidacionPage() {
                                     )}
                                   </td>
                                   <td style={{ ...celda, textAlign: 'right', fontWeight: 'bold' }}>
-                                    {valor === null ? '—' : pesos(valor)}
+                                    {valor === null ? (
+                                      '—'
+                                    ) : (
+                                      <span style={{ color: item.subtotal - valor < 0 ? 'var(--status-red-solid)' : 'var(--status-green-text)' }}>
+                                        {pesos(item.subtotal - valor)}
+                                      </span>
+                                    )}
                                   </td>
                                 </tr>
                               )
