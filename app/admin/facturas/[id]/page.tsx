@@ -42,6 +42,7 @@ interface Factura {
     id: string
     email: string
     nombre?: string | null
+    telefono?: string | null
   }
   fecha: string
   terminoPago?: string
@@ -267,6 +268,11 @@ export default function FacturaPage() {
               <p style={{ margin: 0 }}>
                 {factura.vendedor?.nombre || factura.vendedor?.email || factura.usuario?.email || '-'}
               </p>
+              {factura.vendedor?.telefono && (
+                <p style={{ margin: '2px 0 0 0', color: 'var(--gray-secondary)', fontSize: '12px' }}>
+                  Tel: {factura.vendedor.telefono}
+                </p>
+              )}
               {/* Si la registró otra persona a su nombre, se deja a la vista. */}
               {factura.vendedor && factura.usuario && factura.vendedor.id !== factura.usuario.id && (
                 <p style={{ margin: '2px 0 0 0', color: 'var(--gray-secondary)', fontSize: '12px' }}>

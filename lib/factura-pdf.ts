@@ -53,7 +53,7 @@ export interface FacturaPdf {
     direccion?: string | null
   } | null
   usuario?: { email?: string | null } | null
-  vendedor?: { email?: string | null; nombre?: string | null } | null
+  vendedor?: { email?: string | null; nombre?: string | null; telefono?: string | null } | null
   items: ItemPdf[]
   abonos?: { monto: number | string; fecha: string | Date }[]
 }
@@ -229,6 +229,12 @@ export async function generarPdfFactura(
       ? ''
       : `Estado: ${factura.estado.charAt(0).toUpperCase() + factura.estado.slice(1)}`,
     factura.esBodega ? 'Precio de bodega' : '',
+    // Quién vendió, con cómo contactarlo: si tiene nombre va el nombre, y si
+    // no, el correo. El teléfono va solo si lo configuró en su perfil.
+    factura.vendedor && (factura.vendedor.nombre || factura.vendedor.email)
+      ? `Vendedor: ${factura.vendedor.nombre || factura.vendedor.email}`
+      : '',
+    factura.vendedor?.telefono ? `Tel. vendedor: ${factura.vendedor.telefono}` : '',
   ].filter(Boolean)
 
   const filas = Math.max(datosEmpresa.length, datosFactura.length)
@@ -433,8 +439,9 @@ export async function generarPdfFactura(
     MARGEN + 12,
     { tamano: 9, color: GRIS }
   )
-  // Quien vendió (a cuyo nombre se hizo), no quien la registró.
-  const atendidoPor = factura.vendedor?.nombre || factura.vendedor?.email || factura.usuario?.email
+  // El vendedor ya va en la cabecera; aquí solo queda como respaldo para lo
+  // que no tiene vendedor (cotizaciones), con quien la atendió.
+  const atendidoPor = factura.vendedor ? null : factura.usuario?.email
   if (atendidoPor) {
     escribir(ctx, `Atendido por: ${atendidoPor}`, 0, MARGEN + 12, {
       tamano: 8,

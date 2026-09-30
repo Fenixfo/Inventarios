@@ -15,6 +15,8 @@ interface Props {
  * el éxito y ofrece pasar directo al modal de inicio de sesión.
  */
 export function RegisterModal({ onCerrar, onIrALogin }: Props) {
+  const [nombre, setNombre] = useState('')
+  const [telefono, setTelefono] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -42,13 +44,15 @@ export function RegisterModal({ onCerrar, onIrALogin }: Props) {
       const res = await apiFetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, nombre, telefono }),
       })
 
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
 
       setSuccess(true)
+      setNombre('')
+      setTelefono('')
       setEmail('')
       setPassword('')
       setConfirmPassword('')
@@ -101,6 +105,35 @@ export function RegisterModal({ onCerrar, onIrALogin }: Props) {
           <>
             <form onSubmit={handleSignup}>
               <div className="mb-4">
+                <label htmlFor="reg-nombre" className="field-label">Nombre (opcional)</label>
+                <input
+                  id="reg-nombre"
+                  type="text"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  placeholder="Tu nombre"
+                  maxLength={120}
+                  disabled={loading}
+                  autoFocus
+                  className="field-input"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label htmlFor="reg-telefono" className="field-label">Teléfono (opcional)</label>
+                <input
+                  id="reg-telefono"
+                  type="tel"
+                  value={telefono}
+                  onChange={(e) => setTelefono(e.target.value)}
+                  placeholder="300 123 4567"
+                  maxLength={30}
+                  disabled={loading}
+                  className="field-input"
+                />
+              </div>
+
+              <div className="mb-4">
                 <label htmlFor="reg-email" className="field-label">Email</label>
                 <input
                   id="reg-email"
@@ -110,7 +143,6 @@ export function RegisterModal({ onCerrar, onIrALogin }: Props) {
                   placeholder="tu@email.com"
                   required
                   disabled={loading}
-                  autoFocus
                   className="field-input"
                 />
               </div>

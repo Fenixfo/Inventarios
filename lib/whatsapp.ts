@@ -59,7 +59,7 @@ export interface FacturaParaMensaje {
   total: number | string
   cliente?: { nombre?: string | null } | null
   /** A nombre de quién se vendió. */
-  vendedor?: { nombre?: string | null; email?: string | null } | null
+  vendedor?: { nombre?: string | null; email?: string | null; telefono?: string | null } | null
   items?: ItemFactura[]
   esBodega?: boolean
 }
@@ -96,7 +96,9 @@ export function mensajeFactura(
   if (factura.cliente?.nombre) lineas.push(`Cliente: ${factura.cliente.nombre}`)
 
   const atendidoPor = factura.vendedor?.nombre || factura.vendedor?.email
-  if (atendidoPor) lineas.push(`Atendido por: ${atendidoPor}`)
+  if (atendidoPor) {
+    lineas.push(`Vendedor: ${atendidoPor}${factura.vendedor?.telefono ? ` · Tel: ${factura.vendedor.telefono}` : ''}`)
+  }
 
   if (factura.items?.length) {
     lineas.push('', '*Detalle:*')

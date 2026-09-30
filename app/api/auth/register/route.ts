@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { prisma } from '@/lib/prisma'
+import { perfilNuevo, primerError } from '@/lib/esquemas'
 // Se crea dentro del handler: un throw al importar el módulo tumbaría el
 // build entero si faltara una variable, en vez de fallar solo esta ruta.
 function crearClienteAdmin() {
@@ -22,13 +23,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { email, password } = await request.json()
+    const { email, password, nombre, telefono } = await request.json()
 
     if (!email || !password) {
       return NextResponse.json(
         { error: 'Email y contraseña son requeridos' },
         { status: 400 }
       )
+    }
+
+    // Nombre y teléfono son opcionales; se validan antes de crear la cuenta
+    // para no dejar un usuario creado en Auth si vienen mal.
+    const perfil = perfilNuevo.safeParse({ nombre, telefono })
+    if (!perfil.success) {
+      return NextResponse.json({ error: primerError(perfil.error) }, { status: 400 })
     }
 
     // 1. Crear usuario en Supabase Auth
@@ -54,6 +62,8 @@ export async function POST(request: NextRequest) {
         data: {
           id: authData.user!.id,
           email,
+          nombre: perfil.data.nombre,
+          telefono: perfil.data.telefono,
         },
       })
 

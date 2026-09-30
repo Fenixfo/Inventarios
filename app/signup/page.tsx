@@ -10,6 +10,8 @@ import { Header } from '@/components/Layout/Header'
 
 export default function SignupPage() {
   const router = useRouter()
+  const [nombre, setNombre] = useState('')
+  const [telefono, setTelefono] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -38,7 +40,7 @@ export default function SignupPage() {
       const res = await apiFetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, nombre, telefono }),
       })
 
       const data = await res.json()
@@ -48,6 +50,8 @@ export default function SignupPage() {
       }
 
       setSuccess(true)
+      setNombre('')
+      setTelefono('')
       setEmail('')
       setPassword('')
       setConfirmPassword('')
@@ -85,6 +89,34 @@ export default function SignupPage() {
           {success && <div className="alert-box success">✅ Registro exitoso. Redirigiendo al login...</div>}
 
           <form onSubmit={handleSignup}>
+            <div className="mb-5">
+              <label htmlFor="nombre" className="field-label">Nombre (opcional)</label>
+              <input
+                id="nombre"
+                type="text"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                placeholder="Tu nombre"
+                maxLength={120}
+                disabled={loading}
+                className="field-input"
+              />
+            </div>
+
+            <div className="mb-5">
+              <label htmlFor="telefono" className="field-label">Teléfono (opcional)</label>
+              <input
+                id="telefono"
+                type="tel"
+                value={telefono}
+                onChange={(e) => setTelefono(e.target.value)}
+                placeholder="300 123 4567"
+                maxLength={30}
+                disabled={loading}
+                className="field-input"
+              />
+            </div>
+
             <div className="mb-5">
               <label htmlFor="email" className="field-label">Email</label>
               <input
