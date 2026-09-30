@@ -25,6 +25,9 @@ interface Props {
  */
 export function SeccionCliente({ cliente, onCliente, terminoPago, onTerminoPago }: Props) {
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
+  // Plegada por defecto: el cliente es opcional (sin él es "Cliente General")
+  // y el formulario ocupa media pantalla. Plegada deja a la vista un resumen.
+  const [abierta, setAbierta] = useState(false)
 
   // Por cédula o nombre, en el servidor: antes se bajaban todos los clientes.
   const { resultados: sugerencias } = useBusquedaRemota<ClienteEncontrado>(
@@ -62,7 +65,58 @@ export function SeccionCliente({ cliente, onCliente, terminoPago, onTerminoPago 
 
   return (
     <div style={estiloSeccion}>
-      <h3 style={{ marginBottom: '15px' }}>Cliente</h3>
+      <button
+        type="button"
+        onClick={() => setAbierta(!abierta)}
+        aria-expanded={abierta}
+        aria-controls="seccion-cliente"
+        style={{
+          display: 'flex',
+          width: '100%',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          padding: 0,
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          textAlign: 'left',
+          color: 'inherit',
+          font: 'inherit',
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'baseline', gap: '12px', minWidth: 0 }}>
+          <h3 style={{ margin: 0 }}>Cliente</h3>
+          {!abierta && (
+            <span
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontSize: '14px',
+                color: 'var(--gray-secondary)',
+              }}
+            >
+              {cliente.nombre
+                ? `${cliente.nombre}${cliente.cedula ? ` · ${cliente.cedula}` : ''}`
+                : 'Cliente General'}
+            </span>
+          )}
+        </span>
+        <span
+          aria-hidden="true"
+          style={{
+            flexShrink: 0,
+            color: 'var(--gold-dark)',
+            fontSize: '13px',
+            fontWeight: 600,
+          }}
+        >
+          {abierta ? 'Ocultar ▲' : 'Editar ▼'}
+        </span>
+      </button>
+
+      <div id="seccion-cliente" hidden={!abierta} style={{ marginTop: abierta ? '15px' : 0 }}>
       <div style={{ position: 'relative', marginBottom: '15px' }}>
         <label style={estiloEtiqueta}>Cédula/CC</label>
         <input
@@ -162,6 +216,7 @@ export function SeccionCliente({ cliente, onCliente, terminoPago, onTerminoPago 
           rows={2}
           style={estiloCampo}
         />
+      </div>
       </div>
     </div>
   )
