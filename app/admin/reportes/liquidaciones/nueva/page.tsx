@@ -395,15 +395,32 @@ export default function NuevaLiquidacionPage() {
                                           }}
                                         />
                                       </span>
-                                    ) : (
-                                      // Todo salió de stock: no hay nada pendiente que escribir, se ve el
-                                      // costo unitario con que se facturó (se ajusta en "Costo").
-                                      <span style={{ color: 'var(--gray-secondary)', whiteSpace: 'nowrap' }}>
-                                        {(() => {
-                                          const unitario = costoFacturadoPuesto(item.id) ?? item.costoUnitario ?? item.costoSugerido
-                                          return unitario === null ? '—' : pesos(unitario)
-                                        })()}
+                                    ) : item.cantidadConCosto > 0 ? (
+                                      // Todo salió de stock: este campo edita el mismo costo al facturar
+                                      // que la columna "Costo", así que ambos se mantienen iguales.
+                                      <span style={{ whiteSpace: 'nowrap' }}>
+                                        {item.cantidadConCosto} ×{' '}
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="100"
+                                          aria-label={`Costo unitario de ${item.nombre}`}
+                                          value={costosFacturados[item.id] ?? ''}
+                                          onChange={(e) => setCostosFacturados({ ...costosFacturados, [item.id]: e.target.value })}
+                                          onWheel={(e) => e.currentTarget.blur()}
+                                          placeholder="Costo"
+                                          disabled={!marcada}
+                                          style={{
+                                            width: '100px',
+                                            padding: '4px 6px',
+                                            border: '1px solid var(--gray-light)',
+                                            borderRadius: '4px',
+                                            textAlign: 'right',
+                                          }}
+                                        />
                                       </span>
+                                    ) : (
+                                      <span style={{ color: 'var(--gray-secondary)' }}>—</span>
                                     )}
                                   </td>
                                   <td style={{ ...celda, textAlign: 'right', fontWeight: 'bold' }}>
