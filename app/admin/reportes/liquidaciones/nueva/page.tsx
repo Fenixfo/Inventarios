@@ -396,7 +396,14 @@ export default function NuevaLiquidacionPage() {
                                         />
                                       </span>
                                     ) : (
-                                      <span style={{ color: 'var(--gray-secondary)' }}>—</span>
+                                      // Todo salió de stock: no hay nada pendiente que escribir, se ve el
+                                      // costo unitario con que se facturó (se ajusta en "Costo").
+                                      <span style={{ color: 'var(--gray-secondary)', whiteSpace: 'nowrap' }}>
+                                        {(() => {
+                                          const unitario = costoFacturadoPuesto(item.id) ?? item.costoUnitario ?? item.costoSugerido
+                                          return unitario === null ? '—' : pesos(unitario)
+                                        })()}
+                                      </span>
                                     )}
                                   </td>
                                   <td style={{ ...celda, textAlign: 'right', fontWeight: 'bold' }}>
