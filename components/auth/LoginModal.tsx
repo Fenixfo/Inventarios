@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase-client'
 import { apiFetch } from '@/lib/api-client'
 import {
@@ -130,6 +131,11 @@ export function LoginModal({ onCerrar, onIrARegistro }: Props) {
               disabled={loading}
               className="field-input"
             />
+            <div style={{ textAlign: 'right', marginTop: '6px' }}>
+              <Link href="/recuperar" style={{ color: 'var(--gold-dark)', fontSize: '13px', textDecoration: 'underline' }}>
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
           </div>
 
           <label

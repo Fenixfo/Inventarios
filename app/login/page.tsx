@@ -120,6 +120,11 @@ export default function LoginPage() {
                 disabled={loading}
                 className="field-input"
               />
+              <div style={{ textAlign: 'right', marginTop: '6px' }}>
+                <Link href="/recuperar" style={{ color: 'var(--gold-dark)', fontSize: '13px', textDecoration: 'underline' }}>
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
             </div>
 
             {/* Duración de la sesión en este dispositivo */}
