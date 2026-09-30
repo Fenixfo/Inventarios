@@ -30,20 +30,20 @@ export async function GET(request: NextRequest) {
 
     if (!vendedorId) {
       const grupos = await prisma.factura.groupBy({
-        by: ['usuarioId'],
-        where: { ...liquidables, usuarioId: { not: null } },
+        by: ['vendedorId'],
+        where: { ...liquidables, vendedorId: { not: null } },
         _count: { _all: true },
       })
 
       const usuarios = await prisma.usuario.findMany({
-        where: { id: { in: grupos.map((g) => g.usuarioId!) } },
-        select: { id: true, email: true },
+        where: { id: { in: grupos.map((g) => g.vendedorId!) } },
+        select: { id: true, email: true, nombre: true },
       })
-      const emailDe = new Map(usuarios.map((u) => [u.id, u.email]))
+      const emailDe = new Map(usuarios.map((u) => [u.id, u.nombre ? `${u.nombre} (${u.email})` : u.email]))
 
       return NextResponse.json({
         vendedores: grupos
-          .map((g) => ({ id: g.usuarioId!, email: emailDe.get(g.usuarioId!) || '—', facturas: g._count._all }))
+          .map((g) => ({ id: g.vendedorId!, email: emailDe.get(g.vendedorId!) || '—', facturas: g._count._all }))
           .sort((a, b) => a.email.localeCompare(b.email, 'es')),
       })
     }
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ facturas: [], total: 0 })
     }
 
-    const where = { ...liquidables, usuarioId: vendedorId }
+    const where = { ...liquidables, vendedorId }
 
     const [facturas, total] = await Promise.all([
       prisma.factura.findMany({

@@ -31,8 +31,17 @@ interface Factura {
     nombre: string
     telefono?: string | null
   }
+  /** Quién la registró. */
   usuario?: {
+    id: string
     email: string
+    nombre?: string | null
+  }
+  /** A nombre de quién se vendió. */
+  vendedor?: {
+    id: string
+    email: string
+    nombre?: string | null
   }
   fecha: string
   terminoPago?: string
@@ -255,7 +264,15 @@ export default function FacturaPage() {
             </div>
             <div>
               <p style={{ margin: '0 0 5px 0', color: 'var(--gray-secondary)', fontSize: '12px' }}>VENDEDOR</p>
-              <p style={{ margin: 0 }}>{factura.usuario?.email || '-'}</p>
+              <p style={{ margin: 0 }}>
+                {factura.vendedor?.nombre || factura.vendedor?.email || factura.usuario?.email || '-'}
+              </p>
+              {/* Si la registró otra persona a su nombre, se deja a la vista. */}
+              {factura.vendedor && factura.usuario && factura.vendedor.id !== factura.usuario.id && (
+                <p style={{ margin: '2px 0 0 0', color: 'var(--gray-secondary)', fontSize: '12px' }}>
+                  Registrada por {factura.usuario.nombre || factura.usuario.email}
+                </p>
+              )}
             </div>
             <div>
               <p style={{ margin: '0 0 5px 0', color: 'var(--gray-secondary)', fontSize: '12px' }}>TÉRMINO DE PAGO</p>

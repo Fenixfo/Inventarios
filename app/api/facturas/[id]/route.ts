@@ -17,6 +17,7 @@ export async function GET(
       include: {
         cliente: true,
         usuario: true,
+        vendedor: true,
         items: {
           include: {
             producto: true,
@@ -33,7 +34,8 @@ export async function GET(
     }
 
     // Sin 'facturas.ver_todas' solo se pueden abrir las facturas propias.
-    if (!veTodasLasFacturas(usuario) && factura.usuarioId !== usuario.id) {
+    // Propias: las que registró y las hechas a su nombre.
+    if (!veTodasLasFacturas(usuario) && factura.usuarioId !== usuario.id && factura.vendedorId !== usuario.id) {
       return NextResponse.json(
         { error: 'No tienes permiso para ver esta factura' },
         { status: 403 }

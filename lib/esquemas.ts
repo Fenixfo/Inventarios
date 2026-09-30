@@ -63,6 +63,9 @@ const camposDeVenta = {
 
 export const facturaNueva = z.object({
   ...camposDeVenta,
+  // A nombre de quién se factura; sin él, de quien la registra. Solo vale
+  // con el permiso 'facturas.a_nombre_de_otros' (lo comprueba la ruta).
+  vendedorId: idOpcional,
   anticipo: montoOpcional,
   contraEntrega: montoOpcional,
 })

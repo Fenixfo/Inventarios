@@ -18,7 +18,7 @@ export async function GET(
     const abonos = await prisma.abono.findMany({
       where: {
         facturaId: id,
-        factura: veTodasLasFacturas(usuario) ? { tiendaId } : { tiendaId, usuarioId: usuario.id },
+        factura: veTodasLasFacturas(usuario) ? { tiendaId } : { tiendaId, OR: [{ usuarioId: usuario.id }, { vendedorId: usuario.id }] },
       },
       orderBy: { fecha: 'asc' },
     })

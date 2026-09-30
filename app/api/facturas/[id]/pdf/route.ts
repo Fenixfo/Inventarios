@@ -33,6 +33,7 @@ export async function GET(
         include: {
           cliente: true,
           usuario: true,
+          vendedor: true,
           items: { include: { producto: true } },
           abonos: { orderBy: { fecha: 'asc' } },
           // El nombre que sale en la factura es el de la tienda que la
@@ -67,7 +68,7 @@ export async function GET(
 
     // El mismo alcance que el detalle: sin 'facturas.ver_todas' solo se
     // descargan las propias. Antes bastaba con tener el enlace de una ajena.
-    if (!veTodasLasFacturas(usuario) && factura.usuarioId !== usuario.id) {
+    if (!veTodasLasFacturas(usuario) && factura.usuarioId !== usuario.id && factura.vendedorId !== usuario.id) {
       return NextResponse.json(
         { error: 'No tienes permiso para ver esta factura' },
         { status: 403 }

@@ -87,7 +87,8 @@ export async function POST(request: NextRequest) {
       where: {
         id: { in: facturaIds },
         tiendaId,
-        usuarioId: vendedorId,
+        // La factura se liquida a quien se vendió, no a quien la registró.
+        vendedorId,
         estado: { in: ESTADOS_LIQUIDABLES },
         liquidacionId: null,
       },

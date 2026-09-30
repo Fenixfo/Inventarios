@@ -36,6 +36,7 @@ const PERMISOS = [
   { orden: 42, modulo: 'facturas', accion: 'crear', nombre: 'Crear facturas' },
   { orden: 43, modulo: 'facturas', accion: 'anular', nombre: 'Anular facturas' },
   { orden: 44, modulo: 'facturas', accion: 'abonar', nombre: 'Abonar y cambiar estado (pagada/entregada)' },
+  { orden: 48, modulo: 'facturas', accion: 'a_nombre_de_otros', nombre: 'Facturar a nombre de otros usuarios de la tienda' },
 
   // Cotizaciones siguen el mismo alcance que facturas: cada quien las suyas,
   // y ver_todas abre la tienda entera.

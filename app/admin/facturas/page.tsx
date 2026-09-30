@@ -19,6 +19,7 @@ interface Factura {
   fecha: string
   total: number
   estado: string
+  vendedor?: { email: string; nombre?: string | null } | null
 }
 
 const getStatusColor = (estado: string) => {
@@ -129,6 +130,7 @@ export default function FacturasPage() {
                   <tr>
                     <th>Número</th>
                     <th>Cliente</th>
+                    <th>Vendedor</th>
                     <th>Fecha y hora</th>
                     <th style={{ textAlign: 'right' }}>Total</th>
                     <th style={{ textAlign: 'center' }}>Estado</th>
@@ -140,6 +142,7 @@ export default function FacturasPage() {
                     <tr key={factura.id}>
                       <td><strong>{factura.numeroFactura}</strong></td>
                       <td>{factura.cliente?.nombre || 'Cliente General'}</td>
+                      <td>{factura.vendedor?.nombre || factura.vendedor?.email || '—'}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>{fechaYHora(factura.fecha)}</td>
                       <td style={{ textAlign: 'right' }}>{pesos(factura.total)}</td>
                       <td style={{ textAlign: 'center' }}>

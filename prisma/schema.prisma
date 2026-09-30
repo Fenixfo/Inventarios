@@ -31,7 +31,8 @@ model Usuario {
   solicitudesAcceso SolicitudAcceso[]
   productosCreados Producto[]
   clientesCreados Cliente[]
-  facturasCreadas Factura[]
+  facturasCreadas Factura[] @relation("FacturaCreador")
+  facturasVendidas Factura[] @relation("FacturaVendedor")
   cotizacionesCreadas Cotizacion[]
   liquidacionesRecibidas Liquidacion[] @relation("LiquidacionVendedor")
   liquidacionesHechas    Liquidacion[] @relation("LiquidacionAutor")
@@ -304,12 +305,18 @@ model Factura {
   tiendaId        String?  @map("tienda_id") @db.Uuid
   tienda          Tienda?  @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
 
+  /// Quién registró la factura.
   usuarioId       String?  @map("usuario_id") @db.Uuid
-  usuario         Usuario? @relation(fields: [usuarioId], references: [id])
+  usuario         Usuario? @relation("FacturaCreador", fields: [usuarioId], references: [id])
+
+  /// A nombre de quién se vendió: es a quien se le liquida. Es quien la
+  /// registró salvo que alguien con permiso la haya hecho a nombre de otro.
+  vendedorId      String?  @map("vendedor_id") @db.Uuid
+  vendedor        Usuario? @relation("FacturaVendedor", fields: [vendedorId], references: [id])
 
   // Fechas
   fecha           DateTime @default(now()) @db.Timestamptz
-  fechaPago       DateTime? @map("fecha_pago") @db.Timestamptz
+  fechaPago      DateTime? @map("fecha_pago") @db.Timestamptz
   fechaVencimiento DateTime? @map("fecha_vencimiento") @db.Timestamptz
   fechaAnulacion  DateTime? @map("fecha_anulacion") @db.Timestamptz
 
@@ -351,6 +358,7 @@ model Factura {
   @@index([estado])
   @@index([fecha])
   @@index([usuarioId])
+  @@index([vendedorId])
   @@map("facturas")
 }
 

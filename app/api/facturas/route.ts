@@ -49,9 +49,10 @@ export async function GET(request: NextRequest) {
     // alcance sale del token, no de un parámetro de la petición: antes el
     // filtro dependía de que el cliente enviara ?email=, así que omitirlo
     // mostraba las facturas de todos.
+    // Las propias son las que registró y las hechas a su nombre.
     const filtro: any = veTodasLasFacturas(usuario)
       ? { tiendaId }
-      : { tiendaId, usuarioId: usuario.id }
+      : { tiendaId, OR: [{ usuarioId: usuario.id }, { vendedorId: usuario.id }] }
 
     // Con ?limite= responde por páginas, las más recientes primero. La
     // búsqueda y el estado se suman al alcance de arriba, nunca lo amplían:
@@ -64,12 +65,17 @@ export async function GET(request: NextRequest) {
       const where: any = { ...filtro }
       if (estado && ESTADOS.includes(estado)) where.estado = estado
 
-      // Por número de factura, nombre del cliente o cédula.
+      // Por número de factura, nombre del cliente o cédula. Va en AND para
+      // no pisar el OR del alcance (propias) de arriba.
       if (busqueda.length >= MINIMO_BUSQUEDA) {
-        where.OR = [
-          { numeroFactura: { contains: busqueda, mode: 'insensitive' } },
-          { cliente: { nombre: { contains: busqueda, mode: 'insensitive' } } },
-          { cliente: { cedulaCc: { contains: busqueda } } },
+        where.AND = [
+          {
+            OR: [
+              { numeroFactura: { contains: busqueda, mode: 'insensitive' } },
+              { cliente: { nombre: { contains: busqueda, mode: 'insensitive' } } },
+              { cliente: { cedulaCc: { contains: busqueda } } },
+            ],
+          },
         ]
       }
 
@@ -83,6 +89,7 @@ export async function GET(request: NextRequest) {
             total: true,
             estado: true,
             cliente: { select: { nombre: true, cedulaCc: true } },
+            vendedor: { select: { id: true, email: true, nombre: true } },
           },
           orderBy: [{ fecha: 'desc' }, { id: 'desc' }],
           take: limite,
@@ -110,8 +117,10 @@ export async function GET(request: NextRequest) {
         terminoPago: true,
         anticipo: true,
         usuarioId: true,
+        vendedorId: true,
         cliente: { select: { id: true, nombre: true, cedulaCc: true } },
-        usuario: { select: { id: true, email: true } },
+        usuario: { select: { id: true, email: true, nombre: true } },
+        vendedor: { select: { id: true, email: true, nombre: true } },
       },
       orderBy: { fecha: 'desc' },
       ...(Number.isFinite(limite) && limite > 0 ? { take: limite } : {}),
@@ -144,6 +153,33 @@ export async function POST(request: NextRequest) {
         { error: 'No tienes permiso para registrar un anticipo' },
         { status: 403 }
       )
+    }
+
+    // A nombre de quién se factura. Sin selección (o eligiéndose a sí mismo)
+    // es de quien la registra. Facturar a nombre de otro exige el permiso y
+    // que esa persona trabaje en esta tienda: el id llega del cliente, así
+    // que nunca se acepta sin comprobar ambas cosas.
+    let vendedorId = usuario.id
+    if (data.vendedorId && data.vendedorId !== usuario.id) {
+      if (!puede(usuario, 'facturas.a_nombre_de_otros', tiendaId)) {
+        return NextResponse.json(
+          { error: 'No tienes permiso para facturar a nombre de otro usuario' },
+          { status: 403 }
+        )
+      }
+
+      const pertenece = await prisma.usuarioTienda.findUnique({
+        where: { usuarioId_tiendaId: { usuarioId: data.vendedorId, tiendaId } },
+        select: { id: true },
+      })
+      if (!pertenece) {
+        return NextResponse.json(
+          { error: 'Ese usuario no trabaja en esta tienda' },
+          { status: 400 }
+        )
+      }
+
+      vendedorId = data.vendedorId
     }
 
     const datePrefix = generateFacturaNumber()
@@ -180,11 +216,13 @@ export async function POST(request: NextRequest) {
       const nuevaFactura = await tx.factura.create({
         data: {
           numeroFactura,
-          // La tienda y el autor salen de la sesión. El usuarioId que
-          // llegaba en el cuerpo permitía facturar a nombre de otro.
+          // La tienda y quien registra salen de la sesión. El usuarioId que
+          // llegaba en el cuerpo permitía facturar a nombre de otro; ahora
+          // eso va aparte, en vendedorId, y con permiso comprobado arriba.
           tiendaId,
           clienteId: data.clienteId ?? null,
           usuarioId: usuario.id,
+          vendedorId,
           terminoPago: data.terminoPago,
           metodoPago: data.metodoPago,
           anticipo: data.anticipo,
@@ -216,6 +254,7 @@ export async function POST(request: NextRequest) {
         include: {
           cliente: true,
           usuario: true,
+          vendedor: true,
           items: {
             include: {
               producto: true,
@@ -293,6 +332,8 @@ export async function POST(request: NextRequest) {
             total: Number(factura.total),
             estado: factura.estado,
             clienteId: factura.clienteId,
+            // Solo se anota si fue a nombre de otra persona.
+            ...(vendedorId !== usuario.id ? { aNombreDe: vendedorId } : {}),
           },
         },
       })
@@ -385,6 +426,7 @@ export async function PUT(request: NextRequest) {
       include: {
         cliente: true,
         usuario: true,
+        vendedor: true,
         items: {
           include: {
             producto: true,

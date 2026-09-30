@@ -53,6 +53,7 @@ export interface FacturaPdf {
     direccion?: string | null
   } | null
   usuario?: { email?: string | null } | null
+  vendedor?: { email?: string | null; nombre?: string | null } | null
   items: ItemPdf[]
   abonos?: { monto: number | string; fecha: string | Date }[]
 }
@@ -432,8 +433,10 @@ export async function generarPdfFactura(
     MARGEN + 12,
     { tamano: 9, color: GRIS }
   )
-  if (factura.usuario?.email) {
-    escribir(ctx, `Atendido por: ${factura.usuario.email}`, 0, MARGEN + 12, {
+  // Quien vendió (a cuyo nombre se hizo), no quien la registró.
+  const atendidoPor = factura.vendedor?.nombre || factura.vendedor?.email || factura.usuario?.email
+  if (atendidoPor) {
+    escribir(ctx, `Atendido por: ${atendidoPor}`, 0, MARGEN + 12, {
       tamano: 8,
       color: GRIS,
       derecha,

@@ -23,6 +23,8 @@ interface Props {
    * sin aviso de stock (no se vende nada) y guarda en /api/cotizaciones.
    */
   modo?: 'factura' | 'cotizacion'
+  /** A nombre de quién se factura; vacío = de quien la registra. Solo facturas. */
+  vendedorId?: string
 }
 
 /**
@@ -31,7 +33,7 @@ interface Props {
  * Aquí viven el estado, los totales y el envío; cada parte de la pantalla
  * está en components/factura/. Antes era una sola función de ~1.000 líneas.
  */
-export default function InvoiceForm({ modo = 'factura' }: Props) {
+export default function InvoiceForm({ modo = 'factura', vendedorId = '' }: Props) {
   const router = useRouter()
   const { puede } = usePermisos()
   const esCotizacion = modo === 'cotizacion'
@@ -187,7 +189,7 @@ export default function InvoiceForm({ modo = 'factura' }: Props) {
           descuentoMonto: totales.descuento,
           impuesto: totales.impuesto,
           total: totales.total,
-          ...(esCotizacion ? {} : { anticipo: abono }),
+          ...(esCotizacion ? {} : { anticipo: abono, vendedorId: vendedorId || null }),
           observaciones,
           items: lineas,
         }),
