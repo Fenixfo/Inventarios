@@ -106,6 +106,8 @@ export const liquidacionNueva = z.object({
   porcentaje: z.coerce.number().finite().min(0, 'va de 0 a 100').max(100, 'va de 0 a 100'),
   // El costo de lo vendido sin stock, por línea de factura.
   costos: z.record(z.string(), monto).optional().default({}),
+  // El costo al facturar de lo que sí tenía stock, cuando quien liquida lo corrige.
+  costosFacturados: z.record(z.string(), monto).optional().default({}),
   observaciones: textoOpcional(2000),
 })
 

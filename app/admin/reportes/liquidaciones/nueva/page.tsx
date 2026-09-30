@@ -57,6 +57,9 @@ export default function NuevaLiquidacionPage() {
   const [seleccionadas, setSeleccionadas] = useState<Set<string>>(new Set())
   // Costo unitario de lo vendido sin stock, por línea. Texto, como lo escribe la persona.
   const [costos, setCostos] = useState<Record<string, string>>({})
+  // Costo al facturar de lo que sí tenía stock, por línea. Arranca con el costo
+  // guardado al facturar y se puede corregir.
+  const [costosFacturados, setCostosFacturados] = useState<Record<string, string>>({})
   const [porcentaje, setPorcentaje] = useState(String(PORCENTAJE_POR_DEFECTO))
   const [observaciones, setObservaciones] = useState('')
 
@@ -86,6 +89,7 @@ export default function NuevaLiquidacionPage() {
     setFacturas([])
     setSeleccionadas(new Set())
     setCostos({})
+    setCostosFacturados({})
     setError(null)
     if (!id) return
 
@@ -104,12 +108,15 @@ export default function NuevaLiquidacionPage() {
       // Lo vendido sin stock arranca con el costo actual del producto, si
       // existe (aunque tenga stock 0). Uno personalizado queda vacío.
       const iniciales: Record<string, string> = {}
+      const facturados: Record<string, string> = {}
       for (const f of lista) {
         for (const item of f.items) {
           if (item.pendiente > 0 && item.costoSugerido !== null) iniciales[item.id] = String(item.costoSugerido)
+          if (item.cantidadConCosto > 0 && item.costoUnitario !== null) facturados[item.id] = String(item.costoUnitario)
         }
       }
       setCostos(iniciales)
+      setCostosFacturados(facturados)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -131,11 +138,18 @@ export default function NuevaLiquidacionPage() {
     return Number.isFinite(valor) && valor >= 0 ? valor : null
   }
 
+  const costoFacturadoPuesto = (itemId: string): number | null => {
+    const texto = costosFacturados[itemId]
+    if (texto === undefined || texto.trim() === '') return null
+    const valor = Number(texto)
+    return Number.isFinite(valor) && valor >= 0 ? valor : null
+  }
+
   // Costo de cada factura con lo escrito hasta ahora; null si falta alguno.
   const costoDe = (f: Factura): number | null => {
     let suma = 0
     for (const item of f.items) {
-      const valor = costoDeItem(item, costoPuesto(item.id))
+      const valor = costoDeItem(item, costoPuesto(item.id), costoFacturadoPuesto(item.id))
       if (valor === null) return null
       suma += valor
     }
@@ -169,9 +183,12 @@ export default function NuevaLiquidacionPage() {
     try {
       // Solo el costo de lo que estaba pendiente en las facturas elegidas.
       const costosEnviados: Record<string, number> = {}
+      const facturadosEnviados: Record<string, number> = {}
       for (const f of elegidas) {
         for (const item of f.items) {
           if (item.pendiente > 0) costosEnviados[item.id] = costoPuesto(item.id)!
+          const facturado = costoFacturadoPuesto(item.id)
+          if (item.cantidadConCosto > 0 && facturado !== null) facturadosEnviados[item.id] = facturado
         }
       }
 
@@ -183,6 +200,7 @@ export default function NuevaLiquidacionPage() {
           facturaIds: elegidas.map((f) => f.id),
           porcentaje: pct,
           costos: costosEnviados,
+          costosFacturados: facturadosEnviados,
           observaciones,
         }),
       })
@@ -312,7 +330,7 @@ export default function NuevaLiquidacionPage() {
                           </thead>
                           <tbody>
                             {f.items.map((item) => {
-                              const valor = costoDeItem(item, costoPuesto(item.id))
+                              const valor = costoDeItem(item, costoPuesto(item.id), costoFacturadoPuesto(item.id))
                               const falta = item.pendiente > 0 && costoPuesto(item.id) === null
 
                               return (
@@ -325,9 +343,31 @@ export default function NuevaLiquidacionPage() {
                                   </td>
                                   <td style={{ ...celda, textAlign: 'right' }}>{item.cantidadM2}</td>
                                   <td style={{ ...celda, textAlign: 'right', color: 'var(--gray-secondary)' }}>
-                                    {item.cantidadConCosto > 0
-                                      ? `${item.cantidadConCosto} × ${pesos(item.costoUnitario ?? 0)}`
-                                      : '—'}
+                                    {item.cantidadConCosto > 0 ? (
+                                      <span style={{ whiteSpace: 'nowrap' }}>
+                                        {item.cantidadConCosto} ×{' '}
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="100"
+                                          aria-label={`Costo al facturar de ${item.nombre}`}
+                                          value={costosFacturados[item.id] ?? ''}
+                                          onChange={(e) => setCostosFacturados({ ...costosFacturados, [item.id]: e.target.value })}
+                                          onWheel={(e) => e.currentTarget.blur()}
+                                          placeholder="Costo"
+                                          disabled={!marcada}
+                                          style={{
+                                            width: '100px',
+                                            padding: '4px 6px',
+                                            border: '1px solid var(--gray-light)',
+                                            borderRadius: '4px',
+                                            textAlign: 'right',
+                                          }}
+                                        />
+                                      </span>
+                                    ) : (
+                                      '—'
+                                    )}
                                   </td>
                                   <td style={{ ...celda, textAlign: 'right' }}>
                                     {item.pendiente > 0 ? (

@@ -95,8 +95,16 @@ export function cantidadPendiente(item: ItemALiquidar): number {
  * para lo vendido sin stock. Devuelve null si falta ese costo: no se puede
  * liquidar una línea con costo desconocido.
  */
-export function costoDeItem(item: ItemALiquidar, costoPendiente: number | null | undefined): number | null {
-  const conocido = item.cantidadConCosto * (item.costoUnitario ?? 0)
+export function costoDeItem(
+  item: ItemALiquidar,
+  costoPendiente: number | null | undefined,
+  costoFacturado?: number | null
+): number | null {
+  // `costoFacturado` corrige el costo al facturar de lo que sí tenía stock.
+  const unitario = costoFacturado !== null && costoFacturado !== undefined && costoFacturado >= 0
+    ? costoFacturado
+    : item.costoUnitario ?? 0
+  const conocido = item.cantidadConCosto * unitario
   const pendiente = cantidadPendiente(item)
 
   if (pendiente > 0 && (costoPendiente === null || costoPendiente === undefined || !(costoPendiente >= 0))) {

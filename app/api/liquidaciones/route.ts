@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     // sin negativos.
     const { datos: data, error: invalido } = await leerCuerpo(request, liquidacionNueva)
     if (invalido) return invalido
-    const { vendedorId, facturaIds, porcentaje, costos } = data
+    const { vendedorId, facturaIds, porcentaje, costos, costosFacturados } = data
 
     // Todo se comprueba en el servidor: que las facturas sean de la tienda,
     // del vendedor elegido, estén cobradas y no liquidadas ya.
@@ -130,7 +130,8 @@ export async function POST(request: NextRequest) {
           costoUnitario: item.costoUnitario === null ? null : Number(item.costoUnitario),
         }
         const pendiente = costos[item.id] === undefined ? null : Number(costos[item.id])
-        const valor = costoDeItem(base, pendiente)
+        const facturado = costosFacturados[item.id] === undefined ? null : Number(costosFacturados[item.id])
+        const valor = costoDeItem(base, pendiente, facturado)
 
         if (valor === null) faltan.push(`${f.numeroFactura}: ${item.productoNombre || 'producto'}`)
         else costo += valor
@@ -174,6 +175,23 @@ export async function POST(request: NextRequest) {
             cantidadConCosto: Number(item.cantidadConCosto),
             costoUnitario: null,
           }) > 0
+        )
+      )
+      // Si se corrigió el costo al facturar, queda en la línea.
+      const corregidos = facturas.flatMap((f) =>
+        f.items.filter(
+          (item) =>
+            Number(item.cantidadConCosto) > 0 &&
+            costosFacturados[item.id] !== undefined &&
+            Number(costosFacturados[item.id]) !== Number(item.costoUnitario)
+        )
+      )
+      await Promise.all(
+        corregidos.map((item) =>
+          tx.facturaItem.update({
+            where: { id: item.id },
+            data: { costoUnitario: Number(costosFacturados[item.id]) },
+          })
         )
       )
       await Promise.all(
