@@ -16,6 +16,43 @@ interface MenuItem {
   icono?: string
 }
 
+interface GrupoMenu {
+  id: string
+  label: string
+  icono: string
+  items: MenuItem[]
+}
+
+function EnlaceMenu({ item, activo }: { item: MenuItem; activo: boolean }) {
+  return (
+    <Link
+      href={item.href}
+      aria-current={activo ? 'page' : undefined}
+      className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium no-underline transition"
+      style={
+        activo
+          ? { backgroundColor: 'var(--gold)', color: 'var(--black-primary)', fontWeight: 600 }
+          : { color: '#D0D0D0' }
+      }
+      onMouseEnter={(e) => {
+        if (!activo) {
+          e.currentTarget.style.backgroundColor = 'rgba(212, 175, 55, 0.1)'
+          e.currentTarget.style.color = 'var(--gold)'
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!activo) {
+          e.currentTarget.style.backgroundColor = 'transparent'
+          e.currentTarget.style.color = '#D0D0D0'
+        }
+      }}
+    >
+      <span>{item.icono || '📌'}</span>
+      {item.label}
+    </Link>
+  )
+}
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   // El proveedor envuelve todo el panel: carga los permisos una vez y los
   // comparte, incluido este layout, que los usa para armar el menú.
@@ -33,6 +70,9 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
   // En móvil la barra lateral no cabe al lado del contenido, así que se
   // convierte en un cajón que se abre desde el botón de la cabecera.
   const [menuAbierto, setMenuAbierto] = useState(false)
+  // El grupo que el usuario abrió o cerró a mano, atado a la ruta en la que lo
+  // hizo (null en `grupo` = todos cerrados).
+  const [eleccionManual, setEleccionManual] = useState<{ ruta: string; grupo: string | null } | null>(null)
 
   // Al cambiar de sección el cajón se cierra solo: si no, taparía la
   // pantalla a la que se acaba de entrar.
@@ -51,19 +91,43 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener('keydown', alPulsarEscape)
   }, [menuAbierto])
 
-  const menuItems: MenuItem[] = [
-    { label: 'Dashboard', href: '/admin', icono: '📊' }, // Visible para todos
-    { label: 'Productos', href: '/admin/productos', permiso: 'productos.ver', icono: '📦' },
-    { label: 'Inventario', href: '/admin/inventario', permiso: 'inventario.ver', icono: '🔄' },
-    { label: 'Clientes', href: '/admin/clientes', permiso: 'clientes.ver', icono: '👥' },
-    { label: 'Facturas', href: '/admin/facturas', permiso: 'facturas.ver', icono: '📄' },
-    { label: 'Cotizaciones', href: '/admin/cotizaciones', permiso: 'cotizaciones.ver', icono: '📝' },
-    { label: 'Reportes', href: '/admin/reportes', permiso: 'reportes.ver', icono: '📈' },
-    { label: 'Liquidaciones', href: '/admin/reportes/liquidaciones', permiso: 'liquidaciones.ver', icono: '💼' },
-    { label: 'Auditoría', href: '/admin/auditoria', permiso: 'auditoria.ver', icono: '🔍' },
-    { label: 'Solicitudes de Acceso', href: '/admin/solicitudes-acceso', permiso: 'solicitudes-acceso.ver', icono: '✋' },
-    { label: 'Gestión de Usuarios', href: '/admin/usuarios', permiso: 'usuarios.ver', icono: '👨‍💼' },
-    { label: 'Configuración', href: '/admin/configuracion', permiso: 'configuracion.ver', icono: '⚙️' },
+  // El Dashboard va siempre suelto; el resto, en grupos desplegables.
+  const dashboard: MenuItem = { label: 'Dashboard', href: '/admin', icono: '📊' } // Visible para todos
+
+  const grupos: GrupoMenu[] = [
+    {
+      id: 'catalogo',
+      label: 'Catálogo',
+      icono: '📦',
+      items: [
+        { label: 'Productos', href: '/admin/productos', permiso: 'productos.ver', icono: '📦' },
+        { label: 'Categorías', href: '/admin/categorias', permiso: 'productos.ver', icono: '🗂️' },
+        { label: 'Inventario', href: '/admin/inventario', permiso: 'inventario.ver', icono: '🔄' },
+      ],
+    },
+    {
+      id: 'ventas',
+      label: 'Ventas',
+      icono: '🧾',
+      items: [
+        { label: 'Clientes', href: '/admin/clientes', permiso: 'clientes.ver', icono: '👥' },
+        { label: 'Facturas', href: '/admin/facturas', permiso: 'facturas.ver', icono: '📄' },
+        { label: 'Cotizaciones', href: '/admin/cotizaciones', permiso: 'cotizaciones.ver', icono: '📝' },
+        { label: 'Reportes', href: '/admin/reportes', permiso: 'reportes.ver', icono: '📈' },
+        { label: 'Liquidaciones', href: '/admin/reportes/liquidaciones', permiso: 'liquidaciones.ver', icono: '💼' },
+        { label: 'Auditoría', href: '/admin/auditoria', permiso: 'auditoria.ver', icono: '🔍' },
+      ],
+    },
+    {
+      id: 'administracion',
+      label: 'Administración',
+      icono: '⚙️',
+      items: [
+        { label: 'Solicitudes de Acceso', href: '/admin/solicitudes-acceso', permiso: 'solicitudes-acceso.ver', icono: '✋' },
+        { label: 'Gestión de Usuarios', href: '/admin/usuarios', permiso: 'usuarios.ver', icono: '👨‍💼' },
+        { label: 'Configuración', href: '/admin/configuracion', permiso: 'configuracion.ver', icono: '⚙️' },
+      ],
+    },
   ]
 
   // El menú se arma con los permisos del contexto: ya están cargados y no
@@ -73,9 +137,14 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
   const esAdmin = Boolean(datos?.administraTienda)
   const userEmail = datos?.email || null
 
-  const visibles = menuItems.filter(
-    (item) => !item.permiso || esAdmin || permisos.includes(item.permiso)
-  )
+  const puedeVer = (item: MenuItem) => !item.permiso || esAdmin || permisos.includes(item.permiso)
+
+  // Un grupo solo sale si hay algo que el usuario pueda ver dentro.
+  const gruposVisibles = grupos
+    .map((grupo) => ({ ...grupo, items: grupo.items.filter(puedeVer) }))
+    .filter((grupo) => grupo.items.length > 0)
+
+  const visibles = [dashboard, ...gruposVisibles.flatMap((grupo) => grupo.items)]
 
   // Se toma el href más específico que calce (el más largo), para que rutas
   // anidadas como /admin/reportes/liquidaciones no dejen resaltados a la vez
@@ -88,6 +157,15 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
     )
 
   const seccionActual = itemActivo?.label || 'Panel'
+
+  // Acordeón: solo un grupo abierto a la vez. Por defecto está abierto el de
+  // la sección en la que se está; lo que el usuario abre o cierra a mano vale
+  // hasta que cambia de ruta, y entonces vuelve a mandar la sección actual.
+  const grupoActivo = gruposVisibles.find((g) => g.items.some((i) => i.href === itemActivo?.href))?.id ?? null
+  const grupoAbierto = eleccionManual?.ruta === pathname ? eleccionManual.grupo : grupoActivo
+
+  const alternarGrupo = (id: string) =>
+    setEleccionManual({ ruta: pathname, grupo: grupoAbierto === id ? null : id })
 
   const handleLogout = async () => {
     invalidarPermisos()
@@ -168,35 +246,41 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
           </div>
 
           <nav className="flex flex-col gap-2">
-            {visibles.map((item) => {
-              const activo = item.href === itemActivo?.href
+            <EnlaceMenu item={dashboard} activo={dashboard.href === itemActivo?.href} />
+
+            {gruposVisibles.map((grupo) => {
+              const abierto = grupoAbierto === grupo.id
+              // El grupo de la sección actual se marca aunque esté cerrado,
+              // para saber dónde se está sin abrirlo.
+              const contieneActivo = grupo.id === grupoActivo
 
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium no-underline transition"
-                  style={
-                    activo
-                      ? { backgroundColor: 'var(--gold)', color: 'var(--black-primary)', fontWeight: 600 }
-                      : { color: '#D0D0D0' }
-                  }
-                  onMouseEnter={(e) => {
-                    if (!activo) {
-                      e.currentTarget.style.backgroundColor = 'rgba(212, 175, 55, 0.1)'
-                      e.currentTarget.style.color = 'var(--gold)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!activo) {
-                      e.currentTarget.style.backgroundColor = 'transparent'
-                      e.currentTarget.style.color = '#D0D0D0'
-                    }
-                  }}
-                >
-                  <span>{item.icono || '📌'}</span>
-                  {item.label}
-                </Link>
+                <div key={grupo.id}>
+                  <button
+                    onClick={() => alternarGrupo(grupo.id)}
+                    aria-expanded={abierto}
+                    aria-controls={`grupo-${grupo.id}`}
+                    className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-semibold transition hover:bg-white/10"
+                    style={{ color: contieneActivo ? 'var(--gold)' : '#D0D0D0' }}
+                  >
+                    <span>{grupo.icono}</span>
+                    <span className="flex-1">{grupo.label}</span>
+                    <span
+                      aria-hidden
+                      style={{ transition: 'transform 0.2s', transform: abierto ? 'rotate(90deg)' : 'none' }}
+                    >
+                      ›
+                    </span>
+                  </button>
+
+                  {abierto && (
+                    <div id={`grupo-${grupo.id}`} className="mt-1 ml-3 flex flex-col gap-1 border-l border-white/15 pl-2">
+                      {grupo.items.map((item) => (
+                        <EnlaceMenu key={item.href} item={item} activo={item.href === itemActivo?.href} />
+                      ))}
+                    </div>
+                  )}
+                </div>
               )
             })}
           </nav>

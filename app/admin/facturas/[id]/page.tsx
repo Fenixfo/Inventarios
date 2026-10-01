@@ -102,6 +102,7 @@ export default function FacturaPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [envioWhatsApp, setEnvioWhatsApp] = useState(false)
+  const [menuCompartir, setMenuCompartir] = useState(false)
 
   useEffect(() => {
     const fetchFactura = async () => {
@@ -226,6 +227,15 @@ export default function FacturaPage() {
       await abrirPdfEnPestana(`/api/facturas/${id}/pdf`, 'Generando la factura…')
     } catch (err: unknown) {
       alert('Error al generar el PDF: ' + (err instanceof Error ? err.message : ''))
+    }
+  }
+
+  /** Tiquete de 80 mm: se abre en el visor del navegador para imprimirlo en la térmica. */
+  const imprimirPos = async () => {
+    try {
+      await abrirPdfEnPestana(`/api/facturas/${id}/pdf?formato=pos`, 'Generando el tiquete…')
+    } catch (err: unknown) {
+      alert('Error al generar el tiquete POS: ' + (err instanceof Error ? err.message : ''))
     }
   }
 
@@ -387,13 +397,66 @@ export default function FacturaPage() {
             </button>
           )}
 
-          <button onClick={descargarPdf} style={estiloBoton('var(--gold-dark)')}>
-            Descargar PDF
-          </button>
+          {/* Un solo botón que despliega las tres salidas de la factura. */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setMenuCompartir((abierto) => !abierto)}
+              aria-haspopup="menu"
+              aria-expanded={menuCompartir}
+              style={estiloBoton('var(--gold-dark)')}
+            >
+              Compartir / Imprimir ▾
+            </button>
 
-          <button onClick={() => setEnvioWhatsApp(true)} style={{ ...estiloBoton('#25d366'), fontWeight: 'bold' }}>
-            Enviar factura por WhatsApp
-          </button>
+            {menuCompartir && (
+              <>
+                {/* Capa invisible: un clic fuera del menú lo cierra. */}
+                <div onClick={() => setMenuCompartir(false)} style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
+                <div
+                  role="menu"
+                  style={{
+                    position: 'absolute',
+                    bottom: 'calc(100% + 6px)',
+                    left: 0,
+                    zIndex: 11,
+                    minWidth: 220,
+                    backgroundColor: 'white',
+                    border: '1px solid var(--gray-light)',
+                    borderRadius: 8,
+                    boxShadow: '0 6px 20px rgba(0,0,0,0.15)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {[
+                    { texto: '📄 Descargar PDF', accion: descargarPdf },
+                    { texto: '💬 WhatsApp', accion: () => setEnvioWhatsApp(true) },
+                    { texto: '🧾 POS 80mm', accion: imprimirPos },
+                  ].map(({ texto, accion }) => (
+                    <button
+                      key={texto}
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuCompartir(false)
+                        accion()
+                      }}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        padding: '12px 16px',
+                        textAlign: 'left',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: 14,
+                      }}
+                    >
+                      {texto}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {envioWhatsApp && (

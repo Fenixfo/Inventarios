@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { exigirTienda, veTodasLasFacturas } from '@/lib/permisos'
 import { generarPdfFactura, nombreArchivoFactura } from '@/lib/factura-pdf'
+import { generarPdfFacturaPos, nombreArchivoFacturaPos } from '@/lib/factura-pos'
 
 /**
  * La factura como archivo PDF: para verla, imprimirla, guardarla o
@@ -78,12 +79,19 @@ export async function GET(
     const config = Object.fromEntries(registros.map((r) => [r.clave, r.valor || '']))
     config.nombre_empresa = factura.tienda?.nombre || ''
 
-    const bytes = await generarPdfFactura(factura as any, config)
+    // ?formato=pos devuelve el tiquete de 80 mm para impresora térmica.
+    const esPos = request.nextUrl.searchParams.get('formato') === 'pos'
+    const bytes = esPos
+      ? await generarPdfFacturaPos(factura as any, config)
+      : await generarPdfFactura(factura as any, config)
+    const nombreArchivo = esPos
+      ? nombreArchivoFacturaPos(factura.numeroFactura)
+      : nombreArchivoFactura(factura.numeroFactura)
 
     return new NextResponse(Buffer.from(bytes), {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${nombreArchivoFactura(factura.numeroFactura)}"`,
+        'Content-Disposition': `attachment; filename="${nombreArchivo}"`,
         'Content-Length': String(bytes.length),
       },
     })
