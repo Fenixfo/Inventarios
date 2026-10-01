@@ -11,10 +11,16 @@
 /** El que se propone al liquidar; se puede cambiar en cada liquidación. */
 export const PORCENTAJE_POR_DEFECTO = 30
 
-/** Solo lo cobrado se liquida: sobre una venta sin pagar no hay comisión. */
-export const ESTADOS_LIQUIDABLES = ['pagado', 'entregado']
+/** Solo se liquidan facturas entregadas: una pagada aún sin entregar no se liquida. */
+export const ESTADOS_LIQUIDABLES = ['entregado']
 
-const redondear = (valor: number) => Math.round(valor * 100) / 100
+/**
+ * Las que aparecen en la pantalla de liquidar, para ajustar sus costos: solo
+ * las entregadas se pueden liquidar, las demás quedan bloqueadas.
+ */
+export const ESTADOS_VISIBLES = ['pendiente', 'pagado', 'entregado']
+
+const redondear =(valor: number) => Math.round(valor * 100) / 100
 
 /**
  * Los reportes cuentan como vendidas las facturas pagadas y entregadas. Una

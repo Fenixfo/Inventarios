@@ -3,11 +3,29 @@ import {
   cantidadPendiente,
   costoAlFacturar,
   costoDeItem,
+  ESTADOS_LIQUIDABLES,
+  ESTADOS_VISIBLES,
   estadosDeVenta,
   porcentajeValido,
   totalesDeLiquidacion,
   ventaSinImpuesto,
 } from '@/lib/liquidacion'
+
+describe('estados de la liquidación', () => {
+  it('solo las entregadas se pueden liquidar', () => {
+    expect(ESTADOS_LIQUIDABLES).toEqual(['entregado'])
+  })
+
+  it('se ven pendientes, pagadas y entregadas, nunca liquidadas ni anuladas', () => {
+    expect(ESTADOS_VISIBLES).toEqual(['pendiente', 'pagado', 'entregado'])
+    expect(ESTADOS_VISIBLES).not.toContain('liquidado')
+    expect(ESTADOS_VISIBLES).not.toContain('anulado')
+  })
+
+  it('todo lo liquidable también se ve', () => {
+    for (const estado of ESTADOS_LIQUIDABLES) expect(ESTADOS_VISIBLES).toContain(estado)
+  })
+})
 
 // TASK-67. El caso que se planteó: precio 15, costo 5, stock 10 y se venden 25.
 const CAJAS = 'cajas'

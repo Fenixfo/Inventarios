@@ -31,6 +31,7 @@ interface Item {
   pendiente: number
   productoExiste: boolean
   costoSugerido: number | null
+  costoGuardado: number | null
 }
 
 interface Factura {
@@ -38,6 +39,7 @@ interface Factura {
   numeroFactura: string
   fecha: string
   estado: string
+  liquidable: boolean
   cliente: string | null
   venta: number
   impuesto: number
@@ -66,6 +68,8 @@ export default function NuevaLiquidacionPage() {
   const [cargando, setCargando] = useState(true)
   const [cargandoFacturas, setCargandoFacturas] = useState(false)
   const [guardando, setGuardando] = useState(false)
+  const [guardandoCostos, setGuardandoCostos] = useState(false)
+  const [aviso, setAviso] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -91,6 +95,7 @@ export default function NuevaLiquidacionPage() {
     setCostos({})
     setCostosFacturados({})
     setError(null)
+    setAviso(null)
     if (!id) return
 
     setCargandoFacturas(true)
@@ -102,16 +107,18 @@ export default function NuevaLiquidacionPage() {
       const lista: Factura[] = datos.facturas || []
       setFacturas(lista)
       setTotalPendientes(datos.total || 0)
-      // Todas marcadas: lo normal es liquidar todo lo que el vendedor tiene cobrado.
-      setSeleccionadas(new Set(lista.map((f) => f.id)))
+      // Marcadas las entregadas: lo demás se ve para ajustar costos, pero no se liquida.
+      setSeleccionadas(new Set(lista.filter((f) => f.liquidable).map((f) => f.id)))
 
-      // Lo vendido sin stock arranca con el costo actual del producto, si
-      // existe (aunque tenga stock 0). Uno personalizado queda vacío.
+      // Lo vendido sin stock arranca con el costo que se guardó al ajustarlo o,
+      // si no hay, el actual del producto (aunque tenga stock 0). Uno
+      // personalizado sin costo guardado queda vacío.
       const iniciales: Record<string, string> = {}
       const facturados: Record<string, string> = {}
       for (const f of lista) {
         for (const item of f.items) {
-          if (item.pendiente > 0 && item.costoSugerido !== null) iniciales[item.id] = String(item.costoSugerido)
+          const propuesto = item.costoGuardado ?? item.costoSugerido
+          if (item.pendiente > 0 && propuesto !== null) iniciales[item.id] = String(propuesto)
           if (item.cantidadConCosto > 0 && item.costoUnitario !== null) facturados[item.id] = String(item.costoUnitario)
         }
       }
@@ -169,6 +176,40 @@ export default function NuevaLiquidacionPage() {
 
   const puedeGuardar =
     elegidas.length > 0 && incompletas.length === 0 && porcentajeValido(pct) && !guardando
+
+  // Guarda los costos escritos de todas las facturas de la lista, sin liquidar.
+  const guardarCostos = async () => {
+    setGuardandoCostos(true)
+    setError(null)
+    setAviso(null)
+
+    try {
+      const costosEnviados: Record<string, number> = {}
+      const facturadosEnviados: Record<string, number> = {}
+      for (const f of facturas) {
+        for (const item of f.items) {
+          const pendiente = costoPuesto(item.id)
+          if (item.pendiente > 0 && pendiente !== null) costosEnviados[item.id] = pendiente
+          const facturado = costoFacturadoPuesto(item.id)
+          if (item.cantidadConCosto > 0 && facturado !== null) facturadosEnviados[item.id] = facturado
+        }
+      }
+
+      const res = await apiFetch('/api/liquidaciones/costos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ costos: costosEnviados, costosFacturados: facturadosEnviados }),
+      })
+      const datos = await res.json()
+      if (!res.ok) throw new Error(datos.error || 'No se pudieron guardar los costos')
+
+      setAviso('Costos guardados.')
+    } catch (err: any) {
+      setError(err.message || 'No se pudieron guardar los costos')
+    } finally {
+      setGuardandoCostos(false)
+    }
+  }
 
   const guardar = async () => {
     if (!puedeGuardar) return
@@ -228,16 +269,18 @@ export default function NuevaLiquidacionPage() {
 
         <h1 className="card-title mb-1" style={{ fontSize: 20 }}>Nueva liquidación</h1>
         <p className="mb-5 text-sm" style={{ color: 'var(--gray-secondary)' }}>
-          Solo facturas pagadas o entregadas que aún no se han liquidado. Ganancia = venta sin
-          impuesto − costo.
+          Aparecen las facturas pendientes, pagadas y entregadas que aún no se han liquidado, y
+          en todas se pueden ajustar y guardar los costos. Solo las entregadas se pueden liquidar.
+          Ganancia = venta sin impuesto − costo.
         </p>
 
         {error && <div className="alert-box error">{error}</div>}
+        {aviso && <div className="alert-box">{aviso}</div>}
 
         {cargando ? (
           <p style={{ color: 'var(--gray-secondary)' }}>Cargando...</p>
         ) : vendedores.length === 0 ? (
-          <p style={{ color: 'var(--gray-secondary)' }}>No hay facturas cobradas pendientes de liquidar.</p>
+          <p style={{ color: 'var(--gray-secondary)' }}>No hay facturas pendientes de liquidar.</p>
         ) : (
           <>
             <div className="flex gap-4 flex-wrap mb-5">
@@ -300,13 +343,24 @@ export default function NuevaLiquidacionPage() {
                         borderRadius: '8px',
                         padding: '12px',
                         marginBottom: '12px',
-                        opacity: marcada ? 1 : 0.55,
+                        opacity: marcada ? 1 : 0.7,
                         backgroundColor: 'var(--white-off)',
                       }}
                     >
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', cursor: 'pointer', marginBottom: '8px' }}>
-                        <input type="checkbox" checked={marcada} onChange={() => alternar(f.id)} />
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', cursor: f.liquidable ? 'pointer' : 'default', marginBottom: '8px' }}>
+                        <input
+                          type="checkbox"
+                          checked={marcada}
+                          disabled={!f.liquidable}
+                          title={f.liquidable ? undefined : 'Solo se liquidan facturas entregadas'}
+                          onChange={() => alternar(f.id)}
+                        />
                         <strong>{f.numeroFactura}</strong>
+                        {!f.liquidable && (
+                          <span style={{ fontSize: '11px', color: 'var(--status-amber-text)' }}>
+                            {f.estado} · no se puede liquidar hasta que se entregue
+                          </span>
+                        )}
                         <span style={{ color: 'var(--gray-secondary)', fontSize: '13px' }}>{fechaYHora(f.fecha)}</span>
                         <span style={{ fontSize: '13px' }}>{f.cliente || 'Cliente General'}</span>
                         <span style={{ marginLeft: 'auto', fontSize: '13px' }}>
@@ -355,7 +409,7 @@ export default function NuevaLiquidacionPage() {
                                           onChange={(e) => setCostosFacturados({ ...costosFacturados, [item.id]: e.target.value })}
                                           onWheel={(e) => e.currentTarget.blur()}
                                           placeholder="Costo"
-                                          disabled={!marcada}
+                                          disabled={guardandoCostos}
                                           style={{
                                             width: '100px',
                                             padding: '4px 6px',
@@ -385,7 +439,7 @@ export default function NuevaLiquidacionPage() {
                                           onChange={(e) => setCostos({ ...costos, [item.id]: e.target.value })}
                                           onWheel={(e) => e.currentTarget.blur()}
                                           placeholder="Costo"
-                                          disabled={!marcada}
+                                          disabled={guardandoCostos}
                                           style={{
                                             width: '100px',
                                             padding: '4px 6px',
@@ -409,7 +463,7 @@ export default function NuevaLiquidacionPage() {
                                           onChange={(e) => setCostosFacturados({ ...costosFacturados, [item.id]: e.target.value })}
                                           onWheel={(e) => e.currentTarget.blur()}
                                           placeholder="Costo"
-                                          disabled={!marcada}
+                                          disabled={guardandoCostos}
                                           style={{
                                             width: '100px',
                                             padding: '4px 6px',
@@ -482,9 +536,14 @@ export default function NuevaLiquidacionPage() {
                   </p>
                 )}
 
-                <button onClick={guardar} disabled={!puedeGuardar} className="btn-primary">
-                  {guardando ? 'Liquidando...' : `Liquidar ${elegidas.length} factura${elegidas.length !== 1 ? 's' : ''}`}
-                </button>
+                <div className="flex gap-3 flex-wrap">
+                  <button onClick={guardarCostos} disabled={guardandoCostos || guardando} className="btn-secondary">
+                    {guardandoCostos ? 'Guardando...' : 'Guardar costos'}
+                  </button>
+                  <button onClick={guardar} disabled={!puedeGuardar} className="btn-primary">
+                    {guardando ? 'Liquidando...' : `Liquidar ${elegidas.length} factura${elegidas.length !== 1 ? 's' : ''}`}
+                  </button>
+                </div>
               </>
             )}
           </>

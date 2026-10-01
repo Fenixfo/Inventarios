@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     const { vendedorId, facturaIds, porcentaje, costos, costosFacturados } = data
 
     // Todo se comprueba en el servidor: que las facturas sean de la tienda,
-    // del vendedor elegido, estén cobradas y no liquidadas ya.
+    // del vendedor elegido, estén entregadas y no liquidadas ya.
     const facturas = await prisma.factura.findMany({
       where: {
         id: { in: facturaIds },

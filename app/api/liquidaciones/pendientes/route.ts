@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { exigirTienda } from '@/lib/permisos'
-import { cantidadPendiente, ESTADOS_LIQUIDABLES, ventaSinImpuesto } from '@/lib/liquidacion'
+import { cantidadPendiente, ESTADOS_LIQUIDABLES, ESTADOS_VISIBLES, ventaSinImpuesto } from '@/lib/liquidacion'
 import { esUuid } from '@/lib/formato'
 
 /**
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     const liquidables = {
       tiendaId,
-      estado: { in: ESTADOS_LIQUIDABLES },
+      estado: { in: ESTADOS_VISIBLES },
       liquidacionId: null,
     }
 
@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
               precioUnitario: true,
               subtotal: true,
               costoUnitario: true,
+              costoLiquidacion: true,
               cantidadConCosto: true,
               producto: { select: { nombre: true, costo: true } },
             },
@@ -95,6 +96,7 @@ export async function GET(request: NextRequest) {
         numeroFactura: f.numeroFactura,
         fecha: f.fecha,
         estado: f.estado,
+        liquidable: ESTADOS_LIQUIDABLES.includes(f.estado),
         cliente: f.cliente?.nombre || null,
         venta: ventaSinImpuesto({ subtotal: Number(f.subtotal), descuentoMonto: Number(f.descuentoMonto) }),
         impuesto: Number(f.impuesto),
@@ -116,6 +118,8 @@ export async function GET(request: NextRequest) {
             // Si el producto existe se propone su costo actual, aunque tenga
             // stock 0. Uno personalizado, o sin costo cargado, no trae
             // sugerencia: hay que escribirlo.
+            // El costo que se guardó al ajustar, sin liquidar todavía.
+            costoGuardado: item.costoLiquidacion === null ? null : Number(item.costoLiquidacion),
             productoExiste: Boolean(item.producto),
             costoSugerido: item.producto?.costo === null || item.producto?.costo === undefined
               ? null

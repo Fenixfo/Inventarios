@@ -1680,8 +1680,42 @@ describe('liquidaciones', () => {
     expect(status).toBe(409)
   })
 
-  it('cobrada, aparece en lo pendiente con lo que falta de costo', async () => {
+  it('una factura pagada aparece, pero no se puede liquidar hasta entregarse', async () => {
     await prisma.factura.update({ where: { id: facturaId }, data: { estado: 'pagado' } })
+
+    const pendientes = await api(`/api/liquidaciones/pendientes?vendedorId=${vendedorId}`)
+    const visible = pendientes.data.facturas.find((f: any) => f.id === facturaId)
+    expect(visible).toBeDefined()
+    expect(visible.liquidable).toBe(false)
+
+    const { status } = await api('/api/liquidaciones', {
+      method: 'POST',
+      body: JSON.stringify({ vendedorId, facturaIds: [facturaId], porcentaje: 30, costos: { [itemId]: 5 } }),
+    })
+    expect(status).toBe(409)
+  })
+
+  it('los costos ajustados se guardan sin liquidar y siguen ahí al volver', async () => {
+    const guardar = await api('/api/liquidaciones/costos', {
+      method: 'PATCH',
+      body: JSON.stringify({ costos: { [itemId]: 7 }, costosFacturados: { [itemId]: 4 } }),
+    })
+    expect(guardar.status).toBe(200)
+
+    const { data } = await api(`/api/liquidaciones/pendientes?vendedorId=${vendedorId}`)
+    const item = data.facturas.find((f: any) => f.id === facturaId).items[0]
+    expect(item.costoUnitario).toBe(4)
+    expect(item.costoGuardado).toBe(7)
+
+    // Se devuelven a lo que el resto de las pruebas espera.
+    await api('/api/liquidaciones/costos', {
+      method: 'PATCH',
+      body: JSON.stringify({ costos: { [itemId]: 5 }, costosFacturados: { [itemId]: 5 } }),
+    })
+  })
+
+  it('entregada, aparece en lo pendiente con lo que falta de costo', async () => {
+    await prisma.factura.update({ where: { id: facturaId }, data: { estado: 'entregado' } })
 
     const { status, data } = await api(`/api/liquidaciones/pendientes?vendedorId=${vendedorId}`)
     const factura = data.facturas.find((f: any) => f.id === facturaId)

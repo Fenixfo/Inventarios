@@ -114,6 +114,12 @@ export const liquidacionNueva = z.object({
   observaciones: textoOpcional(2000),
 })
 
+/** Guardar los costos de una factura sin liquidarla. */
+export const costosGuardar = z.object({
+  costos: z.record(z.string(), monto).optional().default({}),
+  costosFacturados: z.record(z.string(), monto).optional().default({}),
+})
+
 /** Perfil de la cuenta: el nombre y el teléfono son opcionales y se pueden borrar. */
 export const perfilNuevo = z.object({
   nombre: textoOpcional(120),
