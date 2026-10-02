@@ -3,6 +3,7 @@ import {
   cantidadPendiente,
   costoAlFacturar,
   costoDeItem,
+  descuentoValido,
   ESTADOS_LIQUIDABLES,
   ESTADOS_VISIBLES,
   estadosDeVenta,
@@ -106,7 +107,20 @@ describe('totalesDeLiquidacion', () => {
     // El ejemplo: 25 × 15 = 375 de venta; costo 10 × 5 + 15 × 5 = 125.
     const totales = totalesDeLiquidacion([{ venta: 375, costo: 125 }], 30)
 
-    expect(totales).toEqual({ totalVenta: 375, totalCosto: 125, totalGanancia: 250, pagoVendedor: 75 })
+    expect(totales).toEqual({ totalVenta: 375, totalCosto: 125, totalGanancia: 250, descuento: 0, pagoVendedor: 75 })
+  })
+
+  it('el descuento se resta de lo que gana el vendedor', () => {
+    const totales = totalesDeLiquidacion([{ venta: 375, costo: 125 }], 30, 20)
+
+    expect(totales.descuento).toBe(20)
+    expect(totales.pagoVendedor).toBe(55)
+    // La ganancia de la tienda no cambia: el descuento es sobre la comisión.
+    expect(totales.totalGanancia).toBe(250)
+  })
+
+  it('un descuento igual a la comisión deja el pago en cero', () => {
+    expect(totalesDeLiquidacion([{ venta: 375, costo: 125 }], 30, 75).pagoVendedor).toBe(0)
   })
 
   it('una factura con pérdida resta de las demás', () => {
@@ -125,6 +139,25 @@ describe('totalesDeLiquidacion', () => {
     const totales = totalesDeLiquidacion([{ venta: 100, costo: 300 }], 30)
     expect(totales.totalGanancia).toBe(-200)
     expect(totales.pagoVendedor).toBe(0)
+  })
+})
+
+describe('descuentoValido', () => {
+  it('acepta de cero hasta la comisión del vendedor', () => {
+    // Ganancia 250 al 30% → comisión 75.
+    expect(descuentoValido(0, 250, 30)).toBe(true)
+    expect(descuentoValido(75, 250, 30)).toBe(true)
+  })
+
+  it('rechaza lo negativo, lo que supera la comisión y lo que no es número', () => {
+    expect(descuentoValido(-1, 250, 30)).toBe(false)
+    expect(descuentoValido(75.01, 250, 30)).toBe(false)
+    expect(descuentoValido(NaN, 250, 30)).toBe(false)
+  })
+
+  it('sin ganancia no hay comisión de la que descontar', () => {
+    expect(descuentoValido(1, -200, 30)).toBe(false)
+    expect(descuentoValido(0, -200, 30)).toBe(true)
   })
 })
 

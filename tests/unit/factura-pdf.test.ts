@@ -1,10 +1,12 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
+import { PDFDocument, StandardFonts } from 'pdf-lib'
 import {
   generarPdfFactura,
   nombreArchivoFactura,
   nombreArchivoCotizacion,
   logoPermitido,
+  partirEnLineas,
   type FacturaPdf,
 } from '@/lib/factura-pdf'
 
@@ -107,6 +109,43 @@ describe('generarPdfFactura', () => {
 })
 
 // El servidor descarga el logo: solo desde el Storage de Supabase del proyecto.
+describe('partirEnLineas', () => {
+  const ESLOGAN =
+    'GARANTIZAMOS LA MAXIMA CALIDAD EN LA CERAMICAS PORCELANATOS Y ACABADOS QUE RESPALDAN EL EXITODE TU OBRA'
+
+  it('parte un eslogan largo en varias líneas que caben en el ancho', async () => {
+    const fuente = await (await PDFDocument.create()).embedFont(StandardFonts.Helvetica)
+    const lineas = partirEnLineas(ESLOGAN, fuente, 9, 300)
+
+    expect(lineas.length).toBeGreaterThan(1)
+    for (const linea of lineas) expect(fuente.widthOfTextAtSize(linea, 9)).toBeLessThanOrEqual(300)
+    // No se pierde ni se inventa texto.
+    expect(lineas.join(' ')).toBe(ESLOGAN)
+  })
+
+  it('un texto corto queda en una sola línea y uno vacío en ninguna', async () => {
+    const fuente = await (await PDFDocument.create()).embedFont(StandardFonts.Helvetica)
+
+    expect(partirEnLineas('Calidad garantizada', fuente, 9, 300)).toEqual(['Calidad garantizada'])
+    expect(partirEnLineas('   ', fuente, 9, 300)).toEqual([])
+  })
+
+  it('una palabra más ancha que la línea queda sola, sin entrar en bucle', async () => {
+    const fuente = await (await PDFDocument.create()).embedFont(StandardFonts.Helvetica)
+
+    expect(partirEnLineas('a ANTICONSTITUCIONALMENTE b', fuente, 9, 40)).toEqual([
+      'a',
+      'ANTICONSTITUCIONALMENTE',
+      'b',
+    ])
+  })
+
+  it('el PDF con un eslogan largo se genera bien', async () => {
+    const bytes = await generarPdfFactura(FACTURA, { nombre_empresa: 'BERACA', eslogan_empresa: ESLOGAN })
+    expect(Buffer.from(bytes.slice(0, 5)).toString()).toBe('%PDF-')
+  })
+})
+
 describe('logoPermitido', () => {
   const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://proyecto.supabase.co'
 

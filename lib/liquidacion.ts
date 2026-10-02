@@ -134,7 +134,14 @@ export interface Totales {
   totalVenta: number
   totalCosto: number
   totalGanancia: number
+  /** Lo que el admin le descuenta al vendedor de su comisión. */
+  descuento: number
   pagoVendedor: number
+}
+
+/** La comisión del vendedor antes de descuentos: el porcentaje de la ganancia, nunca negativa. */
+export function comisionBruta(totalGanancia: number, porcentaje: number): number {
+  return redondear(Math.max(0, totalGanancia) * (porcentaje / 100))
 }
 
 /**
@@ -143,21 +150,32 @@ export interface Totales {
  * El pago al vendedor es el porcentaje de la ganancia total, nunca negativo:
  * si en conjunto se vendió a pérdida, no hay comisión, pero tampoco se le
  * descuenta nada. Una factura con pérdida sí resta de las demás.
+ *
+ * El descuento se resta de esa comisión; no puede dejar el pago por debajo de
+ * cero (ver `descuentoValido`).
  */
 export function totalesDeLiquidacion(
   facturas: { venta: number; costo: number }[],
-  porcentaje: number
+  porcentaje: number,
+  descuento = 0
 ): Totales {
   const totalVenta = redondear(facturas.reduce((s, f) => s + f.venta, 0))
   const totalCosto = redondear(facturas.reduce((s, f) => s + f.costo, 0))
   const totalGanancia = redondear(totalVenta - totalCosto)
+  const comision = comisionBruta(totalGanancia, porcentaje)
 
   return {
     totalVenta,
     totalCosto,
     totalGanancia,
-    pagoVendedor: redondear(Math.max(0, totalGanancia) * (porcentaje / 100)),
+    descuento: redondear(descuento),
+    pagoVendedor: redondear(comision - descuento),
   }
+}
+
+/** El descuento es válido si no es negativo y no supera la comisión del vendedor. */
+export function descuentoValido(descuento: number, totalGanancia: number, porcentaje: number): boolean {
+  return Number.isFinite(descuento) && descuento >= 0 && descuento <= comisionBruta(totalGanancia, porcentaje)
 }
 
 /** El porcentaje es válido si va de 0 a 100. */

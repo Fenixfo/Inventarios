@@ -112,6 +112,12 @@ export const liquidacionNueva = z.object({
   // El costo al facturar de lo que sí tenía stock, cuando quien liquida lo corrige.
   costosFacturados: z.record(z.string(), monto).optional().default({}),
   observaciones: textoOpcional(2000),
+  // Lo que se le descuenta al vendedor de su comisión, con la razón.
+  descuento: montoOpcional,
+  descuentoMotivo: textoOpcional(500),
+}).refine((d) => d.descuento === 0 || d.descuentoMotivo !== null, {
+  message: 'indica el motivo del descuento',
+  path: ['descuentoMotivo'],
 })
 
 /** Guardar los costos de una factura sin liquidarla. */

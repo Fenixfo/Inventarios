@@ -9,6 +9,7 @@ import { PermissionProtector } from '@/components/PermissionProtector'
 import { pesos } from '@/lib/formato'
 import {
   costoDeItem,
+  descuentoValido,
   PORCENTAJE_POR_DEFECTO,
   porcentajeValido,
   totalesDeLiquidacion,
@@ -64,6 +65,9 @@ export default function NuevaLiquidacionPage() {
   const [costosFacturados, setCostosFacturados] = useState<Record<string, string>>({})
   const [porcentaje, setPorcentaje] = useState(String(PORCENTAJE_POR_DEFECTO))
   const [observaciones, setObservaciones] = useState('')
+  // Descuento a la comisión del vendedor: valor (texto, como lo escribe la persona) y su razón.
+  const [descuento, setDescuento] = useState('')
+  const [descuentoMotivo, setDescuentoMotivo] = useState('')
 
   const [cargando, setCargando] = useState(true)
   const [cargandoFacturas, setCargandoFacturas] = useState(false)
@@ -169,13 +173,21 @@ export default function NuevaLiquidacionPage() {
 
   // Se calcula en cada render: son unas pocas facturas y memorizarlo no
   // servía, porque `elegidas` es una lista nueva cada vez.
-  const totales = totalesDeLiquidacion(
-    elegidas.map((f) => ({ venta: f.venta, costo: costoDe(f) ?? 0 })),
-    porcentajeValido(pct) ? pct : 0
-  )
+  const facturasParaTotales = elegidas.map((f) => ({ venta: f.venta, costo: costoDe(f) ?? 0 }))
+  const pctUsado = porcentajeValido(pct) ? pct : 0
+  const valorDescuento = descuento.trim() === '' ? 0 : Number(descuento)
+  const sinDescuento = totalesDeLiquidacion(facturasParaTotales, pctUsado)
+  const descuentoOk = descuentoValido(valorDescuento, sinDescuento.totalGanancia, pctUsado)
+  const motivoFalta = valorDescuento > 0 && descuentoMotivo.trim() === ''
+  const totales = totalesDeLiquidacion(facturasParaTotales, pctUsado, descuentoOk ? valorDescuento : 0)
 
   const puedeGuardar =
-    elegidas.length > 0 && incompletas.length === 0 && porcentajeValido(pct) && !guardando
+    elegidas.length > 0 &&
+    incompletas.length === 0 &&
+    porcentajeValido(pct) &&
+    descuentoOk &&
+    !motivoFalta &&
+    !guardando
 
   // Guarda los costos escritos de todas las facturas de la lista, sin liquidar.
   const guardarCostos = async () => {
@@ -243,6 +255,8 @@ export default function NuevaLiquidacionPage() {
           costos: costosEnviados,
           costosFacturados: facturadosEnviados,
           observaciones,
+          descuento: valorDescuento,
+          descuentoMotivo,
         }),
       })
 
@@ -507,6 +521,52 @@ export default function NuevaLiquidacionPage() {
                   />
                 </div>
 
+                <div style={{ border: '1px solid var(--gray-light)', borderRadius: '8px', padding: '12px', marginBottom: '16px', backgroundColor: 'var(--white-off)' }}>
+                  <strong style={{ fontSize: '14px' }}>Descuento al vendedor (opcional)</strong>
+                  <p style={{ margin: '4px 0 10px 0', fontSize: '12px', color: 'var(--gray-secondary)' }}>
+                    Se resta de lo que gana el vendedor ({pesos(sinDescuento.pagoVendedor)} con el {pctUsado}%).
+                  </p>
+                  <div className="flex gap-4 flex-wrap">
+                    <div>
+                      <label htmlFor="descuento" className="field-label">Valor del descuento</label>
+                      <input
+                        id="descuento"
+                        type="number"
+                        min="0"
+                        step="100"
+                        value={descuento}
+                        onChange={(e) => setDescuento(e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        placeholder="0"
+                        className={`field-input ${descuentoOk ? '' : 'has-error'}`}
+                        style={{ width: '160px' }}
+                      />
+                    </div>
+                    <div style={{ flex: 1, minWidth: '240px' }}>
+                      <label htmlFor="descuento-motivo" className="field-label">Motivo del descuento</label>
+                      <textarea
+                        id="descuento-motivo"
+                        value={descuentoMotivo}
+                        onChange={(e) => setDescuentoMotivo(e.target.value)}
+                        rows={2}
+                        maxLength={500}
+                        placeholder="Razón del descuento"
+                        className={`field-textarea ${motivoFalta ? 'has-error' : ''}`}
+                      />
+                    </div>
+                  </div>
+                  {!descuentoOk && (
+                    <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: 'var(--status-red-solid)' }}>
+                      El descuento no puede ser negativo ni superar lo que gana el vendedor ({pesos(sinDescuento.pagoVendedor)}).
+                    </p>
+                  )}
+                  {motivoFalta && (
+                    <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: 'var(--status-amber-text)' }}>
+                      Escribe el motivo del descuento.
+                    </p>
+                  )}
+                </div>
+
                 <div style={{ backgroundColor: 'var(--status-green-bg)', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
                     <div><div style={{ fontSize: '12px', color: 'var(--gray-secondary)' }}>Facturas</div><strong>{elegidas.length}</strong></div>
@@ -516,6 +576,12 @@ export default function NuevaLiquidacionPage() {
                       <div style={{ fontSize: '12px', color: 'var(--gray-secondary)' }}>Ganancia</div>
                       <strong style={{ color: totales.totalGanancia < 0 ? 'var(--status-red-solid)' : 'inherit' }}>{pesos(totales.totalGanancia)}</strong>
                     </div>
+                    {totales.descuento > 0 && (
+                      <div>
+                        <div style={{ fontSize: '12px', color: 'var(--gray-secondary)' }}>Descuento</div>
+                        <strong style={{ color: 'var(--status-red-solid)' }}>− {pesos(totales.descuento)}</strong>
+                      </div>
+                    )}
                     <div>
                       <div style={{ fontSize: '12px', color: 'var(--gray-secondary)' }}>Pago al vendedor ({porcentajeValido(pct) ? pct : '—'}%)</div>
                       <strong style={{ fontSize: '18px', color: 'var(--status-green-text)' }}>{pesos(totales.pagoVendedor)}</strong>

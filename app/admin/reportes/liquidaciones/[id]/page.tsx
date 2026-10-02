@@ -17,6 +17,8 @@ interface Detalle {
   totalVenta: number
   totalCosto: number
   totalGanancia: number
+  descuento: number
+  descuentoMotivo: string | null
   pagoVendedor: number
   observaciones: string | null
   facturas: {
@@ -83,12 +85,24 @@ export default function LiquidacionPage() {
                   <div style={{ fontSize: '12px', color: 'var(--gray-secondary)' }}>Ganancia</div>
                   <strong style={{ color: liquidacion.totalGanancia < 0 ? 'var(--status-red-solid)' : 'inherit' }}>{pesos(liquidacion.totalGanancia)}</strong>
                 </div>
+                {liquidacion.descuento > 0 && (
+                  <div>
+                    <div style={{ fontSize: '12px', color: 'var(--gray-secondary)' }}>Descuento</div>
+                    <strong style={{ color: 'var(--status-red-solid)' }}>− {pesos(liquidacion.descuento)}</strong>
+                  </div>
+                )}
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--gray-secondary)' }}>Pago al vendedor ({liquidacion.porcentaje}%)</div>
                   <strong style={{ fontSize: '18px', color: 'var(--status-green-text)' }}>{pesos(liquidacion.pagoVendedor)}</strong>
                 </div>
               </div>
             </div>
+
+            {liquidacion.descuento > 0 && liquidacion.descuentoMotivo && (
+              <p style={{ backgroundColor: 'var(--beige-light)', padding: '12px', borderRadius: '8px' }}>
+                <strong>Motivo del descuento:</strong> {liquidacion.descuentoMotivo}
+              </p>
+            )}
 
             {liquidacion.observaciones && (
               <p style={{ backgroundColor: 'var(--beige-light)', padding: '12px', borderRadius: '8px' }}>

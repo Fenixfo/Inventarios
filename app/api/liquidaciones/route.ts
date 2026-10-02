@@ -5,6 +5,7 @@ import { leerPagina } from '@/lib/paginacion'
 import {
   cantidadPendiente,
   costoDeItem,
+  descuentoValido,
   ESTADOS_LIQUIDABLES,
   totalesDeLiquidacion,
   ventaSinImpuesto,
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
     // sin negativos.
     const { datos: data, error: invalido } = await leerCuerpo(request, liquidacionNueva)
     if (invalido) return invalido
-    const { vendedorId, facturaIds, porcentaje, costos, costosFacturados } = data
+    const { vendedorId, facturaIds, porcentaje, costos, costosFacturados, descuento, descuentoMotivo } = data
 
     // Todo se comprueba en el servidor: que las facturas sean de la tienda,
     // del vendedor elegido, estén entregadas y no liquidadas ya.
@@ -152,7 +153,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const totales = totalesDeLiquidacion(costoPorFactura, porcentaje)
+    const sinDescuento = totalesDeLiquidacion(costoPorFactura, porcentaje)
+    if (!descuentoValido(descuento, sinDescuento.totalGanancia, porcentaje)) {
+      return NextResponse.json(
+        { error: 'El descuento no puede superar lo que gana el vendedor en esta liquidación' },
+        { status: 400 }
+      )
+    }
+    const totales = totalesDeLiquidacion(costoPorFactura, porcentaje, descuento)
 
     const liquidacion = await prisma.$transaction(async (tx) => {
       const creada = await tx.liquidacion.create({
@@ -162,6 +170,7 @@ export async function POST(request: NextRequest) {
           creadaPor: usuario.id,
           porcentaje,
           ...totales,
+          descuentoMotivo: descuento > 0 ? descuentoMotivo : null,
           observaciones: data.observaciones,
         },
         select: { id: true },

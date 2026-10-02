@@ -94,6 +94,28 @@ function recortar(texto: string, fuente: PDFFont, tamano: number, anchoMaximo: n
   return corto + '...'
 }
 
+/**
+ * Parte el texto en líneas que caben en `anchoMaximo`, cortando entre
+ * palabras. Una palabra más ancha que la línea se deja sola en la suya.
+ */
+export function partirEnLineas(texto: string, fuente: PDFFont, tamano: number, anchoMaximo: number): string[] {
+  const lineas: string[] = []
+  let actual = ''
+
+  for (const palabra of limpiar(texto).split(/\s+/).filter(Boolean)) {
+    const prueba = actual ? `${actual} ${palabra}` : palabra
+    if (!actual || fuente.widthOfTextAtSize(prueba, tamano) <= anchoMaximo) {
+      actual = prueba
+    } else {
+      lineas.push(actual)
+      actual = palabra
+    }
+  }
+
+  if (actual) lineas.push(actual)
+  return lineas
+}
+
 interface Contexto {
   pagina: PDFPage
   normal: PDFFont
@@ -209,11 +231,18 @@ export async function generarPdfFactura(
   escribir(ctx, titulo, 0, y, { tamano: 16, bold: true, derecha })
   y -= 16
 
-  if (empresa.eslogan) {
-    escribir(ctx, empresa.eslogan, MARGEN, y, { tamano: 9, color: GRIS })
-  }
   escribir(ctx, factura.numeroFactura, 0, y, { tamano: 11, bold: true, derecha })
-  y -= 13
+
+  // El eslogan puede ser largo: se parte en líneas sin invadir el número de
+  // la factura, que queda a la derecha de la primera.
+  const lineasEslogan = empresa.eslogan
+    ? partirEnLineas(empresa.eslogan, normal, 9, derecha - MARGEN - 160)
+    : []
+  for (const linea of lineasEslogan) {
+    escribir(ctx, linea, MARGEN, y, { tamano: 9, color: GRIS })
+    y -= 11
+  }
+  y -= lineasEslogan.length > 0 ? 2 : 13
 
   const datosEmpresa = [
     empresa.nit && `NIT: ${empresa.nit}`,

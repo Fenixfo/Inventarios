@@ -55,6 +55,8 @@ export async function GET(
       totalVenta: Number(liquidacion.totalVenta),
       totalCosto: Number(liquidacion.totalCosto),
       totalGanancia: Number(liquidacion.totalGanancia),
+      descuento: Number(liquidacion.descuento),
+      descuentoMotivo: liquidacion.descuentoMotivo,
       pagoVendedor: Number(liquidacion.pagoVendedor),
       observaciones: liquidacion.observaciones,
       facturas: liquidacion.facturas.map((f) => {

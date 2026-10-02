@@ -433,6 +433,9 @@ model Liquidacion {
   totalVenta    Decimal  @map("total_venta") @db.Decimal(14, 2)
   totalCosto    Decimal  @map("total_costo") @db.Decimal(14, 2)
   totalGanancia Decimal  @map("total_ganancia") @db.Decimal(14, 2)
+  /// Lo que se restó de la comisión del vendedor, con su motivo.
+  descuento       Decimal @default(0) @db.Decimal(14, 2)
+  descuentoMotivo String? @map("descuento_motivo") @db.Text
   pagoVendedor  Decimal  @map("pago_vendedor") @db.Decimal(14, 2)
 
   observaciones String?  @db.Text
