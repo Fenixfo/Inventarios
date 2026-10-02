@@ -5,18 +5,20 @@ import { pesos } from '@/lib/formato'
 import type { EmpresaPdf, FacturaPdf } from '@/lib/factura-pdf'
 
 /**
- * La factura en formato tiquete POS de 80 mm, para impresoras térmicas.
+ * La factura en formato tiquete POS (rollo de 80 mm, 72 mm imprimibles), para
+ * impresoras térmicas.
  *
- * Es un PDF de una sola hoja de 80 mm de ancho y tan largo como haga falta:
+ * Es un PDF de una sola hoja de 72 mm de ancho y tan largo como haga falta:
  * el rollo corta donde termina el contenido. Se dibuja con pdf-lib como la
  * factura normal (texto, nada de HTML), así que abre y se imprime desde el
  * mismo visor del navegador.
  */
 
 const MM = 72 / 25.4
-const ANCHO = 80 * MM
-// El área imprimible real de una térmica de 80 mm es de unos 72 mm.
-const MARGEN = 4 * MM
+// Una térmica de 80 mm imprime unos 72 mm útiles: la hoja se hace de ese
+// ancho para que el driver no la reduzca ni corte el borde.
+const ANCHO = 72 * MM
+const MARGEN = 2 * MM
 const UTIL = ANCHO - MARGEN * 2
 const NEGRO = rgb(0, 0, 0)
 

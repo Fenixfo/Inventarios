@@ -23,12 +23,12 @@ const FACTURA: FacturaPdf = {
 const MM = 72 / 25.4
 
 describe('generarPdfFacturaPos', () => {
-  it('produce una sola hoja de 80 mm de ancho', async () => {
+  it('produce una sola hoja de 72 mm de ancho', async () => {
     const bytes = await generarPdfFacturaPos(FACTURA, { nombre_empresa: 'Beraca' })
     const doc = await PDFDocument.load(bytes)
 
     expect(doc.getPageCount()).toBe(1)
-    expect(doc.getPage(0).getWidth()).toBeCloseTo(80 * MM, 1)
+    expect(doc.getPage(0).getWidth()).toBeCloseTo(72 * MM, 1)
   })
 
   it('crece a lo largo con más productos', async () => {

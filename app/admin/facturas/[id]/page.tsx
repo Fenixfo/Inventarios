@@ -430,7 +430,7 @@ export default function FacturaPage() {
                   {[
                     { texto: '📄 Descargar PDF', accion: descargarPdf },
                     { texto: '💬 WhatsApp', accion: () => setEnvioWhatsApp(true) },
-                    { texto: '🧾 POS 80mm', accion: imprimirPos },
+                    { texto: '🧾 POS 72mm', accion: imprimirPos },
                   ].map(({ texto, accion }) => (
                     <button
                       key={texto}
