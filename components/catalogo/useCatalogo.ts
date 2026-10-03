@@ -4,12 +4,19 @@ import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import type { Producto, TiendaCatalogo } from './tipos'
 
 /**
- * Nombre (o parte de él) de la tienda que se muestra sola en la portada
- * mientras el visitante no elija otra. Hay varias tiendas de prueba en la
- * base, y volcarlas todas en la vitrina pública confunde a quien solo
- * conoce esta.
+ * La tienda que se muestra sola en la portada mientras el visitante no elija
+ * otra: LAMINADOS Y CERAMICAS BERACA JJ. Hay varias tiendas de prueba en la
+ * base, y volcarlas todas en la vitrina pública confunde a quien solo conoce
+ * esta.
+ *
+ * Se elige por id y no por nombre: antes se buscaba "beraca" en el nombre, y
+ * lo contienen dos tiendas (esta y "Beraca tienda de Don Jairo"), así que la
+ * portada tomaba la primera que devolviera el filtro, que no era esta.
+ *
+ * Si esta tienda dejara de ser pública, no aparecería entre las del filtro y
+ * la portada volvería a mostrar una muestra de todas.
  */
-const TIENDA_PRINCIPAL = 'beraca'
+const TIENDA_PRINCIPAL_ID = '4fdb5356-4b10-4120-a183-c2a59979878f'
 
 /**
  * Cuántos productos de cada tienda se enseñan en la portada.
@@ -123,9 +130,7 @@ export function useCatalogo() {
         // vez de dejar ver la mezcla de todas (incluidas las de prueba).
         if (!tiendaFiltro && !tiendaPorDefectoAplicada.current) {
           tiendaPorDefectoAplicada.current = true
-          const principal = nuevasTiendas.find((t) =>
-            t.nombre.toLowerCase().includes(TIENDA_PRINCIPAL)
-          )
+          const principal = nuevasTiendas.find((t) => t.id === TIENDA_PRINCIPAL_ID)
           if (principal) setTiendaFiltro(principal.id)
         }
       } catch {

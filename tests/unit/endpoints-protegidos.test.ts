@@ -176,6 +176,13 @@ describe('endpoints protegidos', () => {
       'auditoria/route.ts',
       'usuarios/route.ts',
       'usuarios/permisos/route.ts',
+      'proveedores/route.ts',
+      'proveedores/[id]/route.ts',
+      'compras/route.ts',
+      'compras/[id]/route.ts',
+      'compras/[id]/anular/route.ts',
+      'compras/verificar/route.ts',
+      'productos/[id]/compras/route.ts',
     ]
 
     const sinTienda = DE_DATOS.filter((ruta) => {
@@ -184,6 +191,41 @@ describe('endpoints protegidos', () => {
     })
 
     expect(sinTienda, 'Estas rutas no filtran por tienda').toEqual([])
+  })
+
+  // Compras tiene tres permisos con alcance distinto: ver, registrar y anular.
+  // `exigirTienda` solo prueba que haya ALGUNO; este caso comprueba que cada
+  // ruta pide el que le corresponde, para que anular no quede al alcance de
+  // quien solo puede registrar, ni registrar al de quien solo puede ver.
+  it('las rutas de compras exigen el permiso de su acción', () => {
+    const PERMISOS_DE_RUTA: Record<string, string[]> = {
+      'compras/route.ts': ["'compras.ver'", "'compras.crear'"],
+      'compras/[id]/route.ts': ["'compras.ver'"],
+      'compras/[id]/anular/route.ts': ["'compras.anular'"],
+      'compras/verificar/route.ts': ["'compras.crear'"],
+      'proveedores/route.ts': ["'compras.ver'", "'compras.crear'"],
+      'proveedores/[id]/route.ts': ["'compras.ver'", "'compras.crear'"],
+      'productos/[id]/compras/route.ts': ["'compras.ver'"],
+    }
+
+    const faltantes = Object.entries(PERMISOS_DE_RUTA).flatMap(([ruta, permisos]) => {
+      const encontrada = rutas.find((r) => r.relativa === ruta)
+      if (!encontrada) return [`${ruta} no existe`]
+      return permisos.filter((p) => !encontrada.contenido.includes(p)).map((p) => `${ruta} no pide ${p}`)
+    })
+
+    expect(faltantes).toEqual([])
+  })
+
+  it('anular exige solo compras.anular y registrar solo compras.crear (no se mezclan)', () => {
+    const anular = rutas.find((r) => r.relativa === 'compras/[id]/anular/route.ts')!.contenido
+    expect(anular).not.toContain("'compras.crear'")
+    expect(anular).not.toContain("'compras.ver'")
+
+    // El POST de compras exige crear; el listado, ver. No se comparten.
+    const compras = rutas.find((r) => r.relativa === 'compras/route.ts')!.contenido
+    expect(compras).toMatch(/export async function POST[\s\S]*?exigirTienda\(request, 'compras\.crear'\)/)
+    expect(compras).toMatch(/export async function GET[\s\S]*?exigirTienda\(request, 'compras\.ver'\)/)
   })
 
   // Facturas y cotizaciones distinguen alcance: sin `ver_todas`, cada quien
