@@ -118,6 +118,16 @@ function PanelAdmin({ children }: { children: React.ReactNode }) {
         { label: 'Auditoría', href: '/admin/auditoria', permiso: 'auditoria.ver', icono: '🔍' },
       ],
     },
+    // Debajo de Ventas y encima de Administración (donde está Configuración).
+    {
+      id: 'compras',
+      label: 'Compras',
+      icono: '🛒',
+      items: [
+        { label: 'Compras', href: '/admin/compras', permiso: 'compras.ver', icono: '🧾' },
+        { label: 'Proveedores', href: '/admin/proveedores', permiso: 'compras.ver', icono: '🚚' },
+      ],
+    },
     {
       id: 'administracion',
       label: 'Administración',

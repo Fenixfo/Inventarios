@@ -52,6 +52,12 @@ const PERMISOS = [
   { orden: 55, modulo: 'liquidaciones', accion: 'ver', nombre: 'Ver liquidaciones' },
   { orden: 56, modulo: 'liquidaciones', accion: 'crear', nombre: 'Liquidar facturas' },
 
+  // Compras: registrar las facturas de compra a proveedores. Crear productos
+  // nuevos desde una compra exige además productos.crear.
+  { orden: 57, modulo: 'compras', accion: 'ver', nombre: 'Ver compras y proveedores' },
+  { orden: 58, modulo: 'compras', accion: 'crear', nombre: 'Registrar compras y proveedores' },
+  { orden: 59, modulo: 'compras', accion: 'anular', nombre: 'Anular compras' },
+
   { orden: 60, modulo: 'auditoria', accion: 'ver', nombre: 'Ver auditoría' },
 
   { orden: 70, modulo: 'usuarios', accion: 'ver', nombre: 'Ver usuarios' },

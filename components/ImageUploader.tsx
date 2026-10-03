@@ -10,9 +10,15 @@ interface Props {
   carpeta: 'productos' | 'logos'
   etiqueta?: string
   ayuda?: string
+  /**
+   * Se llama solo cuando se SUBE un archivo (no al pegar una dirección), con la
+   * dirección de lo subido. Sirve para saber qué imágenes son nuestras y borrar
+   * las que queden huérfanas si no se guarda lo que las usaba.
+   */
+  onSubida?: (url: string) => void
 }
 
-export function ImageUploader({ valor, onChange, carpeta, etiqueta, ayuda }: Props) {
+export function ImageUploader({ valor, onChange, carpeta, etiqueta, ayuda, onSubida }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [subiendo, setSubiendo] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -32,6 +38,7 @@ export function ImageUploader({ valor, onChange, carpeta, etiqueta, ayuda }: Pro
     try {
       const r = await subirImagen(archivo, carpeta)
       onChange(r.url)
+      onSubida?.(r.url)
       setResumen(
         `${formatearPeso(r.pesoOriginal)} → ${formatearPeso(r.pesoFinal)} · ${r.ancho}×${r.alto} px`
       )

@@ -126,6 +126,162 @@ export const costosGuardar = z.object({
   costosFacturados: z.record(z.string(), monto).optional().default({}),
 })
 
+// ---------------------------------------------------------------------------
+// Compras a proveedores
+// ---------------------------------------------------------------------------
+
+/** Número opcional que si viene debe ser mayor que cero: '' y null cuentan como ausente. */
+const positivoOpcional = z.preprocess(
+  (v) => (v === '' || v === null || v === undefined ? undefined : v),
+  z.coerce.number({ invalid_type_error: 'debe ser un número' }).finite('debe ser un número').positive('debe ser mayor que cero').optional()
+)
+
+/** Monto opcional que puede ser cero: '' y null cuentan como ausente. */
+const montoSinValorOpcional = z.preprocess(
+  (v) => (v === '' || v === null || v === undefined ? undefined : v),
+  monto.optional()
+)
+
+/**
+ * Imagen del producto: una dirección https. No se limita al servidor del
+ * proyecto porque el selector de imagen también deja pegar una dirección, igual
+ * que en el formulario de productos.
+ */
+const urlImagenOpcional = z.preprocess(
+  (v) => (v === '' ? null : v),
+  z
+    .string()
+    .trim()
+    .max(500, 'admite como máximo 500 caracteres')
+    .url('no es una dirección válida')
+    .refine((u) => u.startsWith('https://'), 'debe ser una dirección https')
+    .nullish()
+    .transform((v) => v ?? null)
+)
+
+/** El SKU sin mayúsculas ni espacios, para detectar repetidos en una misma compra. */
+const claveSku = (sku: string) => sku.trim().toUpperCase()
+
+const lineaCompra = z.object({
+  // Presente si la línea es de un producto que ya existe en la tienda.
+  productoId: idOpcional,
+  // true si quien compra descartó el aviso de nombres parecidos y quiere crear uno nuevo.
+  confirmadoNuevo: z.boolean().optional().default(false),
+
+  sku: z.string().trim().min(1, 'escribe el SKU').max(100, 'admite como máximo 100 caracteres'),
+  // Estos tres solo son obligatorios si la línea crea un producto (ver superRefine).
+  nombre: z.string().trim().max(255, 'admite como máximo 255 caracteres').optional(),
+  categoria: z.string().trim().max(100, 'admite como máximo 100 caracteres').optional(),
+  precioUnitario: montoSinValorOpcional, // precio de VENTA al público
+
+  dimensiones: textoOpcional(50),
+  color: textoOpcional(100),
+  acabado: textoOpcional(100),
+  espesorMm: positivoOpcional,
+  m2PorCaja: positivoOpcional,
+  precioBodega: positivoOpcional,
+  stockMinimo: montoSinValorOpcional,
+  descripcion: textoOpcional(2000),
+  imagenUrl: urlImagenOpcional,
+
+  cantidad: z.coerce.number({ invalid_type_error: 'debe ser un número' }).finite('debe ser un número').positive('debe ser mayor que cero'),
+  // Lo que dice el papel, por unidad.
+  precioFactura: monto,
+  // El costo final por unidad, solo si la persona lo escribió a mano.
+  costoFinalManual: montoSinValorOpcional,
+})
+
+export const compraNueva = z
+  .object({
+    proveedorId: z.string().uuid('elige un proveedor'),
+    // Una fecha sin hora ("2026-10-03") se guarda a mediodía UTC: a medianoche
+    // caería en el día anterior para quien está en Colombia (UTC-5).
+    fecha: z.preprocess(
+      (v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.trim()) ? `${v.trim()}T12:00:00Z` : v),
+      z.coerce.date({ invalid_type_error: 'no es una fecha válida', required_error: 'indica la fecha' })
+    ),
+    numeroFacturaProveedor: textoOpcional(100),
+    observaciones: textoOpcional(2000),
+    metodoReparto: z.enum(['valor', 'cantidad']).optional().default('valor'),
+    costosExtra: z
+      .array(
+        z.object({
+          concepto: z.string().trim().min(1, 'escribe el concepto').max(255, 'admite como máximo 255 caracteres'),
+          valor: z.coerce.number({ invalid_type_error: 'debe ser un número' }).finite('debe ser un número').positive('debe ser mayor que cero'),
+        })
+      )
+      .max(20, 'como máximo 20 costos adicionales')
+      .optional()
+      .default([]),
+    items: z
+      .array(lineaCompra)
+      .min(1, 'agrega al menos una línea')
+      .max(100, 'como máximo 100 líneas por compra'),
+  })
+  .superRefine((compra, ctx) => {
+    const vistos = new Map<string, number>()
+
+    compra.items.forEach((linea, i) => {
+      const clave = claveSku(linea.sku)
+      const anterior = vistos.get(clave)
+      if (anterior !== undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['items', i, 'sku'],
+          message: `Línea ${i + 1}: el SKU ${linea.sku} ya está en la línea ${anterior + 1}`,
+        })
+      } else {
+        vistos.set(clave, i)
+      }
+
+      // Una línea sin productoId crea un producto: todo producto exige nombre,
+      // categoría y precio de venta.
+      if (!linea.productoId) {
+        if (!linea.nombre) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['items', i, 'nombre'], message: `Línea ${i + 1}: escribe el nombre del producto nuevo` })
+        }
+        if (!linea.categoria) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['items', i, 'categoria'], message: `Línea ${i + 1}: elige la categoría del producto nuevo` })
+        }
+        if (!(Number(linea.precioUnitario) > 0)) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['items', i, 'precioUnitario'], message: `Línea ${i + 1}: escribe el precio de venta del producto nuevo` })
+        }
+      }
+    })
+  })
+
+export type CompraNueva = z.infer<typeof compraNueva>
+
+/** Proveedor: solo el nombre es obligatorio. Sirve para crear y para editar. */
+export const proveedorNuevo = z.object({
+  nombre: z.string().trim().min(1, 'escribe el nombre').max(255, 'admite como máximo 255 caracteres'),
+  nit: textoOpcional(50),
+  telefono: textoOpcional(30),
+  email: textoOpcional(255).refine(
+    (v) => v === null || z.string().email().safeParse(v).success,
+    'no es un correo válido'
+  ),
+  direccion: textoOpcional(500),
+})
+
+/** Clasificar las líneas de una compra (existente, nuevo, parecidos) antes de guardarla. */
+export const compraVerificar = z.object({
+  lineas: z
+    .array(
+      z.object({
+        sku: z.string().trim().min(1, 'escribe el SKU').max(100, 'admite como máximo 100 caracteres'),
+        nombre: textoOpcional(255),
+      })
+    )
+    .min(1, 'agrega al menos una línea')
+    .max(100, 'como máximo 100 líneas por compra'),
+})
+
+/** Anular una compra: el motivo es obligatorio. */
+export const compraAnulacion = z.object({
+  motivo: z.string().trim().min(1, 'escribe el motivo de la anulación').max(1000, 'admite como máximo 1000 caracteres'),
+})
+
 /** Perfil de la cuenta: el nombre y el teléfono son opcionales y se pueden borrar. */
 export const perfilNuevo = z.object({
   nombre: textoOpcional(120),

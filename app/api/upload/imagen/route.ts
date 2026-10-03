@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { usuarioDePeticion, puedeAlguno } from '@/lib/permisos'
+import { PERMISOS_SUBIR_POR_CARPETA, puedeBorrarImagen } from '@/lib/imagen-permisos'
 
 const BUCKET = 'productos'
 const TAMANO_MAXIMO = 2 * 1024 * 1024
 const TIPOS = ['image/webp', 'image/jpeg', 'image/png']
 
-// Cada carpeta exige la acción correspondiente: subir la foto de un producto
-// es parte de crearlo o editarlo, y el logo es configuración de la tienda.
-const PERMISO_POR_CARPETA: Record<string, string[]> = {
-  productos: ['productos.crear', 'productos.editar'],
-  logos: ['configuracion.editar'],
-}
+// Qué permisos abren cada carpeta (subir la foto de un producto es parte de
+// crearlo, editarlo o registrarlo en una compra; el logo es configuración de la
+// tienda) está en lib/imagen-permisos.ts, donde se prueba aparte.
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,7 +21,7 @@ export async function POST(request: NextRequest) {
     const archivo = form.get('archivo')
     const carpeta = String(form.get('carpeta') || '')
 
-    const permisoNecesario = PERMISO_POR_CARPETA[carpeta]
+    const permisoNecesario = PERMISOS_SUBIR_POR_CARPETA[carpeta]
     if (!permisoNecesario) {
       return NextResponse.json({ error: 'Destino no válido' }, { status: 400 })
     }
@@ -100,10 +98,10 @@ export async function DELETE(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const ruta = searchParams.get('ruta') || ''
-    const carpeta = ruta.split('/')[0]
 
-    const permisoNecesario = PERMISO_POR_CARPETA[carpeta]
-    if (!permisoNecesario || !puedeAlguno(usuario, permisoNecesario)) {
+    // Quien edita productos o la configuración borra lo de su carpeta; quien solo
+    // registra compras, únicamente imágenes recién subidas (ver imagen-permisos).
+    if (!puedeBorrarImagen(usuario, ruta)) {
       return NextResponse.json({ error: 'No tienes permiso' }, { status: 403 })
     }
 

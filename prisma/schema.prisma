@@ -36,6 +36,8 @@ model Usuario {
   cotizacionesCreadas Cotizacion[]
   liquidacionesRecibidas Liquidacion[] @relation("LiquidacionVendedor")
   liquidacionesHechas    Liquidacion[] @relation("LiquidacionAutor")
+  comprasHechas          Compra[]      @relation("CompraAutor")
+  comprasAnuladas        Compra[]      @relation("CompraAnulador")
   abonos    Abono[]
   movimientosInventario InventarioMovimiento[]
   auditoria Auditoria[]
@@ -79,6 +81,8 @@ model Tienda {
   facturas    Factura[]
   cotizaciones Cotizacion[]
   liquidaciones Liquidacion[]
+  proveedores Proveedor[]
+  compras     Compra[]
   auditoria   Auditoria[]
   configuracion Configuracion[]
 
@@ -242,6 +246,7 @@ model Producto {
   facturasItems FacturaItem[]
   cotizacionesItems CotizacionItem[]
   movimientosInventario InventarioMovimiento[]
+  comprasItems CompraItem[]
 
   // El SKU es único por tienda solo entre los productos activos: un producto
   // borrado (activo = false) libera su SKU. Prisma no sabe declarar índices
@@ -447,6 +452,120 @@ model Liquidacion {
   @@index([vendedorId])
   @@index([fecha])
   @@map("liquidaciones")
+}
+
+/// Proveedor de una tienda. No se comparte entre tiendas.
+model Proveedor {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  tiendaId  String   @map("tienda_id") @db.Uuid
+  tienda    Tienda   @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+
+  nombre    String   @db.VarChar(255)
+  /// NULL (nunca '') cuando no hay NIT: así el único no choca entre proveedores sin NIT.
+  nit       String?  @db.VarChar(50)
+  telefono  String?  @db.VarChar(30)
+  email     String?  @db.VarChar(255)
+  direccion String?  @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  compras   Compra[]
+
+  @@unique([tiendaId, nit], map: "proveedores_tienda_nit_key")
+  @@index([tiendaId])
+  @@map("proveedores")
+}
+
+/// Factura de compra a un proveedor. No se edita ni se borra: se anula.
+model Compra {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  tiendaId     String   @map("tienda_id") @db.Uuid
+  tienda       Tienda   @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+
+  proveedorId  String   @map("proveedor_id") @db.Uuid
+  proveedor    Proveedor @relation(fields: [proveedorId], references: [id])
+
+  /// El número de la factura del proveedor. Opcional. Una misma factura de un
+  /// proveedor no se registra dos veces mientras la anterior no esté anulada:
+  /// es un índice ÚNICO PARCIAL (compras_tienda_proveedor_factura_key) que
+  /// vive en docs/sql/compras.sql, porque Prisma no sabe declararlos. No usar
+  /// `prisma db push`: lo borraría.
+  numeroFacturaProveedor String? @map("numero_factura_proveedor") @db.VarChar(100)
+  fecha        DateTime @default(now()) @db.Timestamptz
+
+  subtotal     Decimal  @db.Decimal(14, 2)
+  totalExtras  Decimal  @default(0) @map("total_extras") @db.Decimal(14, 2)
+  total        Decimal  @db.Decimal(14, 2)
+
+  /// 'valor' o 'cantidad': cómo se repartieron los costos adicionales.
+  metodoReparto String  @default("valor") @map("metodo_reparto") @db.VarChar(10)
+  /// 'registrada' o 'anulada'.
+  estado       String   @default("registrada") @db.VarChar(20)
+  observaciones String? @db.Text
+
+  creadaPor    String?  @map("creada_por") @db.Uuid
+  autor        Usuario? @relation("CompraAutor", fields: [creadaPor], references: [id])
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  anuladaPor   String?  @map("anulada_por") @db.Uuid
+  anulador     Usuario? @relation("CompraAnulador", fields: [anuladaPor], references: [id])
+  anuladaEn    DateTime? @map("anulada_en") @db.Timestamptz
+  motivoAnulacion String? @map("motivo_anulacion") @db.Text
+
+  items        CompraItem[]
+  costosExtra  CompraCostoExtra[]
+
+  @@index([tiendaId])
+  @@index([proveedorId])
+  @@index([fecha])
+  @@map("compras")
+}
+
+/// Una línea de la compra, enlazada a un producto.
+model CompraItem {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  compraId       String   @map("compra_id") @db.Uuid
+  compra         Compra   @relation(fields: [compraId], references: [id], onDelete: Cascade)
+
+  productoId     String   @map("producto_id") @db.Uuid
+  producto       Producto @relation(fields: [productoId], references: [id])
+
+  /// Copia del nombre al comprar, por si luego se renombra el producto.
+  productoNombre String   @map("producto_nombre") @db.VarChar(255)
+  /// true si el producto se creó en esta misma compra.
+  productoCreado Boolean  @default(false) @map("producto_creado")
+
+  cantidad       Decimal  @db.Decimal(12, 2)
+  /// Lo que dice el papel, por unidad.
+  precioFactura  Decimal  @map("precio_factura") @db.Decimal(12, 2)
+  /// La parte repartida de los costos adicionales (total de la línea).
+  costoExtra     Decimal  @default(0) @map("costo_extra") @db.Decimal(12, 2)
+  /// El costo por unidad que queda en el producto.
+  costoFinal     Decimal  @map("costo_final") @db.Decimal(12, 2)
+  /// true si el costo final se escribió a mano.
+  costoEditado   Boolean  @default(false) @map("costo_editado")
+
+  @@index([compraId])
+  @@index([productoId])
+  @@map("compras_items")
+}
+
+/// Costo adicional de una compra (flete, descargue...).
+model CompraCostoExtra {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  compraId  String  @map("compra_id") @db.Uuid
+  compra    Compra  @relation(fields: [compraId], references: [id], onDelete: Cascade)
+
+  concepto  String  @db.VarChar(255)
+  valor     Decimal @db.Decimal(12, 2)
+
+  @@index([compraId])
+  @@map("compras_costos_extra")
 }
 
 /// Una factura que no se vende: guarda cliente, productos y precios, pero no

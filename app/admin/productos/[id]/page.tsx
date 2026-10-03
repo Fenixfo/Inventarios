@@ -7,6 +7,7 @@ import { apiFetch } from '@/lib/api-client'
 import { ImageUploader } from '@/components/ImageUploader'
 import { PermissionProtector } from '@/components/PermissionProtector'
 import { SelectorCategoria } from '@/components/Common/SelectorCategoria'
+import { HistorialDeCompras } from '@/components/compras/HistorialDeCompras'
 
 interface Producto {
   id: string
@@ -387,6 +388,9 @@ export default function EditProductoPage() {
             </button>
           </div>
         </form>
+
+        {/* Fuera del formulario: no lo afecta ni se envía con él. */}
+        <HistorialDeCompras productoId={formData.id} />
       </div>
     </PermissionProtector>
   )

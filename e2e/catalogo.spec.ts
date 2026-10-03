@@ -93,12 +93,21 @@ test.describe('Catálogo público', () => {
     const tarjetas = page.getByTestId('productos').locator('> div')
     await expect(tarjetas.first()).toBeVisible()
 
+    const selectorTienda = page.getByLabel('Tienda', { exact: true })
+    // El desplegable aparece cuando llegan los filtros.
+    await selectorTienda.waitFor({ timeout: 10000 }).catch(() => {})
+    const haySelector = await selectorTienda.isVisible().catch(() => false)
+
+    // La portada arranca en la tienda principal. La vitrina con una muestra de
+    // cada tienda es "Todas las tiendas": se elige a propósito en vez de
+    // depender del instante en que la portada cambia a la principal.
+    if (haySelector) await selectorTienda.selectOption('')
+
     // Es una vitrina: con varias tiendas y cientos de productos cada una,
     // volcarlo todo deja al visitante desplazándose sin rumbo.
     await expect(page.getByText(/lo más reciente de cada tienda/i)).toBeVisible()
 
-    const selectorTienda = page.getByLabel('Tienda', { exact: true })
-    if (!(await selectorTienda.isVisible().catch(() => false))) return
+    if (!haySelector) return
 
     const enPortada = await tarjetas.count()
     const tienda = (await selectorTienda.locator('option').nth(1).getAttribute('value'))!
